@@ -1,4 +1,4 @@
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Modal, Alert } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Modal } from 'react-native';
 import React, { useState, useEffect } from 'react';
 import { exercises } from '@/data/exercises';
 import { workouts } from '@/data/workouts';
@@ -18,6 +18,22 @@ export default function HomeScreen() {
   const [toastMessage, setToastMessage] = useState<string | null>(null);
 
   const { addWorkout, isWorkoutSaved, savedWorkouts } = useSavedWorkoutsStore();
+
+  // Check if saved workout differs from original
+  const hasWorkoutChanged = (originalId: string): boolean => {
+    const original = workouts.find(w => w.id === originalId);
+    const saved = savedWorkouts.find(w => w.originalId === originalId);
+    
+    if (!original || !saved) return false;
+    
+    // Compare name, description, and exercises
+    return (
+      saved.name !== original.name ||
+      saved.description !== original.description ||
+      saved.exercises.length !== original.exercises.length ||
+      !saved.exercises.every((ex, i) => ex === original.exercises[i])
+    );
+  };
 
   // Show toast for a few seconds
   useEffect(() => {
@@ -83,6 +99,11 @@ export default function HomeScreen() {
   const selectedWorkoutData = selectedWorkout
     ? workouts.find(w => w.id === selectedWorkout)
     : null;
+
+  // Check if the selected workout can be saved
+  const canSaveSelectedWorkout = selectedWorkout
+    ? !isWorkoutSaved(selectedWorkout) || hasWorkoutChanged(selectedWorkout)
+    : false;
 
   const exerciseToAddData = exerciseToAdd
     ? exercises.find(e => e.id === exerciseToAdd)
@@ -206,9 +227,16 @@ export default function HomeScreen() {
               <View style={styles.workoutTitleRow}>
                 <Text style={styles.modalTitle}>{selectedWorkoutData?.name}</Text>
                 <TouchableOpacity 
-                  style={styles.addToSavedButton}
-                  onPress={handleAddWorkoutFromDetailModal}>
-                  <Text style={styles.addToSavedButtonText}>+</Text>
+                  style={[
+                    styles.addToSavedButton,
+                    !canSaveSelectedWorkout && styles.addToSavedButtonDisabled
+                  ]}
+                  onPress={canSaveSelectedWorkout ? handleAddWorkoutFromDetailModal : undefined}
+                  disabled={!canSaveSelectedWorkout}>
+                  <Text style={[
+                    styles.addToSavedButtonText,
+                    !canSaveSelectedWorkout && styles.addToSavedButtonTextDisabled
+                  ]}>+</Text>
                 </TouchableOpacity>
               </View>
               <TouchableOpacity 
@@ -344,7 +372,7 @@ export default function HomeScreen() {
               <Text style={styles.closeXText}>✕</Text>
             </TouchableOpacity>
             <Text style={styles.modalTitle}>
-              Add "{workoutToAddData?.name}" to your Saved Workouts?
+              Add &ldquo;{workoutToAddData?.name}&rdquo; to your Saved Workouts?
             </Text>
             <TouchableOpacity 
               style={styles.optionButton}
@@ -487,6 +515,13 @@ const styles = StyleSheet.create({
     color: '#fff',
     fontSize: 18,
     fontWeight: '600',
+  },
+  addToSavedButtonDisabled: {
+    borderColor: '#555',
+    opacity: 0.5,
+  },
+  addToSavedButtonTextDisabled: {
+    color: '#555',
   },
   closeX: {
     position: 'absolute',
