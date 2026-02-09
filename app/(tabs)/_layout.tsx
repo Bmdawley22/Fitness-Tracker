@@ -20,8 +20,8 @@ export default function TabLayout() {
           backgroundColor: '#000',
           borderTopColor: '#222',
           borderTopWidth: 1,
-          height: 90,
-          paddingBottom: 12,
+          height: 80,
+          paddingBottom: 8,
           paddingTop: 8,
         },
         tabBarLabelStyle: {
@@ -30,9 +30,7 @@ export default function TabLayout() {
           fontWeight: '500',
         },
         tabBarIconStyle: {
-          marginBottom: 0,
-          justifyContent: 'center',
-          alignItems: 'center',
+          marginBottom: 4,
         },
       }}>
       <Tabs.Screen
