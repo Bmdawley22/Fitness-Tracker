@@ -43,21 +43,21 @@ export default function TabLayout() {
       <Tabs.Screen
         name="search"
         options={{
-          title: 'Search',
+          title: '',
           tabBarIcon: ({ color }) => <IconSymbol size={32} name="magnifyingglass" color={color} />,
         }}
       />
       <Tabs.Screen
         name="workouts"
         options={{
-          title: 'Your Workouts',
+          title: 'Saved',
           tabBarIcon: ({ color }) => <IconSymbol size={32} name="list.bullet" color={color} />,
         }}
       />
       <Tabs.Screen
         name="add"
         options={{
-          title: 'Add',
+          title: '',
           tabBarIcon: ({ color }) => <IconSymbol size={32} name="plus" color={color} />,
         }}
       />
