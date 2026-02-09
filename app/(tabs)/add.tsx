@@ -1,9 +1,8 @@
 import { View, Text, StyleSheet } from 'react-native';
-import { useFocusEffect } from '@react-navigation/native';
 import React, { useState } from 'react';
 
-export default function HomeScreen() {
-  const [tabName] = useState('Home');
+export default function AddScreen() {
+  const [tabName] = useState('Add');
 
   return (
     <View style={styles.container}>
