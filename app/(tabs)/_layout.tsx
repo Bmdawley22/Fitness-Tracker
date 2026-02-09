@@ -31,6 +31,8 @@ export default function TabLayout() {
         },
         tabBarIconStyle: {
           marginBottom: 0,
+          justifyContent: 'center',
+          alignItems: 'center',
         },
       }}>
       <Tabs.Screen
