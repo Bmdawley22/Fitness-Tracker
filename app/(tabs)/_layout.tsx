@@ -57,7 +57,11 @@ export default function TabLayout() {
       <Tabs.Screen
         name="add"
         options={{
+<<<<<<< feature/hide-tab-labels
           title: '',
+=======
+          title: '+',
+>>>>>>> main
           tabBarIcon: ({ color }) => <IconSymbol size={32} name="plus" color={color} />,
         }}
       />
