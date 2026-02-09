@@ -164,23 +164,36 @@ export default function HomeScreen() {
           </View>
         ))}
 
-        {selectedFilter === 'workouts' && workouts.map(workout => (
-          <View key={workout.id} style={styles.listItem}>
-            <TouchableOpacity 
-              style={styles.listItemButton}
-              onPress={() => setSelectedWorkout(workout.id)}>
-              <View>
-                <Text style={styles.listItemText}>{workout.name}</Text>
-                <Text style={styles.listItemDescription}>{workout.description}</Text>
-              </View>
-            </TouchableOpacity>
-            <TouchableOpacity 
-              style={styles.plusButton}
-              onPress={() => handleWorkoutPlusClick(workout.id)}>
-              <Text style={styles.plusText}>+</Text>
-            </TouchableOpacity>
-          </View>
-        ))}
+        {selectedFilter === 'workouts' && workouts.map(workout => {
+          const isSaved = isWorkoutSaved(workout.id);
+          const hasChanged = hasWorkoutChanged(workout.id);
+          const canSave = !isSaved || hasChanged;
+          
+          return (
+            <View key={workout.id} style={styles.listItem}>
+              <TouchableOpacity 
+                style={styles.listItemButton}
+                onPress={() => setSelectedWorkout(workout.id)}>
+                <View>
+                  <Text style={styles.listItemText}>{workout.name}</Text>
+                  <Text style={styles.listItemDescription}>{workout.description}</Text>
+                </View>
+              </TouchableOpacity>
+              <TouchableOpacity 
+                style={[
+                  styles.plusButton,
+                  !canSave && styles.plusButtonDisabled
+                ]}
+                onPress={canSave ? () => handleWorkoutPlusClick(workout.id) : undefined}
+                disabled={!canSave}>
+                <Text style={[
+                  styles.plusText,
+                  !canSave && styles.plusTextDisabled
+                ]}>+</Text>
+              </TouchableOpacity>
+            </View>
+          );
+        })}
       </ScrollView>
 
       {/* Toast */}
@@ -463,10 +476,17 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
+  plusButtonDisabled: {
+    borderColor: '#555',
+    opacity: 0.5,
+  },
   plusText: {
     color: '#fff',
     fontSize: 20,
     fontWeight: '600',
+  },
+  plusTextDisabled: {
+    color: '#555',
   },
   modalOverlay: {
     flex: 1,
