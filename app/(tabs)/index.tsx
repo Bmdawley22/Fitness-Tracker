@@ -1,7 +1,8 @@
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Modal } from 'react-native';
-import React, { useState } from 'react';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Modal, Alert } from 'react-native';
+import React, { useState, useEffect } from 'react';
 import { exercises } from '@/data/exercises';
 import { workouts } from '@/data/workouts';
+import { useSavedWorkoutsStore } from '@/store/savedWorkouts';
 
 type FilterType = 'all' | 'workouts' | 'exercises';
 
@@ -12,15 +13,67 @@ export default function HomeScreen() {
   const [showAddExerciseModal, setShowAddExerciseModal] = useState(false);
   const [exerciseToAdd, setExerciseToAdd] = useState<string | null>(null);
   const [showWorkoutSelectionModal, setShowWorkoutSelectionModal] = useState(false);
+  const [showAddWorkoutModal, setShowAddWorkoutModal] = useState(false);
+  const [workoutToAdd, setWorkoutToAdd] = useState<string | null>(null);
+  const [toastMessage, setToastMessage] = useState<string | null>(null);
+
+  const { addWorkout, isWorkoutSaved, savedWorkouts } = useSavedWorkoutsStore();
+
+  // Show toast for a few seconds
+  useEffect(() => {
+    if (toastMessage) {
+      const timer = setTimeout(() => setToastMessage(null), 2500);
+      return () => clearTimeout(timer);
+    }
+  }, [toastMessage]);
 
   const handleExercisePlusClick = (exerciseId: string) => {
     setExerciseToAdd(exerciseId);
     setShowAddExerciseModal(true);
   };
 
+  const handleWorkoutPlusClick = (workoutId: string) => {
+    setWorkoutToAdd(workoutId);
+    setShowAddWorkoutModal(true);
+  };
+
   const handleAddToExistingWorkout = () => {
     setShowAddExerciseModal(false);
     setShowWorkoutSelectionModal(true);
+  };
+
+  const handleAddWorkoutToSaved = () => {
+    if (!workoutToAdd) return;
+    
+    const workout = workouts.find(w => w.id === workoutToAdd);
+    if (!workout) return;
+
+    if (isWorkoutSaved(workout.id)) {
+      setToastMessage('Already saved!');
+      setShowAddWorkoutModal(false);
+      setWorkoutToAdd(null);
+      return;
+    }
+
+    const success = addWorkout({
+      originalId: workout.id,
+      name: workout.name,
+      description: workout.description,
+      exercises: [...workout.exercises],
+    });
+
+    if (success) {
+      setToastMessage('Workout saved!');
+    }
+    
+    setShowAddWorkoutModal(false);
+    setWorkoutToAdd(null);
+  };
+
+  const handleAddWorkoutFromDetailModal = () => {
+    if (!selectedWorkout) return;
+    setWorkoutToAdd(selectedWorkout);
+    setShowAddWorkoutModal(true);
   };
 
   const selectedExerciseData = selectedExercise 
@@ -34,6 +87,15 @@ export default function HomeScreen() {
   const exerciseToAddData = exerciseToAdd
     ? exercises.find(e => e.id === exerciseToAdd)
     : null;
+
+  const workoutToAddData = workoutToAdd
+    ? workouts.find(w => w.id === workoutToAdd)
+    : null;
+
+  // Get exercise names for a workout
+  const getWorkoutExercises = (exerciseIds: string[]) => {
+    return exerciseIds.map(id => exercises.find(e => e.id === id)).filter(Boolean);
+  };
 
   return (
     <View style={styles.container}>
@@ -91,12 +153,21 @@ export default function HomeScreen() {
                 <Text style={styles.listItemDescription}>{workout.description}</Text>
               </View>
             </TouchableOpacity>
-            <TouchableOpacity style={styles.plusButton}>
+            <TouchableOpacity 
+              style={styles.plusButton}
+              onPress={() => handleWorkoutPlusClick(workout.id)}>
               <Text style={styles.plusText}>+</Text>
             </TouchableOpacity>
           </View>
         ))}
       </ScrollView>
+
+      {/* Toast */}
+      {toastMessage && (
+        <View style={styles.toast}>
+          <Text style={styles.toastText}>{toastMessage}</Text>
+        </View>
+      )}
 
       {/* Exercise Detail Modal */}
       <Modal
@@ -106,6 +177,11 @@ export default function HomeScreen() {
         onRequestClose={() => setSelectedExercise(null)}>
         <View style={styles.modalOverlay}>
           <View style={styles.modalContent}>
+            <TouchableOpacity 
+              style={styles.closeX}
+              onPress={() => setSelectedExercise(null)}>
+              <Text style={styles.closeXText}>✕</Text>
+            </TouchableOpacity>
             <Text style={styles.modalTitle}>{selectedExerciseData?.name}</Text>
             <Text style={styles.modalDescription}>{selectedExerciseData?.description}</Text>
             <TouchableOpacity 
@@ -124,9 +200,36 @@ export default function HomeScreen() {
         animationType="fade"
         onRequestClose={() => setSelectedWorkout(null)}>
         <View style={styles.modalOverlay}>
-          <View style={styles.modalContent}>
-            <Text style={styles.modalTitle}>{selectedWorkoutData?.name}</Text>
+          <View style={styles.workoutModalContent}>
+            {/* Header with X and title */}
+            <View style={styles.workoutModalHeader}>
+              <View style={styles.workoutTitleRow}>
+                <Text style={styles.modalTitle}>{selectedWorkoutData?.name}</Text>
+                <TouchableOpacity 
+                  style={styles.addToSavedButton}
+                  onPress={handleAddWorkoutFromDetailModal}>
+                  <Text style={styles.addToSavedButtonText}>+</Text>
+                </TouchableOpacity>
+              </View>
+              <TouchableOpacity 
+                style={styles.closeX}
+                onPress={() => setSelectedWorkout(null)}>
+                <Text style={styles.closeXText}>✕</Text>
+              </TouchableOpacity>
+            </View>
+            
             <Text style={styles.modalDescription}>{selectedWorkoutData?.description}</Text>
+            
+            {/* Exercises List */}
+            <Text style={styles.exercisesHeader}>Exercises</Text>
+            <ScrollView style={styles.exercisesList}>
+              {selectedWorkoutData && getWorkoutExercises(selectedWorkoutData.exercises).map((exercise, index) => (
+                <View key={exercise?.id || index} style={styles.exerciseListItem}>
+                  <Text style={styles.exerciseListText}>{exercise?.name}</Text>
+                </View>
+              ))}
+            </ScrollView>
+            
             <TouchableOpacity 
               style={styles.closeButton}
               onPress={() => setSelectedWorkout(null)}>
@@ -144,6 +247,11 @@ export default function HomeScreen() {
         onRequestClose={() => setShowAddExerciseModal(false)}>
         <View style={styles.modalOverlay}>
           <View style={styles.modalContent}>
+            <TouchableOpacity 
+              style={styles.closeX}
+              onPress={() => setShowAddExerciseModal(false)}>
+              <Text style={styles.closeXText}>✕</Text>
+            </TouchableOpacity>
             <Text style={styles.modalTitle}>Add Exercise</Text>
             <TouchableOpacity 
               style={styles.optionButton}
@@ -175,14 +283,22 @@ export default function HomeScreen() {
         onRequestClose={() => setShowWorkoutSelectionModal(false)}>
         <View style={styles.modalOverlay}>
           <View style={styles.modalContent}>
+            <TouchableOpacity 
+              style={styles.closeX}
+              onPress={() => {
+                setShowWorkoutSelectionModal(false);
+                setExerciseToAdd(null);
+              }}>
+              <Text style={styles.closeXText}>✕</Text>
+            </TouchableOpacity>
             <Text style={styles.modalTitle}>
               Add {exerciseToAddData?.name} to Workout Below
             </Text>
-            {workouts.length === 0 ? (
+            {savedWorkouts.length === 0 ? (
               <Text style={styles.noWorkoutsText}>No saved workouts.</Text>
             ) : (
               <ScrollView style={styles.workoutSelectionList}>
-                {workouts.map(workout => (
+                {savedWorkouts.map(workout => (
                   <TouchableOpacity 
                     key={workout.id}
                     style={styles.workoutSelectionItem}
@@ -201,6 +317,45 @@ export default function HomeScreen() {
               onPress={() => {
                 setShowWorkoutSelectionModal(false);
                 setExerciseToAdd(null);
+              }}>
+              <Text style={styles.closeButtonText}>Cancel</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
+
+      {/* Add Workout to Saved Modal */}
+      <Modal
+        visible={showAddWorkoutModal}
+        transparent={true}
+        animationType="fade"
+        onRequestClose={() => {
+          setShowAddWorkoutModal(false);
+          setWorkoutToAdd(null);
+        }}>
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContent}>
+            <TouchableOpacity 
+              style={styles.closeX}
+              onPress={() => {
+                setShowAddWorkoutModal(false);
+                setWorkoutToAdd(null);
+              }}>
+              <Text style={styles.closeXText}>✕</Text>
+            </TouchableOpacity>
+            <Text style={styles.modalTitle}>
+              Add "{workoutToAddData?.name}" to your Saved Workouts?
+            </Text>
+            <TouchableOpacity 
+              style={styles.optionButton}
+              onPress={handleAddWorkoutToSaved}>
+              <Text style={styles.optionButtonText}>Add</Text>
+            </TouchableOpacity>
+            <TouchableOpacity 
+              style={styles.closeButton}
+              onPress={() => {
+                setShowAddWorkoutModal(false);
+                setWorkoutToAdd(null);
               }}>
               <Text style={styles.closeButtonText}>Cancel</Text>
             </TouchableOpacity>
@@ -297,19 +452,89 @@ const styles = StyleSheet.create({
     padding: 24,
     width: '85%',
     maxHeight: '70%',
+    position: 'relative',
+  },
+  workoutModalContent: {
+    backgroundColor: '#1a1a1a',
+    borderRadius: 12,
+    padding: 24,
+    width: '90%',
+    maxHeight: '80%',
+    position: 'relative',
+  },
+  workoutModalHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'flex-start',
+    marginBottom: 16,
+  },
+  workoutTitleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flex: 1,
+    gap: 12,
+  },
+  addToSavedButton: {
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    borderWidth: 2,
+    borderColor: '#fff',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  addToSavedButtonText: {
+    color: '#fff',
+    fontSize: 18,
+    fontWeight: '600',
+  },
+  closeX: {
+    position: 'absolute',
+    top: 12,
+    right: 12,
+    width: 30,
+    height: 30,
+    alignItems: 'center',
+    justifyContent: 'center',
+    zIndex: 10,
+  },
+  closeXText: {
+    color: '#888',
+    fontSize: 20,
+    fontWeight: '600',
   },
   modalTitle: {
     color: '#fff',
     fontSize: 20,
     fontWeight: '700',
     marginBottom: 16,
-    textAlign: 'center',
+    marginTop: 8,
+    paddingRight: 30,
   },
   modalDescription: {
     color: '#ccc',
     fontSize: 16,
     lineHeight: 24,
-    marginBottom: 24,
+    marginBottom: 16,
+  },
+  exercisesHeader: {
+    color: '#fff',
+    fontSize: 16,
+    fontWeight: '600',
+    marginBottom: 8,
+  },
+  exercisesList: {
+    maxHeight: 200,
+    marginBottom: 16,
+  },
+  exerciseListItem: {
+    paddingVertical: 8,
+    borderBottomWidth: 1,
+    borderBottomColor: '#333',
+  },
+  exerciseListText: {
+    color: '#ccc',
+    fontSize: 14,
   },
   closeButton: {
     backgroundColor: '#333',
@@ -352,6 +577,21 @@ const styles = StyleSheet.create({
   },
   workoutSelectionText: {
     color: '#000',
+    fontSize: 16,
+    fontWeight: '500',
+  },
+  toast: {
+    position: 'absolute',
+    bottom: 100,
+    left: 20,
+    right: 20,
+    backgroundColor: '#333',
+    padding: 16,
+    borderRadius: 8,
+    alignItems: 'center',
+  },
+  toastText: {
+    color: '#fff',
     fontSize: 16,
     fontWeight: '500',
   },
