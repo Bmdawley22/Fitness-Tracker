@@ -29,6 +29,7 @@ interface SavedWorkoutsState {
   addWorkout: (workout: Omit<SavedWorkout, 'id' | 'order' | 'createdAt'>) => boolean;
   removeWorkout: (id: string) => void;
   updateWorkout: (id: string, updates: Partial<SavedWorkout>) => void;
+  updateAndRegenerateId: (id: string, updates: Partial<SavedWorkout>) => void;
   removeExerciseFromWorkout: (workoutId: string, exerciseId: string) => void;
   reorderWorkouts: (workouts: SavedWorkout[]) => void;
   isWorkoutSaved: (originalId: string) => boolean;
@@ -75,6 +76,27 @@ export const useSavedWorkoutsStore = create<SavedWorkoutsState>()(
             w.id === id ? { ...w, ...updates } : w
           )
         }));
+      },
+      
+      updateAndRegenerateId: (id, updates) => {
+        set(state => {
+          const workoutToUpdate = state.savedWorkouts.find(w => w.id === id);
+          if (!workoutToUpdate) return state;
+          
+          const updatedWorkout: SavedWorkout = {
+            ...workoutToUpdate,
+            ...updates,
+            id: `saved-${Date.now()}`, // Generate new ID
+            originalId: '', // Clear originalId - this is now a custom edited workout
+            createdAt: Date.now(),
+          };
+          
+          return {
+            savedWorkouts: state.savedWorkouts.map(w =>
+              w.id === id ? updatedWorkout : w
+            )
+          };
+        });
       },
       
       removeExerciseFromWorkout: (workoutId, exerciseId) => {
