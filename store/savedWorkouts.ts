@@ -87,6 +87,7 @@ export const useSavedWorkoutsStore = create<SavedWorkoutsState>()(
             ...workoutToUpdate,
             ...updates,
             id: `saved-${Date.now()}`, // Generate new ID
+            originalId: '', // Clear originalId - this is now a custom edited workout
             createdAt: Date.now(),
           };
           
