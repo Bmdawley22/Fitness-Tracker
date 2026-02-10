@@ -132,20 +132,13 @@ export default function HomeScreen() {
     }
   }, [toastMessage]);
 
-  const handleAddToSavedExercises = () => {
-    if (!exerciseToAdd) return;
+  const addExerciseToSavedById = (exerciseId: string) => {
+    const exercise = exercises.find(e => e.id === exerciseId);
+    if (!exercise) return false;
 
-    const exercise = exercises.find(e => e.id === exerciseToAdd);
-    if (!exercise) return;
-
-    // Close the add exercise modal first
-    setShowAddExerciseModal(false);
-
-    // Check for duplicate
-    if (isExerciseSaved(exerciseToAdd)) {
+    if (isExerciseSaved(exerciseId)) {
       Alert.alert('Already Saved', `"${exercise.name}" is already in your saved exercises.`);
-      setExerciseToAdd(null);
-      return;
+      return false;
     }
 
     const success = addExercise({
@@ -157,10 +150,18 @@ export default function HomeScreen() {
 
     if (success) {
       setToastMessage(`"${exercise.name}" added to saved exercises!`);
-    } else {
-      Alert.alert('Already Saved', `"${exercise.name}" is already in your saved exercises.`);
+      return true;
     }
 
+    Alert.alert('Already Saved', `"${exercise.name}" is already in your saved exercises.`);
+    return false;
+  };
+
+  const handleAddToSavedExercises = () => {
+    if (!exerciseToAdd) return;
+
+    setShowAddExerciseModal(false);
+    addExerciseToSavedById(exerciseToAdd);
     setExerciseToAdd(null);
   };
 
@@ -179,6 +180,13 @@ export default function HomeScreen() {
     const exerciseId = selectedExercise;
     setSelectedExercise(null);
     handleExercisePlusClick(exerciseId);
+  };
+
+  const handleAddExerciseToSavedFromDetailModal = () => {
+    if (!selectedExercise) return;
+    const exerciseId = selectedExercise;
+    setSelectedExercise(null);
+    addExerciseToSavedById(exerciseId);
   };
 
   const handleAddToExistingWorkout = () => {
@@ -434,9 +442,14 @@ export default function HomeScreen() {
             <Text style={styles.modalTitle}>{selectedExerciseData?.name}</Text>
             <Text style={styles.modalDescription}>{selectedExerciseData?.description}</Text>
             <TouchableOpacity 
-              style={styles.closeButton}
+              style={styles.optionButton}
               onPress={handleAddExerciseFromDetailModal}>
-              <Text style={styles.closeButtonText}>Add to Existing Workout</Text>
+              <Text style={styles.optionButtonText}>Add to Existing Workout</Text>
+            </TouchableOpacity>
+            <TouchableOpacity 
+              style={styles.optionButton}
+              onPress={handleAddExerciseToSavedFromDetailModal}>
+              <Text style={styles.optionButtonText}>Add to Saved Exercises</Text>
             </TouchableOpacity>
           </View>
         </View>
