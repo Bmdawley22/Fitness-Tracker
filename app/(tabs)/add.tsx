@@ -1,9 +1,11 @@
 import { Alert, Dimensions, Modal, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import React, { useMemo, useState } from 'react';
 import { exercises as allExercises } from '@/data/exercises';
-import { useSavedWorkoutsStore } from '@/store/savedWorkouts';
+import { useSavedWorkoutsStore, CustomExercise } from '@/store/savedWorkouts';
 
 const WINDOW_HEIGHT = Dimensions.get('window').height;
+
+export type SelectableExercise = (typeof allExercises)[number] | CustomExercise;
 
 export default function AddScreen() {
   const [createModalVisible, setCreateModalVisible] = useState(false);
@@ -11,28 +13,54 @@ export default function AddScreen() {
   const [workoutDescription, setWorkoutDescription] = useState('');
   const [selectedExercises, setSelectedExercises] = useState<string[]>([]);
   const [searchText, setSearchText] = useState('');
-  const { savedExercises, addWorkout } = useSavedWorkoutsStore();
+  const [createExerciseModalVisible, setCreateExerciseModalVisible] = useState(false);
+  const [exerciseName, setExerciseName] = useState('');
+  const [exerciseDescription, setExerciseDescription] = useState('');
+  const [exerciseCategory, setExerciseCategory] = useState('');
+  const [categoryDropdownVisible, setCategoryDropdownVisible] = useState(false);
+  const [workoutDropdownVisible, setWorkoutDropdownVisible] = useState(false);
+  const [selectedWorkoutForExercise, setSelectedWorkoutForExercise] = useState<string | null>(null);
+  const [addToSavedExercises, setAddToSavedExercises] = useState(true);
+  const {
+    savedExercises,
+    savedWorkouts,
+    customExercises,
+    addWorkout,
+    addCustomExercise,
+    addExercise,
+    addExerciseToWorkout,
+  } = useSavedWorkoutsStore();
 
   const MAX_EXERCISES = 12;
+  const categoryOptions = ['Core', 'Chest', 'Shoulders', 'Biceps', 'Triceps', 'Back', 'Legs', 'Abs'];
 
   const savedExerciseIds = useMemo(
     () => new Set(savedExercises.map(exercise => exercise.originalId)),
     [savedExercises]
   );
 
+  const allSelectableExercises = useMemo(
+    () => [...allExercises, ...customExercises],
+    [customExercises]
+  );
+
   const allExercisesWithoutSaved = useMemo(
-    () => allExercises.filter(exercise => !savedExerciseIds.has(exercise.id)),
-    [savedExerciseIds]
+    () => allSelectableExercises.filter(exercise => !savedExerciseIds.has(exercise.id)),
+    [allSelectableExercises, savedExerciseIds]
   );
 
   const selectedExerciseDetails = selectedExercises
-    .map(id => allExercises.find(exercise => exercise.id === id))
-    .filter(Boolean) as (typeof allExercises)[number][];
+    .map(id => allSelectableExercises.find(exercise => exercise.id === id))
+    .filter(Boolean) as SelectableExercise[];
 
   const selectedExerciseSet = useMemo(
     () => new Set(selectedExercises),
     [selectedExercises]
   );
+
+  const selectedWorkoutName = selectedWorkoutForExercise
+    ? savedWorkouts.find(workout => workout.id === selectedWorkoutForExercise)?.name || ''
+    : '';
 
   const normalizedSearch = searchText.trim().toLowerCase();
 
@@ -52,6 +80,13 @@ export default function AddScreen() {
     );
   }, [allExercisesWithoutSaved, selectedExerciseSet, normalizedSearch]);
 
+  const toTitleCase = (value: string) =>
+    value
+      .split(' ')
+      .map(word => (word ? `${word[0].toUpperCase()}${word.slice(1).toLowerCase()}` : ''))
+      .filter(Boolean)
+      .join(' ');
+
   const resetForm = () => {
     setWorkoutName('');
     setWorkoutDescription('');
@@ -67,6 +102,86 @@ export default function AddScreen() {
   const closeAddFlow = () => {
     setCreateModalVisible(false);
     resetForm();
+  };
+
+  const resetCreateExerciseForm = () => {
+    setExerciseName('');
+    setExerciseDescription('');
+    setExerciseCategory('');
+    setAddToSavedExercises(true);
+    setSelectedWorkoutForExercise(null);
+    setCategoryDropdownVisible(false);
+    setWorkoutDropdownVisible(false);
+  };
+
+  const openCreateExerciseModal = () => {
+    resetCreateExerciseForm();
+    setCreateExerciseModalVisible(true);
+  };
+
+  const closeCreateExerciseModal = () => {
+    setCreateExerciseModalVisible(false);
+    resetCreateExerciseForm();
+  };
+
+  const handleCreateExercise = () => {
+    if (!exerciseName.trim()) {
+      Alert.alert('Name required', 'Please add a name for your exercise.');
+      return;
+    }
+
+    if (!exerciseCategory) {
+      Alert.alert('Category required', 'Select a category for the exercise.');
+      return;
+    }
+
+    const newExercise = addCustomExercise({
+      name: exerciseName.trim(),
+      description: exerciseDescription.trim(),
+      category: exerciseCategory,
+    });
+
+    const savedAdded = addToSavedExercises
+      ? addExercise({
+          originalId: newExercise.id,
+          name: newExercise.name,
+          description: newExercise.description,
+          category: newExercise.category,
+        })
+      : false;
+
+    let workoutAdded = false;
+    let workoutName = '';
+    if (selectedWorkoutForExercise) {
+      const workout = savedWorkouts.find(w => w.id === selectedWorkoutForExercise);
+      if (workout) {
+        const success = addExerciseToWorkout(workout.id, newExercise.id);
+        if (!success) {
+          Alert.alert(
+            `Could not add to ${workout.name}`,
+            'This workout already contains that exercise or is full.'
+          );
+          return;
+        }
+        workoutAdded = true;
+        workoutName = workout.name;
+      }
+    }
+
+    const message = savedAdded
+      ? workoutAdded
+        ? `Exercise saved and added to ${workoutName}`
+        : 'Exercise added and saved!'
+      : workoutAdded
+        ? `Exercise added to ${workoutName}`
+        : 'Exercise added!';
+
+    Alert.alert('Exercise added', message, [
+      {
+        text: 'OK',
+        onPress: closeCreateExerciseModal,
+      },
+    ]);
   };
 
   const handleSelectExercise = (exerciseId: string) => {
@@ -88,7 +203,8 @@ export default function AddScreen() {
   };
 
   const handleCreateWorkout = () => {
-    if (!workoutName.trim()) {
+    const trimmedName = workoutName.trim();
+    if (!trimmedName) {
       Alert.alert('Name required', 'Please add a name for your workout.');
       return;
     }
@@ -100,7 +216,7 @@ export default function AddScreen() {
 
     const success = addWorkout({
       originalId: `custom-${Date.now()}`,
-      name: workoutName.trim(),
+      name: toTitleCase(trimmedName),
       description: workoutDescription.trim(),
       exercises: selectedExercises,
     });
@@ -125,6 +241,11 @@ export default function AddScreen() {
       <View style={styles.launchWrapper}>
         <TouchableOpacity style={styles.launchButton} onPress={openCreateModal}>
           <Text style={styles.launchButtonText}>Create New Workout</Text>
+        </TouchableOpacity>
+        <TouchableOpacity
+          style={[styles.launchButton, styles.launchButtonSecondary]}
+          onPress={openCreateExerciseModal}>
+          <Text style={styles.launchButtonText}>Create New Exercise</Text>
         </TouchableOpacity>
       </View>
 
@@ -234,6 +355,125 @@ export default function AddScreen() {
               </ScrollView>
             </View>
 
+          </View>
+        </View>
+      </Modal>
+      <Modal
+        visible={createExerciseModalVisible}
+        transparent
+        animationType="slide"
+        onRequestClose={closeCreateExerciseModal}>
+        <View style={styles.centeredView}>
+          <View style={styles.createModal}>
+            <View style={styles.headerRow}>
+              <TouchableOpacity onPress={closeCreateExerciseModal} style={styles.topCloseButton}>
+                <Text style={styles.topCloseText}>Close</Text>
+              </TouchableOpacity>
+              <View style={styles.titleRow}>
+                <Text style={[styles.modalTitle, styles.exerciseModalTitle]}>Create New Exercise</Text>
+              </View>
+              <TouchableOpacity style={styles.topSaveButton} onPress={handleCreateExercise}>
+                <Text style={styles.topSaveText}>Create</Text>
+              </TouchableOpacity>
+            </View>
+            <ScrollView
+              style={styles.exerciseModalBody}
+              contentContainerStyle={{ paddingBottom: 20 }}
+              keyboardShouldPersistTaps="handled">
+              <TextInput
+                style={styles.input}
+                placeholder="Exercise Name"
+                placeholderTextColor="#888"
+                value={exerciseName}
+                onChangeText={setExerciseName}
+              />
+              <TextInput
+                style={[styles.input, styles.exerciseDescriptionInput]}
+                placeholder="Exercise Description (optional)"
+                placeholderTextColor="#888"
+                value={exerciseDescription}
+                onChangeText={setExerciseDescription}
+                multiline
+              />
+              <Text style={styles.sectionLabel}>Category</Text>
+              <View style={[styles.dropdownContainer, categoryDropdownVisible && { zIndex: 20 }]}>
+                <TouchableOpacity
+                  style={styles.dropdownToggle}
+                  onPress={() => {
+                    setCategoryDropdownVisible(prev => !prev);
+                    setWorkoutDropdownVisible(false);
+                  }}>
+                  <Text style={[styles.dropdownText, !exerciseCategory && styles.dropdownPlaceholder]}>
+                    {exerciseCategory || 'Select a category'}
+                  </Text>
+                </TouchableOpacity>
+                {categoryDropdownVisible && (
+                  <View style={styles.dropdownList}>
+                    <ScrollView nestedScrollEnabled keyboardShouldPersistTaps="handled">
+                      {categoryOptions.map(option => (
+                        <TouchableOpacity
+                          key={option}
+                          style={styles.dropdownItem}
+                          onPress={() => {
+                            setExerciseCategory(option);
+                            setCategoryDropdownVisible(false);
+                          }}>
+                          <Text style={styles.dropdownItemText}>{option}</Text>
+                        </TouchableOpacity>
+                      ))}
+                    </ScrollView>
+                  </View>
+                )}
+              </View>
+              <Text style={[styles.sectionLabel, { marginTop: 12 }]}>Add to Existing Workout</Text>
+              <View style={[styles.dropdownContainer, workoutDropdownVisible && { zIndex: 20 }]}>
+                <TouchableOpacity
+                  style={styles.dropdownToggle}
+                  onPress={() => {
+                    setWorkoutDropdownVisible(prev => !prev);
+                    setCategoryDropdownVisible(false);
+                  }}>
+                  <Text style={[styles.dropdownText, !selectedWorkoutForExercise && styles.dropdownPlaceholder]}>
+                    {selectedWorkoutName || 'Optional - select a workout'}
+                  </Text>
+                </TouchableOpacity>
+                {workoutDropdownVisible && (
+                  <View style={styles.dropdownList}>
+                    <ScrollView nestedScrollEnabled keyboardShouldPersistTaps="handled">
+                      <TouchableOpacity
+                        style={styles.dropdownItem}
+                        onPress={() => {
+                          setSelectedWorkoutForExercise(null);
+                          setWorkoutDropdownVisible(false);
+                        }}>
+                        <Text style={styles.dropdownItemText}>None</Text>
+                      </TouchableOpacity>
+                      {savedWorkouts.length === 0 ? (
+                        <Text style={styles.dropdownEmptyText}>No saved workouts yet</Text>
+                      ) : (
+                        savedWorkouts.map(workout => (
+                          <TouchableOpacity
+                            key={workout.id}
+                            style={styles.dropdownItem}
+                            onPress={() => {
+                              setSelectedWorkoutForExercise(workout.id);
+                              setWorkoutDropdownVisible(false);
+                            }}>
+                            <Text style={styles.dropdownItemText}>{workout.name}</Text>
+                          </TouchableOpacity>
+                        ))
+                      )}
+                    </ScrollView>
+                  </View>
+                )}
+              </View>
+              <TouchableOpacity
+                style={styles.checkboxRow}
+                onPress={() => setAddToSavedExercises(prev => !prev)}>
+                <Text style={styles.checkboxIcon}>{addToSavedExercises ? '☑' : '☐'}</Text>
+                <Text style={styles.checkboxLabel}>Add to Saved Exercises</Text>
+              </TouchableOpacity>
+            </ScrollView>
           </View>
         </View>
       </Modal>
@@ -404,6 +644,79 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
   },
   topCloseText: {
+    color: '#fff',
+    fontSize: 14,
+  },
+  launchButtonSecondary: {
+    marginTop: 12,
+    backgroundColor: '#fff',
+  },
+  exerciseModalTitle: {
+    textAlign: 'center',
+  },
+  exerciseModalBody: {
+    maxHeight: WINDOW_HEIGHT * 0.55,
+  },
+  exerciseDescriptionInput: {
+    height: 80,
+    textAlignVertical: 'top',
+  },
+  dropdownContainer: {
+    position: 'relative',
+    zIndex: 10,
+    width: '100%',
+  },
+  dropdownToggle: {
+    backgroundColor: '#111',
+    borderRadius: 12,
+    padding: 12,
+    borderWidth: 1,
+    borderColor: '#333',
+  },
+  dropdownText: {
+    color: '#fff',
+  },
+  dropdownPlaceholder: {
+    color: '#777',
+  },
+  dropdownList: {
+    position: 'absolute',
+    top: '100%',
+    left: 0,
+    right: 0,
+    backgroundColor: '#111',
+    borderRadius: 12,
+    marginTop: 8,
+    maxHeight: 200,
+    borderWidth: 1,
+    borderColor: '#333',
+    paddingVertical: 4,
+    elevation: 5,
+    overflow: 'hidden',
+  },
+  dropdownItem: {
+    paddingVertical: 10,
+    paddingHorizontal: 12,
+  },
+  dropdownItemText: {
+    color: '#fff',
+  },
+  dropdownEmptyText: {
+    paddingVertical: 10,
+    paddingHorizontal: 12,
+    color: '#555',
+  },
+  checkboxRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: 16,
+  },
+  checkboxIcon: {
+    color: '#fff',
+    fontSize: 18,
+    marginRight: 12,
+  },
+  checkboxLabel: {
     color: '#fff',
     fontSize: 14,
   },
