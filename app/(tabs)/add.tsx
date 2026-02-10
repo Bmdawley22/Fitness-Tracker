@@ -396,7 +396,7 @@ export default function AddScreen() {
                 multiline
               />
               <Text style={styles.sectionLabel}>Category</Text>
-              <View style={styles.dropdownContainer}>
+              <View style={[styles.dropdownContainer, categoryDropdownVisible && { zIndex: 20 }]}>
                 <TouchableOpacity
                   style={styles.dropdownToggle}
                   onPress={() => {
@@ -409,22 +409,24 @@ export default function AddScreen() {
                 </TouchableOpacity>
                 {categoryDropdownVisible && (
                   <View style={styles.dropdownList}>
-                    {categoryOptions.map(option => (
-                      <TouchableOpacity
-                        key={option}
-                        style={styles.dropdownItem}
-                        onPress={() => {
-                          setExerciseCategory(option);
-                          setCategoryDropdownVisible(false);
-                        }}>
-                        <Text style={styles.dropdownItemText}>{option}</Text>
-                      </TouchableOpacity>
-                    ))}
+                    <ScrollView nestedScrollEnabled keyboardShouldPersistTaps="handled">
+                      {categoryOptions.map(option => (
+                        <TouchableOpacity
+                          key={option}
+                          style={styles.dropdownItem}
+                          onPress={() => {
+                            setExerciseCategory(option);
+                            setCategoryDropdownVisible(false);
+                          }}>
+                          <Text style={styles.dropdownItemText}>{option}</Text>
+                        </TouchableOpacity>
+                      ))}
+                    </ScrollView>
                   </View>
                 )}
               </View>
               <Text style={[styles.sectionLabel, { marginTop: 12 }]}>Add to Existing Workout</Text>
-              <View style={styles.dropdownContainer}>
+              <View style={[styles.dropdownContainer, workoutDropdownVisible && { zIndex: 20 }]}>
                 <TouchableOpacity
                   style={styles.dropdownToggle}
                   onPress={() => {
@@ -437,29 +439,31 @@ export default function AddScreen() {
                 </TouchableOpacity>
                 {workoutDropdownVisible && (
                   <View style={styles.dropdownList}>
-                    <TouchableOpacity
-                      style={styles.dropdownItem}
-                      onPress={() => {
-                        setSelectedWorkoutForExercise(null);
-                        setWorkoutDropdownVisible(false);
-                      }}>
-                      <Text style={styles.dropdownItemText}>None</Text>
-                    </TouchableOpacity>
-                    {savedWorkouts.length === 0 ? (
-                      <Text style={styles.dropdownEmptyText}>No saved workouts yet</Text>
-                    ) : (
-                      savedWorkouts.map(workout => (
-                        <TouchableOpacity
-                          key={workout.id}
-                          style={styles.dropdownItem}
-                          onPress={() => {
-                            setSelectedWorkoutForExercise(workout.id);
-                            setWorkoutDropdownVisible(false);
-                          }}>
-                          <Text style={styles.dropdownItemText}>{workout.name}</Text>
-                        </TouchableOpacity>
-                      ))
-                    )}
+                    <ScrollView nestedScrollEnabled keyboardShouldPersistTaps="handled">
+                      <TouchableOpacity
+                        style={styles.dropdownItem}
+                        onPress={() => {
+                          setSelectedWorkoutForExercise(null);
+                          setWorkoutDropdownVisible(false);
+                        }}>
+                        <Text style={styles.dropdownItemText}>None</Text>
+                      </TouchableOpacity>
+                      {savedWorkouts.length === 0 ? (
+                        <Text style={styles.dropdownEmptyText}>No saved workouts yet</Text>
+                      ) : (
+                        savedWorkouts.map(workout => (
+                          <TouchableOpacity
+                            key={workout.id}
+                            style={styles.dropdownItem}
+                            onPress={() => {
+                              setSelectedWorkoutForExercise(workout.id);
+                              setWorkoutDropdownVisible(false);
+                            }}>
+                            <Text style={styles.dropdownItemText}>{workout.name}</Text>
+                          </TouchableOpacity>
+                        ))
+                      )}
+                    </ScrollView>
                   </View>
                 )}
               </View>
@@ -683,11 +687,12 @@ const styles = StyleSheet.create({
     backgroundColor: '#111',
     borderRadius: 12,
     marginTop: 8,
-    maxHeight: 180,
+    maxHeight: 200,
     borderWidth: 1,
     borderColor: '#333',
     paddingVertical: 4,
     elevation: 5,
+    overflow: 'hidden',
   },
   dropdownItem: {
     paddingVertical: 10,
