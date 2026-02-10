@@ -80,6 +80,13 @@ export default function AddScreen() {
     );
   }, [allExercisesWithoutSaved, selectedExerciseSet, normalizedSearch]);
 
+  const toTitleCase = (value: string) =>
+    value
+      .split(' ')
+      .map(word => (word ? `${word[0].toUpperCase()}${word.slice(1).toLowerCase()}` : ''))
+      .filter(Boolean)
+      .join(' ');
+
   const resetForm = () => {
     setWorkoutName('');
     setWorkoutDescription('');
@@ -196,7 +203,8 @@ export default function AddScreen() {
   };
 
   const handleCreateWorkout = () => {
-    if (!workoutName.trim()) {
+    const trimmedName = workoutName.trim();
+    if (!trimmedName) {
       Alert.alert('Name required', 'Please add a name for your workout.');
       return;
     }
@@ -208,7 +216,7 @@ export default function AddScreen() {
 
     const success = addWorkout({
       originalId: `custom-${Date.now()}`,
-      name: workoutName.trim(),
+      name: toTitleCase(trimmedName),
       description: workoutDescription.trim(),
       exercises: selectedExercises,
     });
@@ -364,7 +372,9 @@ export default function AddScreen() {
               <View style={styles.titleRow}>
                 <Text style={styles.modalTitle}>Create New Exercise</Text>
               </View>
-              <View style={{ width: 60 }} />
+              <TouchableOpacity style={styles.topSaveButton} onPress={handleCreateExercise}>
+                <Text style={styles.topSaveText}>Create</Text>
+              </TouchableOpacity>
             </View>
             <ScrollView
               style={styles.exerciseModalBody}
@@ -460,9 +470,6 @@ export default function AddScreen() {
                 <Text style={styles.checkboxLabel}>Add to Saved Exercises</Text>
               </TouchableOpacity>
             </ScrollView>
-            <TouchableOpacity style={styles.createActionButton} onPress={handleCreateExercise}>
-              <Text style={styles.createActionText}>Create</Text>
-            </TouchableOpacity>
           </View>
         </View>
       </Modal>
@@ -638,7 +645,7 @@ const styles = StyleSheet.create({
   },
   launchButtonSecondary: {
     marginTop: 12,
-    backgroundColor: '#222',
+    backgroundColor: '#fff',
   },
   exerciseModalBody: {
     maxHeight: WINDOW_HEIGHT * 0.55,
@@ -649,6 +656,7 @@ const styles = StyleSheet.create({
   },
   dropdownContainer: {
     position: 'relative',
+    zIndex: 10,
   },
   dropdownToggle: {
     backgroundColor: '#111',
@@ -664,6 +672,10 @@ const styles = StyleSheet.create({
     color: '#777',
   },
   dropdownList: {
+    position: 'absolute',
+    top: 56,
+    left: 0,
+    right: 0,
     backgroundColor: '#111',
     borderRadius: 12,
     marginTop: 8,
@@ -671,7 +683,6 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: '#333',
     paddingVertical: 4,
-    zIndex: 10,
     elevation: 5,
   },
   dropdownItem: {
@@ -699,18 +710,5 @@ const styles = StyleSheet.create({
   checkboxLabel: {
     color: '#fff',
     fontSize: 14,
-  },
-  createActionButton: {
-    backgroundColor: '#fff',
-    borderRadius: 16,
-    paddingVertical: 12,
-    paddingHorizontal: 20,
-    alignSelf: 'center',
-    marginTop: 12,
-  },
-  createActionText: {
-    fontSize: 16,
-    fontWeight: '700',
-    color: '#000',
   },
 });
