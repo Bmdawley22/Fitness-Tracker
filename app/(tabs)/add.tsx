@@ -4,7 +4,6 @@ import { exercises as allExercises } from '@/data/exercises';
 import { useSavedWorkoutsStore } from '@/store/savedWorkouts';
 
 export default function AddScreen() {
-  const [menuVisible, setMenuVisible] = useState(true);
   const [createModalVisible, setCreateModalVisible] = useState(false);
   const [workoutName, setWorkoutName] = useState('');
   const [workoutDescription, setWorkoutDescription] = useState('');
@@ -25,25 +24,19 @@ export default function AddScreen() {
     .map(id => allExercises.find(exercise => exercise.id === id))
     .filter(Boolean) as (typeof allExercises)[number][];
 
-  const openCreateModal = () => {
-    setMenuVisible(false);
-    setCreateModalVisible(true);
-  };
-
-  const backToMenu = () => {
-    setCreateModalVisible(false);
-    setMenuVisible(true);
-  };
-
   const resetForm = () => {
     setWorkoutName('');
     setWorkoutDescription('');
     setSelectedExercises([]);
   };
 
+  const openCreateModal = () => {
+    resetForm();
+    setCreateModalVisible(true);
+  };
+
   const closeAddFlow = () => {
     setCreateModalVisible(false);
-    setMenuVisible(false);
     resetForm();
   };
 
@@ -88,7 +81,6 @@ export default function AddScreen() {
           },
         },
       ]);
-      setMenuVisible(false);
     } else {
       Alert.alert('Unable to save', 'A workout with these settings already exists.');
     }
@@ -96,37 +88,25 @@ export default function AddScreen() {
 
   return (
     <View style={styles.container}>
-      <Modal
-        visible={menuVisible}
-        transparent
-        animationType="fade"
-        onRequestClose={() => setMenuVisible(false)}>
-        <View style={styles.centeredView}>
-          <View style={styles.menuModal}>
-            <Text style={styles.menuTitle}>Create</Text>
-            <TouchableOpacity style={styles.menuButton} onPress={openCreateModal}>
-              <Text style={styles.menuButtonText}>Add New Workout</Text>
-            </TouchableOpacity>
-            <TouchableOpacity style={[styles.menuButton, styles.menuButtonClose]} onPress={() => setMenuVisible(false)}>
-              <Text style={[styles.menuButtonText, styles.menuButtonCloseText]}>Cancel</Text>
-            </TouchableOpacity>
-          </View>
-        </View>
-      </Modal>
+      <View style={styles.launchWrapper}>
+        <TouchableOpacity style={styles.launchButton} onPress={openCreateModal}>
+          <Text style={styles.launchButtonText}>Create New Workout</Text>
+        </TouchableOpacity>
+      </View>
 
       <Modal
         visible={createModalVisible}
         transparent
         animationType="slide"
-        onRequestClose={backToMenu}>
+        onRequestClose={closeAddFlow}>
         <View style={styles.centeredView}> 
           <View style={styles.createModal}>
             <View style={styles.headerRow}>
-              <TouchableOpacity onPress={backToMenu} style={styles.backLink}>
-                <Text style={styles.backText}>← Menu</Text>
-              </TouchableOpacity>
-              <Text style={styles.modalTitle}>Create New Workout</Text>
               <View style={{ width: 48 }} />
+              <Text style={styles.modalTitle}>Create New Workout</Text>
+              <TouchableOpacity onPress={closeAddFlow} style={styles.backLink}>
+                <Text style={styles.backText}>Close</Text>
+              </TouchableOpacity>
             </View>
 
             <ScrollView
@@ -218,43 +198,27 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: '#000',
   },
+  launchWrapper: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  launchButton: {
+    backgroundColor: '#fff',
+    paddingVertical: 14,
+    paddingHorizontal: 32,
+    borderRadius: 16,
+  },
+  launchButtonText: {
+    color: '#000',
+    fontSize: 18,
+    fontWeight: '700',
+  },
   centeredView: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
     backgroundColor: 'rgba(0, 0, 0, 0.7)',
-  },
-  menuModal: {
-    width: 280,
-    padding: 24,
-    backgroundColor: '#1a1a1a',
-    borderRadius: 16,
-    alignItems: 'center',
-  },
-  menuTitle: {
-    fontSize: 24,
-    fontWeight: '700',
-    color: '#fff',
-    marginBottom: 16,
-  },
-  menuButton: {
-    width: '100%',
-    paddingVertical: 14,
-    borderRadius: 12,
-    backgroundColor: '#fff',
-    alignItems: 'center',
-    marginBottom: 12,
-  },
-  menuButtonText: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#000',
-  },
-  menuButtonClose: {
-    backgroundColor: '#333',
-  },
-  menuButtonCloseText: {
-    color: '#fff',
   },
   createModal: {
     width: '90%',
@@ -364,7 +328,7 @@ const styles = StyleSheet.create({
   },
   actionRow: {
     flexDirection: 'row',
-    justifyContent: 'center',
+    justifyContent: 'flex-end',
     alignItems: 'center',
   },
   cancelButton: {
