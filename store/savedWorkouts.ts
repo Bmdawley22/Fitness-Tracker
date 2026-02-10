@@ -34,6 +34,9 @@ interface SavedWorkoutsState {
   reorderWorkouts: (workouts: SavedWorkout[]) => void;
   isWorkoutSaved: (originalId: string) => boolean;
   
+  // Add exercise to workout
+  addExerciseToWorkout: (workoutId: string, exerciseId: string) => boolean;
+  
   // Exercise actions
   addExercise: (exercise: Omit<SavedExercise, 'id' | 'createdAt'>) => boolean;
   removeExercise: (id: string) => void;
@@ -115,6 +118,30 @@ export const useSavedWorkoutsStore = create<SavedWorkoutsState>()(
       
       isWorkoutSaved: (originalId) => {
         return get().savedWorkouts.some(w => w.originalId === originalId);
+      },
+      
+      addExerciseToWorkout: (workoutId, exerciseId) => {
+        const state = get();
+        const workout = state.savedWorkouts.find(w => w.id === workoutId);
+        
+        if (!workout) {
+          return false;
+        }
+        
+        // Check for duplicate
+        if (workout.exercises.includes(exerciseId)) {
+          return false;
+        }
+        
+        set(state => ({
+          savedWorkouts: state.savedWorkouts.map(w =>
+            w.id === workoutId
+              ? { ...w, exercises: [...w.exercises, exerciseId] }
+              : w
+          )
+        }));
+        
+        return true;
       },
       
       addExercise: (exercise) => {

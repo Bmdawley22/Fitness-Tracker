@@ -1,4 +1,4 @@
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Modal } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Modal, Alert } from 'react-native';
 import React, { useState, useEffect } from 'react';
 import { useNavigation } from '@react-navigation/native';
 import { exercises } from '@/data/exercises';
@@ -10,7 +10,7 @@ type FilterType = 'all' | 'workouts' | 'exercises';
 
 export default function HomeScreen() {
   const navigation = useNavigation();
-  const { addWorkout, isWorkoutSaved, savedWorkouts } = useSavedWorkoutsStore();
+  const { addWorkout, isWorkoutSaved, savedWorkouts, addExerciseToWorkout } = useSavedWorkoutsStore();
   const { setWorkoutEditState, clearWorkoutEditState } = useUIStore();
 
   const [selectedFilter, setSelectedFilter] = useState<FilterType>('exercises');
@@ -120,7 +120,53 @@ export default function HomeScreen() {
 
   const handleAddToExistingWorkout = () => {
     setShowAddExerciseModal(false);
+    
+    // Check if there are any saved workouts
+    if (savedWorkouts.length === 0) {
+      Alert.alert("You have no Saved Workouts", "OK");
+      setExerciseToAdd(null);
+      return;
+    }
+    
     setShowWorkoutSelectionModal(true);
+  };
+
+  const handleWorkoutSelection = (workoutId: string, workoutName: string) => {
+    if (!exerciseToAdd) return;
+    
+    const workout = savedWorkouts.find(w => w.id === workoutId);
+    if (!workout) return;
+    
+    // Check for duplicate
+    if (workout.exercises.includes(exerciseToAdd)) {
+      Alert.alert(`This exercise is already in ${workoutName}`, "OK");
+      setShowWorkoutSelectionModal(false);
+      setExerciseToAdd(null);
+      return;
+    }
+    
+    // Show confirmation dialog
+    Alert.alert(
+      `Save to ${workoutName}?`,
+      "Add this exercise to your workout",
+      [
+        { text: "Cancel", style: "cancel", onPress: () => {
+          setShowWorkoutSelectionModal(false);
+          setExerciseToAdd(null);
+        }},
+        { text: "Save", onPress: () => {
+          const success = addExerciseToWorkout(workoutId, exerciseToAdd);
+          if (success) {
+            setToastMessage(`Exercise added to ${workoutName}!`);
+          }
+          // Auto-close modal after 1 second
+          setTimeout(() => {
+            setShowWorkoutSelectionModal(false);
+            setExerciseToAdd(null);
+          }, 1000);
+        }}
+      ]
+    );
   };
 
   const handleAddWorkoutToSaved = () => {
@@ -404,24 +450,16 @@ export default function HomeScreen() {
             <Text style={styles.modalTitle}>
               Add {exerciseToAddData?.name} to Workout Below
             </Text>
-            {savedWorkouts.length === 0 ? (
-              <Text style={styles.noWorkoutsText}>No saved workouts.</Text>
-            ) : (
-              <ScrollView style={styles.workoutSelectionList}>
-                {savedWorkouts.map(workout => (
-                  <TouchableOpacity 
-                    key={workout.id}
-                    style={styles.workoutSelectionItem}
-                    onPress={() => {
-                      // TODO: Add exercise to workout
-                      setShowWorkoutSelectionModal(false);
-                      setExerciseToAdd(null);
-                    }}>
-                    <Text style={styles.workoutSelectionText}>{workout.name}</Text>
-                  </TouchableOpacity>
-                ))}
-              </ScrollView>
-            )}
+            <ScrollView style={styles.workoutSelectionList}>
+              {savedWorkouts.map(workout => (
+                <TouchableOpacity 
+                  key={workout.id}
+                  style={styles.workoutSelectionItem}
+                  onPress={() => handleWorkoutSelection(workout.id, workout.name)}>
+                  <Text style={styles.workoutSelectionText}>{workout.name}</Text>
+                </TouchableOpacity>
+              ))}
+            </ScrollView>
             <TouchableOpacity 
               style={styles.closeButton}
               onPress={() => {
