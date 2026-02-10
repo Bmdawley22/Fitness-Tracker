@@ -1,4 +1,4 @@
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Modal, TextInput, Alert, PanResponder } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Modal, TextInput, Alert, PanResponder, FlatList } from 'react-native';
 import React, { useState, useEffect } from 'react';
 import * as Haptics from 'expo-haptics';
 import { useSavedWorkoutsStore, SavedWorkout } from '@/store/savedWorkouts';
@@ -17,16 +17,23 @@ export default function SavedScreen() {
     updateAndRegenerateId,
     removeExerciseFromWorkout,
     reorderWorkouts,
-    addWorkout
+    addWorkout,
+    addExerciseToWorkout
   } = useSavedWorkoutsStore();
   const { workoutToEditId, pendingWorkoutToAddId, pendingWorkoutToAddName, clearWorkoutEditState } = useUIStore();
 
   const [selectedFilter, setSelectedFilter] = useState<SavedFilter>('workouts');
   const [detailWorkout, setDetailWorkout] = useState<SavedWorkout | null>(null);
   const [menuWorkout, setMenuWorkout] = useState<SavedWorkout | null>(null);
+  const [menuExercise, setMenuExercise] = useState<{ id: string; name: string; originalId: string } | null>(null);
   const [editingWorkout, setEditingWorkout] = useState<SavedWorkout | null>(null);
   const [editName, setEditName] = useState('');
   const [editDescription, setEditDescription] = useState('');
+  
+  // Exercise to workout modal states
+  const [showWorkoutSelectionModal, setShowWorkoutSelectionModal] = useState(false);
+  const [exerciseToAdd, setExerciseToAdd] = useState<string | null>(null);
+  const [exerciseNameToAdd, setExerciseNameToAdd] = useState<string | null>(null);
   
   // Rename flow states
   const [showConfirmAddModal, setShowConfirmAddModal] = useState(false);
@@ -54,6 +61,67 @@ export default function SavedScreen() {
 
   const handleOpenMenu = (workout: SavedWorkout) => {
     setMenuWorkout(workout);
+  };
+
+  const handleOpenExerciseMenu = (exercise: { id: string; name: string; originalId: string }) => {
+    setMenuExercise(exercise);
+  };
+
+  const handleAddExerciseToWorkout = () => {
+    if (!menuExercise) return;
+    
+    // Check if there are any saved workouts
+    if (savedWorkouts.length === 0) {
+      Alert.alert("You have no Saved Workouts", "OK");
+      setMenuExercise(null);
+      return;
+    }
+    
+    setExerciseToAdd(menuExercise.originalId);
+    setExerciseNameToAdd(menuExercise.name);
+    setMenuExercise(null);
+    setShowWorkoutSelectionModal(true);
+  };
+
+  const handleWorkoutSelectionForExercise = (workoutId: string, workoutName: string) => {
+    if (!exerciseToAdd) return;
+    
+    const workout = savedWorkouts.find(w => w.id === workoutId);
+    if (!workout) return;
+    
+    // Check for duplicate
+    if (workout.exercises.includes(exerciseToAdd)) {
+      Alert.alert(`This exercise is already in ${workoutName}`, "OK");
+      setShowWorkoutSelectionModal(false);
+      setExerciseToAdd(null);
+      setExerciseNameToAdd(null);
+      return;
+    }
+    
+    // Show confirmation dialog
+    Alert.alert(
+      `Save to ${workoutName}?`,
+      "Add this exercise to your workout",
+      [
+        { text: "Cancel", style: "cancel", onPress: () => {
+          setShowWorkoutSelectionModal(false);
+          setExerciseToAdd(null);
+          setExerciseNameToAdd(null);
+        }},
+        { text: "Save", onPress: () => {
+          const success = addExerciseToWorkout(workoutId, exerciseToAdd);
+          if (success) {
+            Alert.alert(`Exercise added to ${workoutName}!`, "", [
+              { text: "OK", onPress: () => {
+                setShowWorkoutSelectionModal(false);
+                setExerciseToAdd(null);
+                setExerciseNameToAdd(null);
+              }}
+            ]);
+          }
+        }}
+      ]
+    );
   };
 
   const handleEdit = () => {
@@ -280,17 +348,21 @@ export default function SavedScreen() {
 
         {selectedFilter === 'exercises' && savedExercises.map(exercise => (
           <View key={exercise.id} style={styles.listItem}>
-            <View style={styles.workoutContent}>
+            <TouchableOpacity 
+              style={styles.workoutContent}
+              onPress={() => {}}>
               <Text style={styles.listItemText}>{exercise.name}</Text>
-            </View>
-            <TouchableOpacity style={styles.menuButton}>
+            </TouchableOpacity>
+            <TouchableOpacity 
+              style={styles.menuButton}
+              onPress={() => handleOpenExerciseMenu({ id: exercise.id, name: exercise.name, originalId: exercise.originalId })}>
               <Text style={styles.menuButtonText}>⋯</Text>
             </TouchableOpacity>
           </View>
         ))}
       </ScrollView>
 
-      {/* 3-dot Menu Modal */}
+      {/* 3-dot Menu Modal for Workouts */}
       <Modal
         visible={menuWorkout !== null}
         transparent={true}
@@ -311,6 +383,75 @@ export default function SavedScreen() {
             
             <TouchableOpacity style={styles.menuOptionDanger} onPress={handleRemoveFromSaved}>
               <Text style={styles.menuOptionDangerText}>Remove from Saved</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
+
+      {/* 3-dot Menu Modal for Exercises */}
+      <Modal
+        visible={menuExercise !== null}
+        transparent={true}
+        animationType="fade"
+        onRequestClose={() => setMenuExercise(null)}>
+        <View style={styles.modalOverlay}>
+          <View style={styles.menuModalContent}>
+            <TouchableOpacity 
+              style={styles.closeX}
+              onPress={() => setMenuExercise(null)}>
+              <Text style={styles.closeXText}>✕</Text>
+            </TouchableOpacity>
+            <Text style={styles.menuModalTitle}>{menuExercise?.name}</Text>
+            
+            <TouchableOpacity style={styles.menuOption} onPress={handleAddExerciseToWorkout}>
+              <Text style={styles.menuOptionText}>Add to Saved Workout</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
+
+      {/* Workout Selection Modal for adding exercise */}
+      <Modal
+        visible={showWorkoutSelectionModal}
+        transparent={true}
+        animationType="fade"
+        onRequestClose={() => {
+          setShowWorkoutSelectionModal(false);
+          setExerciseToAdd(null);
+          setExerciseNameToAdd(null);
+        }}>
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContent}>
+            <TouchableOpacity 
+              style={styles.closeX}
+              onPress={() => {
+                setShowWorkoutSelectionModal(false);
+                setExerciseToAdd(null);
+                setExerciseNameToAdd(null);
+              }}>
+              <Text style={styles.closeXText}>✕</Text>
+            </TouchableOpacity>
+            <Text style={styles.modalTitle}>
+              Add {exerciseNameToAdd} to Workout
+            </Text>
+            <ScrollView style={styles.workoutSelectionList}>
+              {savedWorkouts.map(workout => (
+                <TouchableOpacity 
+                  key={workout.id}
+                  style={styles.workoutSelectionItem}
+                  onPress={() => handleWorkoutSelectionForExercise(workout.id, workout.name)}>
+                  <Text style={styles.workoutSelectionText}>{workout.name}</Text>
+                </TouchableOpacity>
+              ))}
+            </ScrollView>
+            <TouchableOpacity 
+              style={styles.closeButton}
+              onPress={() => {
+                setShowWorkoutSelectionModal(false);
+                setExerciseToAdd(null);
+                setExerciseNameToAdd(null);
+              }}>
+              <Text style={styles.closeButtonText}>Cancel</Text>
             </TouchableOpacity>
           </View>
         </View>
@@ -780,5 +921,19 @@ const styles = StyleSheet.create({
     color: '#fff',
     fontSize: 16,
     fontWeight: '600',
+  },
+  workoutSelectionList: {
+    maxHeight: 200,
+  },
+  workoutSelectionItem: {
+    backgroundColor: '#fff',
+    padding: 16,
+    borderRadius: 8,
+    marginBottom: 8,
+  },
+  workoutSelectionText: {
+    color: '#000',
+    fontSize: 16,
+    fontWeight: '500',
   },
 });
