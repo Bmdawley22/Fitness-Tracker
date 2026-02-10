@@ -174,6 +174,13 @@ export default function HomeScreen() {
     setShowAddWorkoutModal(true);
   };
 
+  const handleAddExerciseFromDetailModal = () => {
+    if (!selectedExercise) return;
+    const exerciseId = selectedExercise;
+    setSelectedExercise(null);
+    handleExercisePlusClick(exerciseId);
+  };
+
   const handleAddToExistingWorkout = () => {
     setShowAddExerciseModal(false);
     
@@ -428,8 +435,8 @@ export default function HomeScreen() {
             <Text style={styles.modalDescription}>{selectedExerciseData?.description}</Text>
             <TouchableOpacity 
               style={styles.closeButton}
-              onPress={() => setSelectedExercise(null)}>
-              <Text style={styles.closeButtonText}>Close</Text>
+              onPress={handleAddExerciseFromDetailModal}>
+              <Text style={styles.closeButtonText}>Add to Existing Workout</Text>
             </TouchableOpacity>
           </View>
         </View>
