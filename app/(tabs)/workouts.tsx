@@ -67,20 +67,16 @@ export default function SavedScreen() {
 
   const handleSaveEdit = () => {
     if (editingWorkout) {
-      // If in rename flow, regenerate ID to make it a distinct entry
-      // This allows adding the original workout without overwriting
+      // Always regenerate ID on edit to make it a custom entry
+      // This clears originalId, allowing the original workout to be added separately
+      updateAndRegenerateId(editingWorkout.id, {
+        name: editName,
+        description: editDescription,
+      });
+      
+      // If in rename flow, show confirmation modal
       if (pendingWorkoutInfo) {
-        updateAndRegenerateId(editingWorkout.id, {
-          name: editName,
-          description: editDescription,
-        });
         setShowConfirmAddModal(true);
-      } else {
-        // Normal edit: keep the same ID
-        updateWorkout(editingWorkout.id, {
-          name: editName,
-          description: editDescription,
-        });
       }
       setEditingWorkout(null);
     }
