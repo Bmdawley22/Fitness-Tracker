@@ -1,4 +1,4 @@
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Modal, Alert } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Modal, Alert, TextInput } from 'react-native';
 import React, { useState, useEffect, useMemo } from 'react';
 import { useNavigation } from '@react-navigation/native';
 import { exercises } from '@/data/exercises';
@@ -24,6 +24,7 @@ export default function HomeScreen() {
   const [selectedFilter, setSelectedFilter] = useState<FilterType>('exercises');
   const [selectedExercise, setSelectedExercise] = useState<string | null>(null);
   const [selectedExerciseCategory, setSelectedExerciseCategory] = useState('All');
+  const [exerciseSearchText, setExerciseSearchText] = useState('');
   const [selectedWorkout, setSelectedWorkout] = useState<string | null>(null);
   const [showAddExerciseModal, setShowAddExerciseModal] = useState(false);
   const [exerciseToAdd, setExerciseToAdd] = useState<string | null>(null);
@@ -60,9 +61,17 @@ export default function HomeScreen() {
 
   const filteredExercises = useMemo(() => {
     if (selectedFilter !== 'exercises') return [];
-    if (selectedExerciseCategory === 'All') return homeExercises;
-    return homeExercises.filter(exercise => exercise.category === selectedExerciseCategory);
-  }, [selectedFilter, selectedExerciseCategory, homeExercises]);
+    let list = selectedExerciseCategory === 'All'
+      ? homeExercises
+      : homeExercises.filter(exercise => exercise.category === selectedExerciseCategory);
+
+    if (exerciseSearchText.trim()) {
+      const term = exerciseSearchText.trim().toLowerCase();
+      list = list.filter(exercise => exercise.name.toLowerCase().includes(term));
+    }
+
+    return list;
+  }, [selectedFilter, selectedExerciseCategory, homeExercises, exerciseSearchText]);
 
   // Check if saved workout differs from original
   const hasWorkoutChanged = (originalId: string): boolean => {
@@ -353,30 +362,44 @@ export default function HomeScreen() {
       </View>
 
       {selectedFilter === 'exercises' && (
-        <View style={styles.categoryFilterContainer}>
-          <ScrollView
-            horizontal
-            showsHorizontalScrollIndicator={false}
-            contentContainerStyle={styles.categoryFilterScroll}>
-            {exerciseCategories.map(category => (
-              <TouchableOpacity
-                key={category}
-                style={[
-                  styles.categoryFilterButton,
-                  selectedExerciseCategory === category && styles.categoryFilterButtonActive,
-                ]}
-                onPress={() => setSelectedExerciseCategory(category)}>
-                <Text
+        <>
+          <View style={styles.categoryFilterContainer}>
+            <ScrollView
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              contentContainerStyle={styles.categoryFilterScroll}>
+              {exerciseCategories.map(category => (
+                <TouchableOpacity
+                  key={category}
                   style={[
-                    styles.categoryFilterText,
-                    selectedExerciseCategory === category && styles.categoryFilterTextActive,
-                  ]}>
-                  {category}
-                </Text>
-              </TouchableOpacity>
-            ))}
-          </ScrollView>
-        </View>
+                    styles.categoryFilterButton,
+                    selectedExerciseCategory === category && styles.categoryFilterButtonActive,
+                  ]}
+                  onPress={() => setSelectedExerciseCategory(category)}>
+                  <Text
+                    style={[
+                      styles.categoryFilterText,
+                      selectedExerciseCategory === category && styles.categoryFilterTextActive,
+                    ]}>
+                    {category}
+                  </Text>
+                </TouchableOpacity>
+              ))}
+            </ScrollView>
+          </View>
+
+          <View style={styles.searchContainer}>
+            <TextInput
+              style={styles.searchInput}
+              placeholder="Search exercises..."
+              placeholderTextColor="#666"
+              value={exerciseSearchText}
+              onChangeText={setExerciseSearchText}
+              autoCapitalize="none"
+              autoCorrect={false}
+            />
+          </View>
+        </>
       )}
 
       {/* List */}
@@ -798,6 +821,10 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     marginBottom: 12,
   },
+  searchContainer: {
+    paddingHorizontal: 16,
+    marginBottom: 12,
+  },
   categoryFilterScroll: {
     gap: 8,
   },
@@ -820,6 +847,14 @@ const styles = StyleSheet.create({
   },
   categoryFilterTextActive: {
     color: '#000',
+  },
+  searchInput: {
+    backgroundColor: '#1a1a1a',
+    borderRadius: 8,
+    padding: 12,
+    color: '#fff',
+    borderWidth: 1,
+    borderColor: '#333',
   },
   filterButton: {
     paddingVertical: 8,
