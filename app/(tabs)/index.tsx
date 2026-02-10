@@ -175,11 +175,18 @@ export default function HomeScreen() {
     setShowAddWorkoutModal(true);
   };
 
-  const handleAddExerciseFromDetailModal = () => {
+  const handleAddExerciseToExistingFromDetailModal = () => {
     if (!selectedExercise) return;
     const exerciseId = selectedExercise;
     setSelectedExercise(null);
-    handleExercisePlusClick(exerciseId);
+
+    if (savedWorkouts.length === 0) {
+      Alert.alert('You have no Saved Workouts', 'OK');
+      return;
+    }
+
+    setExerciseToAdd(exerciseId);
+    setShowWorkoutSelectionModal(true);
   };
 
   const handleAddExerciseToSavedFromDetailModal = () => {
@@ -443,7 +450,7 @@ export default function HomeScreen() {
             <Text style={styles.modalDescription}>{selectedExerciseData?.description}</Text>
             <TouchableOpacity 
               style={styles.optionButton}
-              onPress={handleAddExerciseFromDetailModal}>
+              onPress={handleAddExerciseToExistingFromDetailModal}>
               <Text style={styles.optionButtonText}>Add to Existing Workout</Text>
             </TouchableOpacity>
             <TouchableOpacity 
