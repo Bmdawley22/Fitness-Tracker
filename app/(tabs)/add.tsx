@@ -370,7 +370,7 @@ export default function AddScreen() {
                 <Text style={styles.topCloseText}>Close</Text>
               </TouchableOpacity>
               <View style={styles.titleRow}>
-                <Text style={styles.modalTitle}>Create New Exercise</Text>
+                <Text style={[styles.modalTitle, styles.exerciseModalTitle]}>Create New Exercise</Text>
               </View>
               <TouchableOpacity style={styles.topSaveButton} onPress={handleCreateExercise}>
                 <Text style={styles.topSaveText}>Create</Text>
@@ -646,6 +646,9 @@ const styles = StyleSheet.create({
   launchButtonSecondary: {
     marginTop: 12,
     backgroundColor: '#fff',
+  },
+  exerciseModalTitle: {
+    textAlign: 'center',
   },
   exerciseModalBody: {
     maxHeight: WINDOW_HEIGHT * 0.55,
