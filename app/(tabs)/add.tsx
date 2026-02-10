@@ -183,7 +183,7 @@ export default function AddScreen() {
                 <Text style={styles.cancelText}>Close</Text>
               </TouchableOpacity>
               <TouchableOpacity style={styles.createButton} onPress={handleCreateWorkout}>
-                <Text style={styles.createText}>Create</Text>
+                <Text style={styles.createText}>Save</Text>
               </TouchableOpacity>
             </View>
           </View>
