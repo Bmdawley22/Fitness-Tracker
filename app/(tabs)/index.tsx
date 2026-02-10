@@ -10,7 +10,7 @@ type FilterType = 'all' | 'workouts' | 'exercises';
 
 export default function HomeScreen() {
   const navigation = useNavigation();
-  const { addWorkout, isWorkoutSaved, savedWorkouts, addExerciseToWorkout } = useSavedWorkoutsStore();
+  const { addWorkout, isWorkoutSaved, savedWorkouts, addExerciseToWorkout, addExercise, isExerciseSaved } = useSavedWorkoutsStore();
   const { setWorkoutEditState, clearWorkoutEditState } = useUIStore();
 
   const [selectedFilter, setSelectedFilter] = useState<FilterType>('exercises');
@@ -107,6 +107,38 @@ export default function HomeScreen() {
       return () => clearTimeout(timer);
     }
   }, [toastMessage]);
+
+  const handleAddToSavedExercises = () => {
+    if (!exerciseToAdd) return;
+
+    const exercise = exercises.find(e => e.id === exerciseToAdd);
+    if (!exercise) return;
+
+    // Close the add exercise modal first
+    setShowAddExerciseModal(false);
+
+    // Check for duplicate
+    if (isExerciseSaved(exerciseToAdd)) {
+      Alert.alert('Already Saved', `"${exercise.name}" is already in your saved exercises.`);
+      setExerciseToAdd(null);
+      return;
+    }
+
+    const success = addExercise({
+      originalId: exercise.id,
+      name: exercise.name,
+      description: exercise.description,
+      category: exercise.category,
+    });
+
+    if (success) {
+      setToastMessage(`"${exercise.name}" added to saved exercises!`);
+    } else {
+      Alert.alert('Already Saved', `"${exercise.name}" is already in your saved exercises.`);
+    }
+
+    setExerciseToAdd(null);
+  };
 
   const handleExercisePlusClick = (exerciseId: string) => {
     setExerciseToAdd(exerciseId);
@@ -416,10 +448,7 @@ export default function HomeScreen() {
             </TouchableOpacity>
             <TouchableOpacity 
               style={styles.optionButton}
-              onPress={() => {
-                setShowAddExerciseModal(false);
-                // TODO: Add to saved exercises
-              }}>
+              onPress={handleAddToSavedExercises}>
               <Text style={styles.optionButtonText}>Add to Saved Exercises</Text>
             </TouchableOpacity>
             <TouchableOpacity 
