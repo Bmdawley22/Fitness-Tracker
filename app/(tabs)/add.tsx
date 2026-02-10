@@ -116,8 +116,12 @@ export default function AddScreen() {
         <View style={styles.centeredView}>
           <View style={styles.createModal}>
             <View style={styles.headerRow}>
-              <View style={{ width: 48 }} />
-              <Text style={styles.modalTitle}>Create New Workout</Text>
+              <TouchableOpacity style={styles.topSaveButton} onPress={handleCreateWorkout}>
+                <Text style={styles.topSaveText}>Save</Text>
+              </TouchableOpacity>
+              <View style={styles.titleRow}>
+                <Text style={styles.modalTitle}>Create New Workout</Text>
+              </View>
               <TouchableOpacity onPress={closeAddFlow} style={styles.backLink}>
                 <Text style={styles.backText}>Close</Text>
               </TouchableOpacity>
@@ -197,14 +201,6 @@ export default function AddScreen() {
               </ScrollView>
             </View>
 
-            <View style={styles.actionRow}>
-              <TouchableOpacity onPress={closeAddFlow} style={styles.cancelButton}>
-                <Text style={styles.cancelText}>Close</Text>
-              </TouchableOpacity>
-              <TouchableOpacity style={styles.createButton} onPress={handleCreateWorkout}>
-                <Text style={styles.createText}>Save</Text>
-              </TouchableOpacity>
-            </View>
           </View>
         </View>
       </Modal>
@@ -351,28 +347,19 @@ const styles = StyleSheet.create({
     maxHeight: 160,
     marginBottom: 14,
   },
-  actionRow: {
-    flexDirection: 'row',
-    justifyContent: 'flex-end',
-    alignItems: 'center',
-  },
-  cancelButton: {
-    marginRight: 12,
-  },
-  cancelText: {
-    color: '#888',
-    fontSize: 16,
-    fontWeight: '600',
-  },
-  createButton: {
+  topSaveButton: {
     backgroundColor: '#fff',
-    paddingHorizontal: 24,
-    paddingVertical: 12,
-    borderRadius: 14,
+    paddingVertical: 6,
+    paddingHorizontal: 16,
+    borderRadius: 12,
   },
-  createText: {
+  topSaveText: {
     color: '#000',
-    fontSize: 16,
+    fontSize: 14,
     fontWeight: '700',
+  },
+  titleRow: {
+    flex: 1,
+    alignItems: 'center',
   },
 });
