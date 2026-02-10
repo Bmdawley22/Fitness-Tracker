@@ -129,14 +129,7 @@ export default function HomeScreen() {
     const workout = workouts.find(w => w.id === workoutToAdd);
     if (!workout) return;
 
-    if (isWorkoutSaved(workout.id)) {
-      setToastMessage('Already saved!');
-      setShowAddWorkoutModal(false);
-      setWorkoutToAdd(null);
-      return;
-    }
-
-    // Check for duplicate name
+    // Check for duplicate name (allows saving same workout with different names)
     const duplicate = findSavedWorkoutByName(workout.name);
     if (duplicate) {
       // Show duplicate modal
