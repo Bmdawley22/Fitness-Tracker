@@ -2,6 +2,8 @@ import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
+const MAX_EXERCISES = 12;
+
 export interface SavedWorkout {
   id: string;
   originalId: string; // Reference to original workout
@@ -53,6 +55,10 @@ export const useSavedWorkoutsStore = create<SavedWorkoutsState>()(
         const state = get();
         // Check for duplicate
         if (state.savedWorkouts.some(w => w.originalId === workout.originalId)) {
+          return false;
+        }
+
+        if (workout.exercises.length > MAX_EXERCISES) {
           return false;
         }
         
@@ -127,7 +133,11 @@ export const useSavedWorkoutsStore = create<SavedWorkoutsState>()(
         if (!workout) {
           return false;
         }
-        
+
+        if (workout.exercises.length >= MAX_EXERCISES) {
+          return false;
+        }
+
         // Check for duplicate
         if (workout.exercises.includes(exerciseId)) {
           return false;

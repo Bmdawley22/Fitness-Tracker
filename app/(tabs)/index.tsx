@@ -190,6 +190,8 @@ export default function HomeScreen() {
           const success = addExerciseToWorkout(workoutId, exerciseToAdd);
           if (success) {
             setToastMessage(`Exercise added to ${workoutName}!`);
+          } else {
+            Alert.alert('Limit reached', 'You can only add 12 exercises to a workout.');
           }
           // Auto-close modal after 1 second
           setTimeout(() => {

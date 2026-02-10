@@ -6,6 +6,8 @@ import { exercises as allExercises } from '@/data/exercises';
 import { workouts } from '@/data/workouts';
 import { useUIStore } from '@/store/uiState';
 
+const MAX_EXERCISES = 12;
+
 type SavedFilter = 'workouts' | 'exercises';
 
 export default function SavedScreen() {
@@ -122,6 +124,8 @@ export default function SavedScreen() {
                 setExerciseNameToAdd(null);
               }}
             ]);
+          } else {
+            Alert.alert('Limit reached', 'You can only add 12 exercises to a workout.');
           }
         }}
       ]
@@ -217,6 +221,11 @@ export default function SavedScreen() {
 
   const handleSelectExerciseFromList = (exerciseId: string, exerciseName: string) => {
     if (!editingWorkout) return;
+
+    if (editingWorkout.exercises.length >= MAX_EXERCISES) {
+      Alert.alert('Limit reached', 'You can only have 12 exercises per workout.');
+      return;
+    }
 
     // Check for duplicate
     if (editingWorkout.exercises.includes(exerciseId)) {

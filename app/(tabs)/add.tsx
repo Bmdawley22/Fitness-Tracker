@@ -10,6 +10,8 @@ export default function AddScreen() {
   const [selectedExercises, setSelectedExercises] = useState<string[]>([]);
   const { savedExercises, addWorkout } = useSavedWorkoutsStore();
 
+  const MAX_EXERCISES = 12;
+
   const savedExerciseIds = useMemo(
     () => new Set(savedExercises.map(exercise => exercise.originalId)),
     [savedExercises]
@@ -48,6 +50,11 @@ export default function AddScreen() {
   const handleSelectExercise = (exerciseId: string) => {
     if (selectedExercises.includes(exerciseId)) {
       Alert.alert('Exercise already selected', 'This exercise is already in your list.');
+      return;
+    }
+
+    if (selectedExercises.length >= MAX_EXERCISES) {
+      Alert.alert('Limit reached', `You can only add up to ${MAX_EXERCISES} exercises per workout.`);
       return;
     }
 
@@ -114,78 +121,84 @@ export default function AddScreen() {
               </TouchableOpacity>
             </View>
 
-            <View style={styles.createBody}>
-              <TextInput
-                style={styles.input}
-                placeholder="Workout Name"
-                placeholderTextColor="#888"
-                value={workoutName}
-                onChangeText={setWorkoutName}
-              />
-              <TextInput
-                style={[styles.input, styles.descriptionInput]}
-                placeholder="Description (optional)"
-                placeholderTextColor="#888"
-                value={workoutDescription}
-                onChangeText={setWorkoutDescription}
-                multiline
-              />
+            <View style={styles.bodyWrapper}>
+              <ScrollView
+                style={styles.bodyScroll}
+                showsVerticalScrollIndicator={false}
+                contentContainerStyle={styles.bodyScrollContent}
+                nestedScrollEnabled>
+                <TextInput
+                  style={styles.input}
+                  placeholder="Workout Name"
+                  placeholderTextColor="#888"
+                  value={workoutName}
+                  onChangeText={setWorkoutName}
+                />
+                <TextInput
+                  style={[styles.input, styles.descriptionInput]}
+                  placeholder="Description (optional)"
+                  placeholderTextColor="#888"
+                  value={workoutDescription}
+                  onChangeText={setWorkoutDescription}
+                  multiline
+                />
 
-              <View style={styles.selectedContainer}>
-                <Text style={styles.sectionLabel}>Selected Exercises</Text>
-                {selectedExerciseDetails.length === 0 ? (
-                  <Text style={styles.emptySelectionText}>No exercises yet. Tap one of the options below to add it.</Text>
-                ) : (
-                  <View style={styles.selectedWrap}>
-                    {selectedExerciseDetails.map(exercise => (
-                      <View key={exercise.id} style={styles.selectedChip}>
-                        <Text style={styles.selectedText}>{exercise.name}</Text>
-                        <TouchableOpacity onPress={() => handleRemoveExercise(exercise.id)} style={styles.removeButton}>
-                          <Text style={styles.removeButtonText}>✕</Text>
-                        </TouchableOpacity>
-                      </View>
-                    ))}
-                  </View>
-                )}
-              </View>
-
-              <View style={styles.sectionContainer}>
-                <Text style={styles.sectionLabel}>Saved</Text>
-                <ScrollView style={styles.exerciseList} nestedScrollEnabled>
-                  {savedExercises.filter(exercise => !selectedExerciseSet.has(exercise.originalId)).length === 0 ? (
-                    <Text style={styles.emptyText}>You haven’t saved any exercises yet.</Text>
+                <View style={styles.selectedContainer}>
+                  <Text style={styles.sectionLabel}>Selected Exercises</Text>
+                  {selectedExerciseDetails.length === 0 ? (
+                    <Text style={styles.emptySelectionText}>No exercises yet. Tap one of the options below to add it.</Text>
                   ) : (
-                    savedExercises
-                      .filter(exercise => !selectedExerciseSet.has(exercise.originalId))
+                    <View style={styles.selectedWrap}>
+                      {selectedExerciseDetails.map(exercise => (
+                        <View key={exercise.id} style={styles.selectedChip}>
+                          <Text style={styles.selectedText}>{exercise.name}</Text>
+                          <TouchableOpacity onPress={() => handleRemoveExercise(exercise.id)} style={styles.removeButton}>
+                            <Text style={styles.removeButtonText}>✕</Text>
+                          </TouchableOpacity>
+                        </View>
+                      ))}
+                    </View>
+                  )}
+                </View>
+
+                <View style={styles.sectionContainer}>
+                  <Text style={styles.sectionLabel}>Saved</Text>
+                  <ScrollView style={styles.exerciseList} nestedScrollEnabled>
+                    {savedExercises.filter(exercise => !selectedExerciseSet.has(exercise.originalId)).length === 0 ? (
+                      <Text style={styles.emptyText}>You haven’t saved any exercises yet.</Text>
+                    ) : (
+                      savedExercises
+                        .filter(exercise => !selectedExerciseSet.has(exercise.originalId))
+                        .map(exercise => (
+                          <TouchableOpacity
+                            key={exercise.id}
+                            style={styles.exerciseRow}
+                            onPress={() => handleSelectExercise(exercise.originalId)}>
+                            <Text style={styles.exerciseText}>{exercise.name}</Text>
+                            <Text style={styles.exerciseAdd}>+</Text>
+                          </TouchableOpacity>
+                        ))
+                    )}
+                  </ScrollView>
+                </View>
+
+                <View style={styles.sectionContainer}>
+                  <Text style={styles.sectionLabel}>All Exercises</Text>
+                  <ScrollView style={styles.exerciseList} nestedScrollEnabled>
+                    {allExercisesWithoutSaved
+                      .filter(exercise => !selectedExerciseSet.has(exercise.id))
                       .map(exercise => (
                         <TouchableOpacity
                           key={exercise.id}
                           style={styles.exerciseRow}
-                          onPress={() => handleSelectExercise(exercise.originalId)}>
+                          onPress={() => handleSelectExercise(exercise.id)}>
                           <Text style={styles.exerciseText}>{exercise.name}</Text>
                           <Text style={styles.exerciseAdd}>+</Text>
                         </TouchableOpacity>
-                      ))
-                  )}
-                </ScrollView>
-              </View>
-
-              <View style={styles.sectionContainer}>
-                <Text style={styles.sectionLabel}>All Exercises</Text>
-                <ScrollView style={styles.exerciseList} nestedScrollEnabled>
-                  {allExercisesWithoutSaved
-                    .filter(exercise => !selectedExerciseSet.has(exercise.id))
-                    .map(exercise => (
-                      <TouchableOpacity
-                        key={exercise.id}
-                        style={styles.exerciseRow}
-                        onPress={() => handleSelectExercise(exercise.id)}>
-                        <Text style={styles.exerciseText}>{exercise.name}</Text>
-                        <Text style={styles.exerciseAdd}>+</Text>
-                      </TouchableOpacity>
-                    ))}
-                </ScrollView>
-              </View>
+                      ))}
+                  </ScrollView>
+                </View>
+              </ScrollView>
             </View>
 
             <View style={styles.actionRow}>
@@ -255,8 +268,15 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     color: '#fff',
   },
-  createBody: {
-    marginBottom: 16,
+  bodyWrapper: {
+    flex: 1,
+    marginBottom: 12,
+  },
+  bodyScroll: {
+    flexGrow: 1,
+  },
+  bodyScrollContent: {
+    paddingBottom: 16,
   },
   input: {
     backgroundColor: '#111',
@@ -326,11 +346,11 @@ const styles = StyleSheet.create({
   },
   exerciseText: {
     color: '#fff',
-    fontSize: 16,
+    fontSize: 14,
   },
   exerciseAdd: {
     color: '#0f0',
-    fontSize: 20,
+    fontSize: 16,
     fontWeight: '700',
   },
   exerciseList: {
