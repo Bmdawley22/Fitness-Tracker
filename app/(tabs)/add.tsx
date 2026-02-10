@@ -660,6 +660,7 @@ const styles = StyleSheet.create({
   dropdownContainer: {
     position: 'relative',
     zIndex: 10,
+    width: '100%',
   },
   dropdownToggle: {
     backgroundColor: '#111',
@@ -676,7 +677,7 @@ const styles = StyleSheet.create({
   },
   dropdownList: {
     position: 'absolute',
-    top: 56,
+    top: '100%',
     left: 0,
     right: 0,
     backgroundColor: '#111',
