@@ -116,14 +116,14 @@ export default function AddScreen() {
         <View style={styles.centeredView}>
           <View style={styles.createModal}>
             <View style={styles.headerRow}>
-              <TouchableOpacity style={styles.topSaveButton} onPress={handleCreateWorkout}>
-                <Text style={styles.topSaveText}>Save</Text>
+              <TouchableOpacity onPress={closeAddFlow} style={styles.topCloseButton}>
+                <Text style={styles.topCloseText}>Close</Text>
               </TouchableOpacity>
               <View style={styles.titleRow}>
                 <Text style={styles.modalTitle}>Create New Workout</Text>
               </View>
-              <TouchableOpacity onPress={closeAddFlow} style={styles.backLink}>
-                <Text style={styles.backText}>Close</Text>
+              <TouchableOpacity style={styles.topSaveButton} onPress={handleCreateWorkout}>
+                <Text style={styles.topSaveText}>Save</Text>
               </TouchableOpacity>
             </View>
 
@@ -150,7 +150,10 @@ export default function AddScreen() {
               {selectedExerciseDetails.length === 0 ? (
                 <Text style={styles.emptySelectionText}>No exercises yet. Tap one of the lists below to add it.</Text>
               ) : (
-                <View style={styles.selectedWrap}>
+                <ScrollView
+                  horizontal
+                  showsHorizontalScrollIndicator={false}
+                  contentContainerStyle={styles.selectedWrap}>
                   {selectedExerciseDetails.map(exercise => (
                     <View key={exercise.id} style={styles.selectedChip}>
                       <Text style={styles.selectedText}>{exercise.name}</Text>
@@ -159,7 +162,7 @@ export default function AddScreen() {
                       </TouchableOpacity>
                     </View>
                   ))}
-                </View>
+                </ScrollView>
               )}
             </View>
 
@@ -361,5 +364,13 @@ const styles = StyleSheet.create({
   titleRow: {
     flex: 1,
     alignItems: 'center',
+  },
+  topCloseButton: {
+    paddingVertical: 6,
+    paddingHorizontal: 16,
+  },
+  topCloseText: {
+    color: '#fff',
+    fontSize: 14,
   },
 });
