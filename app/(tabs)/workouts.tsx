@@ -20,12 +20,14 @@ export default function SavedScreen() {
     removeExerciseFromWorkout,
     reorderWorkouts,
     addWorkout,
-    addExerciseToWorkout
+    addExerciseToWorkout,
+    removeExercise,
   } = useSavedWorkoutsStore();
   const { workoutToEditId, pendingWorkoutToAddId, pendingWorkoutToAddName, clearWorkoutEditState } = useUIStore();
 
   const [selectedFilter, setSelectedFilter] = useState<SavedFilter>('workouts');
   const [detailWorkout, setDetailWorkout] = useState<SavedWorkout | null>(null);
+  const [detailExercise, setDetailExercise] = useState<{ id: string; name: string; description: string; originalId: string } | null>(null);
   const [menuWorkout, setMenuWorkout] = useState<SavedWorkout | null>(null);
   const [menuExercise, setMenuExercise] = useState<{ id: string; name: string; originalId: string } | null>(null);
   const [editingWorkout, setEditingWorkout] = useState<SavedWorkout | null>(null);
@@ -73,20 +75,32 @@ export default function SavedScreen() {
     setMenuExercise(exercise);
   };
 
-  const handleAddExerciseToWorkout = () => {
-    if (!menuExercise) return;
-    
+  const handleOpenAddToWorkout = (exercise: { originalId: string; name: string }, options?: { closeMenu?: boolean; closeDetail?: boolean }) => {
     // Check if there are any saved workouts
     if (savedWorkouts.length === 0) {
       Alert.alert("You have no Saved Workouts", "OK");
-      setMenuExercise(null);
+      if (options?.closeMenu) {
+        setMenuExercise(null);
+      }
       return;
     }
-    
-    setExerciseToAdd(menuExercise.originalId);
-    setExerciseNameToAdd(menuExercise.name);
-    setMenuExercise(null);
+
+    setExerciseToAdd(exercise.originalId);
+    setExerciseNameToAdd(exercise.name);
+
+    if (options?.closeMenu) {
+      setMenuExercise(null);
+    }
+    if (options?.closeDetail) {
+      setDetailExercise(null);
+    }
+
     setShowWorkoutSelectionModal(true);
+  };
+
+  const handleAddExerciseToWorkout = () => {
+    if (!menuExercise) return;
+    handleOpenAddToWorkout(menuExercise, { closeMenu: true });
   };
 
   const handleWorkoutSelectionForExercise = (workoutId: string, workoutName: string) => {
@@ -250,6 +264,29 @@ export default function SavedScreen() {
     setExerciseSearchText('');
   };
 
+  const promptRemoveSavedExercise = (exercise: { id: string; name: string }, options?: { closeMenu?: boolean; closeDetail?: boolean }) => {
+    Alert.alert(
+      'Remove Exercise',
+      `Remove "${exercise.name}" from saved exercises?`,
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Remove',
+          style: 'destructive',
+          onPress: () => {
+            removeExercise(exercise.id);
+            if (options?.closeMenu) {
+              setMenuExercise(null);
+            }
+            if (options?.closeDetail) {
+              setDetailExercise(null);
+            }
+          },
+        },
+      ]
+    );
+  };
+
   const handleRemoveFromSaved = () => {
     if (menuWorkout) {
       Alert.alert(
@@ -394,7 +431,7 @@ export default function SavedScreen() {
           <View key={exercise.id} style={styles.listItem}>
             <TouchableOpacity 
               style={styles.workoutContent}
-              onPress={() => {}}>
+              onPress={() => setDetailExercise({ id: exercise.id, name: exercise.name, description: exercise.description ?? '', originalId: exercise.originalId })}>
               <Text style={styles.listItemText}>{exercise.name}</Text>
             </TouchableOpacity>
             <TouchableOpacity 
@@ -448,7 +485,16 @@ export default function SavedScreen() {
             <Text style={styles.menuModalTitle}>{menuExercise?.name}</Text>
             
             <TouchableOpacity style={styles.menuOption} onPress={handleAddExerciseToWorkout}>
-              <Text style={styles.menuOptionText}>Add to Saved Workout</Text>
+              <Text style={styles.menuOptionText}>Add to Existing Workout</Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={styles.menuOptionDanger}
+              onPress={() => {
+                if (!menuExercise) return;
+                promptRemoveSavedExercise(menuExercise, { closeMenu: true });
+              }}>
+              <Text style={styles.menuOptionDangerText}>Remove</Text>
             </TouchableOpacity>
           </View>
         </View>
@@ -686,6 +732,43 @@ export default function SavedScreen() {
               />
             </View>
           </Modal>
+        </View>
+      </Modal>
+
+      {/* Saved Exercise Detail Modal */}
+      <Modal
+        visible={detailExercise !== null}
+        transparent={true}
+        animationType="fade"
+        onRequestClose={() => setDetailExercise(null)}>
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContent}>
+            <TouchableOpacity
+              style={styles.closeX}
+              onPress={() => setDetailExercise(null)}>
+              <Text style={styles.closeXText}>✕</Text>
+            </TouchableOpacity>
+            <Text style={styles.modalTitle}>{detailExercise?.name}</Text>
+            <Text style={styles.modalDescription}>
+              {detailExercise?.description || 'No description provided.'}
+            </Text>
+            <TouchableOpacity
+              style={styles.addToExistingWorkoutButton}
+              onPress={() => {
+                if (!detailExercise) return;
+                handleOpenAddToWorkout(detailExercise, { closeDetail: true });
+              }}>
+              <Text style={styles.addToExistingWorkoutButtonText}>Add to Existing Workout</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={styles.removeFromSavedButton}
+              onPress={() => {
+                if (!detailExercise) return;
+                promptRemoveSavedExercise(detailExercise, { closeDetail: true });
+              }}>
+              <Text style={styles.removeFromSavedButtonText}>Remove from Saved Exercises</Text>
+            </TouchableOpacity>
+          </View>
         </View>
       </Modal>
 
@@ -1115,5 +1198,30 @@ const styles = StyleSheet.create({
   },
   exerciseListContent: {
     paddingBottom: 20,
+  },
+  addToExistingWorkoutButton: {
+    backgroundColor: '#fff',
+    padding: 16,
+    borderRadius: 8,
+    alignItems: 'center',
+    marginTop: 8,
+    marginBottom: 8,
+  },
+  addToExistingWorkoutButtonText: {
+    color: '#000',
+    fontSize: 16,
+    fontWeight: '600',
+  },
+  removeFromSavedButton: {
+    backgroundColor: '#ff3b30',
+    padding: 16,
+    borderRadius: 8,
+    alignItems: 'center',
+    marginTop: 0,
+  },
+  removeFromSavedButtonText: {
+    color: '#fff',
+    fontSize: 16,
+    fontWeight: '600',
   },
 });
