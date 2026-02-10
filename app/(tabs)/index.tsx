@@ -10,7 +10,15 @@ type FilterType = 'all' | 'workouts' | 'exercises';
 
 export default function HomeScreen() {
   const navigation = useNavigation();
-  const { addWorkout, isWorkoutSaved, savedWorkouts, addExerciseToWorkout, addExercise, isExerciseSaved } = useSavedWorkoutsStore();
+  const {
+    addWorkout,
+    isWorkoutSaved,
+    savedWorkouts,
+    addExerciseToWorkout,
+    addExercise,
+    isExerciseSaved,
+    customExercises,
+  } = useSavedWorkoutsStore();
   const { setWorkoutEditState, clearWorkoutEditState } = useUIStore();
 
   const [selectedFilter, setSelectedFilter] = useState<FilterType>('exercises');
@@ -31,16 +39,18 @@ export default function HomeScreen() {
   const [showConfirmAddAfterRename, setShowConfirmAddAfterRename] = useState(false);
   const [showNameStillMatches, setShowNameStillMatches] = useState(false);
 
+  const homeExercises = useMemo(() => [...exercises, ...customExercises], [customExercises]);
+
   // Check if saved workout differs from original
   const exerciseCategories = useMemo(() => {
-    const uniqueCategories = Array.from(new Set(exercises.map(exercise => exercise.category)));
+    const uniqueCategories = Array.from(new Set(homeExercises.map(exercise => exercise.category)));
     const priority = ['Triceps', 'Back', 'Legs', 'Abs'];
     const prioritized = priority.filter(category => uniqueCategories.includes(category));
     const rest = uniqueCategories
       .filter(category => !priority.includes(category))
       .sort();
     return ['All', ...prioritized, ...rest];
-  }, []);
+  }, [homeExercises]);
 
   useEffect(() => {
     if (selectedFilter !== 'exercises') {
@@ -50,9 +60,9 @@ export default function HomeScreen() {
 
   const filteredExercises = useMemo(() => {
     if (selectedFilter !== 'exercises') return [];
-    if (selectedExerciseCategory === 'All') return exercises;
-    return exercises.filter(exercise => exercise.category === selectedExerciseCategory);
-  }, [selectedFilter, selectedExerciseCategory]);
+    if (selectedExerciseCategory === 'All') return homeExercises;
+    return homeExercises.filter(exercise => exercise.category === selectedExerciseCategory);
+  }, [selectedFilter, selectedExerciseCategory, homeExercises]);
 
   // Check if saved workout differs from original
   const hasWorkoutChanged = (originalId: string): boolean => {
@@ -133,7 +143,7 @@ export default function HomeScreen() {
   }, [toastMessage]);
 
   const addExerciseToSavedById = (exerciseId: string) => {
-    const exercise = exercises.find(e => e.id === exerciseId);
+    const exercise = homeExercises.find(e => e.id === exerciseId);
     if (!exercise) return false;
 
     if (isExerciseSaved(exerciseId)) {
@@ -288,7 +298,7 @@ export default function HomeScreen() {
   };
 
   const selectedExerciseData = selectedExercise 
-    ? exercises.find(e => e.id === selectedExercise) 
+    ? homeExercises.find(e => e.id === selectedExercise) 
     : null;
   
   const selectedWorkoutData = selectedWorkout
@@ -301,7 +311,7 @@ export default function HomeScreen() {
     : false;
 
   const exerciseToAddData = exerciseToAdd
-    ? exercises.find(e => e.id === exerciseToAdd)
+    ? homeExercises.find(e => e.id === exerciseToAdd)
     : null;
 
   const workoutToAddData = workoutToAdd
@@ -310,7 +320,7 @@ export default function HomeScreen() {
 
   // Get exercise names for a workout
   const getWorkoutExercises = (exerciseIds: string[]) => {
-    return exerciseIds.map(id => exercises.find(e => e.id === id)).filter(Boolean);
+    return exerciseIds.map(id => homeExercises.find(e => e.id === id)).filter(Boolean);
   };
 
   return (

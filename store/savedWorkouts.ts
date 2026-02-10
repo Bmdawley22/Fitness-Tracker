@@ -23,9 +23,20 @@ export interface SavedExercise {
   createdAt: number;
 }
 
+export interface CustomExercise {
+  id: string;
+  name: string;
+  description: string;
+  category: string;
+  createdAt: number;
+}
+
 interface SavedWorkoutsState {
   savedWorkouts: SavedWorkout[];
   savedExercises: SavedExercise[];
+  customExercises: CustomExercise[];
+  
+  addCustomExercise: (exercise: Omit<CustomExercise, 'id' | 'createdAt'>) => CustomExercise;
   
   // Workout actions
   addWorkout: (workout: Omit<SavedWorkout, 'id' | 'order' | 'createdAt'>) => boolean;
@@ -50,6 +61,7 @@ export const useSavedWorkoutsStore = create<SavedWorkoutsState>()(
     (set, get) => ({
       savedWorkouts: [],
       savedExercises: [],
+      customExercises: [],
       
       addWorkout: (workout) => {
         const state = get();
@@ -168,6 +180,17 @@ export const useSavedWorkoutsStore = create<SavedWorkoutsState>()(
         
         set({ savedExercises: [...state.savedExercises, newExercise] });
         return true;
+      },
+      
+      addCustomExercise: (exercise) => {
+        const newExercise: CustomExercise = {
+          ...exercise,
+          id: `custom-ex-${Date.now()}`,
+          createdAt: Date.now(),
+        };
+        
+        set(state => ({ customExercises: [...state.customExercises, newExercise] }));
+        return newExercise;
       },
       
       removeExercise: (id) => {
