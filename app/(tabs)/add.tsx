@@ -24,6 +24,11 @@ export default function AddScreen() {
     .map(id => allExercises.find(exercise => exercise.id === id))
     .filter(Boolean) as (typeof allExercises)[number][];
 
+  const selectedExerciseSet = useMemo(
+    () => new Set(selectedExercises),
+    [selectedExercises]
+  );
+
   const resetForm = () => {
     setWorkoutName('');
     setWorkoutDescription('');
@@ -99,7 +104,7 @@ export default function AddScreen() {
         transparent
         animationType="slide"
         onRequestClose={closeAddFlow}>
-        <View style={styles.centeredView}> 
+        <View style={styles.centeredView}>
           <View style={styles.createModal}>
             <View style={styles.headerRow}>
               <View style={{ width: 48 }} />
@@ -109,10 +114,7 @@ export default function AddScreen() {
               </TouchableOpacity>
             </View>
 
-            <ScrollView
-              style={styles.createBody}
-              showsVerticalScrollIndicator={false}
-              contentContainerStyle={styles.createScrollContent}>
+            <View style={styles.createBody}>
               <TextInput
                 style={styles.input}
                 placeholder="Workout Name"
@@ -150,18 +152,20 @@ export default function AddScreen() {
               <View style={styles.sectionContainer}>
                 <Text style={styles.sectionLabel}>Saved</Text>
                 <ScrollView style={styles.exerciseList} nestedScrollEnabled>
-                  {savedExercises.length === 0 ? (
+                  {savedExercises.filter(exercise => !selectedExerciseSet.has(exercise.originalId)).length === 0 ? (
                     <Text style={styles.emptyText}>You haven’t saved any exercises yet.</Text>
                   ) : (
-                    savedExercises.map(exercise => (
-                      <TouchableOpacity
-                        key={exercise.id}
-                        style={styles.exerciseRow}
-                        onPress={() => handleSelectExercise(exercise.originalId)}>
-                        <Text style={styles.exerciseText}>{exercise.name}</Text>
-                        <Text style={styles.exerciseAdd}>+</Text>
-                      </TouchableOpacity>
-                    ))
+                    savedExercises
+                      .filter(exercise => !selectedExerciseSet.has(exercise.originalId))
+                      .map(exercise => (
+                        <TouchableOpacity
+                          key={exercise.id}
+                          style={styles.exerciseRow}
+                          onPress={() => handleSelectExercise(exercise.originalId)}>
+                          <Text style={styles.exerciseText}>{exercise.name}</Text>
+                          <Text style={styles.exerciseAdd}>+</Text>
+                        </TouchableOpacity>
+                      ))
                   )}
                 </ScrollView>
               </View>
@@ -169,18 +173,20 @@ export default function AddScreen() {
               <View style={styles.sectionContainer}>
                 <Text style={styles.sectionLabel}>All Exercises</Text>
                 <ScrollView style={styles.exerciseList} nestedScrollEnabled>
-                  {allExercisesWithoutSaved.map(exercise => (
-                    <TouchableOpacity
-                      key={exercise.id}
-                      style={styles.exerciseRow}
-                      onPress={() => handleSelectExercise(exercise.id)}>
-                      <Text style={styles.exerciseText}>{exercise.name}</Text>
-                      <Text style={styles.exerciseAdd}>+</Text>
-                    </TouchableOpacity>
-                  ))}
+                  {allExercisesWithoutSaved
+                    .filter(exercise => !selectedExerciseSet.has(exercise.id))
+                    .map(exercise => (
+                      <TouchableOpacity
+                        key={exercise.id}
+                        style={styles.exerciseRow}
+                        onPress={() => handleSelectExercise(exercise.id)}>
+                        <Text style={styles.exerciseText}>{exercise.name}</Text>
+                        <Text style={styles.exerciseAdd}>+</Text>
+                      </TouchableOpacity>
+                    ))}
                 </ScrollView>
               </View>
-            </ScrollView>
+            </View>
 
             <View style={styles.actionRow}>
               <TouchableOpacity onPress={closeAddFlow} style={styles.cancelButton}>
@@ -251,9 +257,6 @@ const styles = StyleSheet.create({
   },
   createBody: {
     marginBottom: 16,
-  },
-  createScrollContent: {
-    paddingBottom: 16,
   },
   input: {
     backgroundColor: '#111',
