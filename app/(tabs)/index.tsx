@@ -1,12 +1,18 @@
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Modal } from 'react-native';
 import React, { useState, useEffect } from 'react';
+import { useNavigation } from '@react-navigation/native';
 import { exercises } from '@/data/exercises';
 import { workouts } from '@/data/workouts';
 import { useSavedWorkoutsStore } from '@/store/savedWorkouts';
+import { useUIStore } from '@/store/uiState';
 
 type FilterType = 'all' | 'workouts' | 'exercises';
 
 export default function HomeScreen() {
+  const navigation = useNavigation();
+  const { addWorkout, isWorkoutSaved, savedWorkouts } = useSavedWorkoutsStore();
+  const { setWorkoutEditState, clearWorkoutEditState } = useUIStore();
+
   const [selectedFilter, setSelectedFilter] = useState<FilterType>('exercises');
   const [selectedExercise, setSelectedExercise] = useState<string | null>(null);
   const [selectedWorkout, setSelectedWorkout] = useState<string | null>(null);
@@ -16,8 +22,13 @@ export default function HomeScreen() {
   const [showAddWorkoutModal, setShowAddWorkoutModal] = useState(false);
   const [workoutToAdd, setWorkoutToAdd] = useState<string | null>(null);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
-
-  const { addWorkout, isWorkoutSaved, savedWorkouts } = useSavedWorkoutsStore();
+  
+  // Duplicate detection states
+  const [showDuplicateModal, setShowDuplicateModal] = useState(false);
+  const [conflictingWorkout, setConflictingWorkout] = useState<{ id: string; name: string } | null>(null);
+  const [pendingWorkoutToAdd, setPendingWorkoutToAdd] = useState<string | null>(null);
+  const [showConfirmAddAfterRename, setShowConfirmAddAfterRename] = useState(false);
+  const [showNameStillMatches, setShowNameStillMatches] = useState(false);
 
   // Check if saved workout differs from original
   const hasWorkoutChanged = (originalId: string): boolean => {
@@ -33,6 +44,60 @@ export default function HomeScreen() {
       saved.exercises.length !== original.exercises.length ||
       !saved.exercises.every((ex, i) => ex === original.exercises[i])
     );
+  };
+
+  // Find a saved workout by name
+  const findSavedWorkoutByName = (name: string) => {
+    return savedWorkouts.find(w => w.name === name);
+  };
+
+  // Handle rename - navigate to Saved tab and open edit modal
+  const handleRenameSavedWorkout = () => {
+    if (!conflictingWorkout || !pendingWorkoutToAdd) return;
+    
+    // Set UI state for the workouts tab to handle edit
+    setWorkoutEditState(conflictingWorkout.id, pendingWorkoutToAdd, workouts.find(w => w.id === pendingWorkoutToAdd)?.name || null);
+    
+    // Close current modals
+    setShowDuplicateModal(false);
+    
+    // Navigate to Saved tab (assuming it's called 'workouts')
+    navigation.navigate('workouts' as never);
+  };
+
+  // Handle confirming add after rename
+  const handleConfirmAddAfterRename = () => {
+    if (!pendingWorkoutToAdd) return;
+    
+    const workoutToAddData = workouts.find(w => w.id === pendingWorkoutToAdd);
+    if (!workoutToAddData) return;
+    
+    // Check if name still conflicts
+    const stillConflicts = findSavedWorkoutByName(workoutToAddData.name);
+    if (stillConflicts) {
+      // Show "Name still matches" modal
+      setShowNameStillMatches(true);
+      setShowConfirmAddAfterRename(false);
+      return;
+    }
+    
+    // Add the workout
+    const success = addWorkout({
+      originalId: workoutToAddData.id,
+      name: workoutToAddData.name,
+      description: workoutToAddData.description,
+      exercises: [...workoutToAddData.exercises],
+    });
+
+    if (success) {
+      setToastMessage('Workout saved!');
+    }
+    
+    // Clear states
+    setShowConfirmAddAfterRename(false);
+    setPendingWorkoutToAdd(null);
+    setConflictingWorkout(null);
+    clearWorkoutEditState();
   };
 
   // Show toast for a few seconds
@@ -68,6 +133,17 @@ export default function HomeScreen() {
       setToastMessage('Already saved!');
       setShowAddWorkoutModal(false);
       setWorkoutToAdd(null);
+      return;
+    }
+
+    // Check for duplicate name
+    const duplicate = findSavedWorkoutByName(workout.name);
+    if (duplicate) {
+      // Show duplicate modal
+      setConflictingWorkout({ id: duplicate.id, name: duplicate.name });
+      setPendingWorkoutToAdd(workoutToAdd);
+      setShowDuplicateModal(true);
+      setShowAddWorkoutModal(false);
       return;
     }
 
@@ -397,6 +473,140 @@ export default function HomeScreen() {
               onPress={() => {
                 setShowAddWorkoutModal(false);
                 setWorkoutToAdd(null);
+              }}>
+              <Text style={styles.closeButtonText}>Cancel</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
+
+      {/* Duplicate Workout Modal */}
+      <Modal
+        visible={showDuplicateModal}
+        transparent={true}
+        animationType="fade"
+        onRequestClose={() => {
+          setShowDuplicateModal(false);
+          setPendingWorkoutToAdd(null);
+          setConflictingWorkout(null);
+        }}>
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContent}>
+            <TouchableOpacity 
+              style={styles.closeX}
+              onPress={() => {
+                setShowDuplicateModal(false);
+                setPendingWorkoutToAdd(null);
+                setConflictingWorkout(null);
+              }}>
+              <Text style={styles.closeXText}>✕</Text>
+            </TouchableOpacity>
+            <Text style={styles.modalTitle}>Duplicate Workout</Text>
+            <Text style={styles.modalDescription}>
+              Do you want to rename your existing workout and add this workout?
+            </Text>
+            <TouchableOpacity 
+              style={styles.optionButton}
+              onPress={handleRenameSavedWorkout}>
+              <Text style={styles.optionButtonText}>
+                Rename &ldquo;{conflictingWorkout?.name}&rdquo;
+              </Text>
+            </TouchableOpacity>
+            <TouchableOpacity 
+              style={styles.closeButton}
+              onPress={() => {
+                setShowDuplicateModal(false);
+                setPendingWorkoutToAdd(null);
+                setConflictingWorkout(null);
+              }}>
+              <Text style={styles.closeButtonText}>Cancel</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
+
+      {/* Confirm Add After Rename Modal */}
+      <Modal
+        visible={showConfirmAddAfterRename}
+        transparent={true}
+        animationType="fade"
+        onRequestClose={() => {
+          setShowConfirmAddAfterRename(false);
+          setPendingWorkoutToAdd(null);
+        }}>
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContent}>
+            <TouchableOpacity 
+              style={styles.closeX}
+              onPress={() => {
+                setShowConfirmAddAfterRename(false);
+                setPendingWorkoutToAdd(null);
+              }}>
+              <Text style={styles.closeXText}>✕</Text>
+            </TouchableOpacity>
+            <Text style={styles.modalTitle}>Ready to Add</Text>
+            <Text style={styles.modalDescription}>
+              Still want to add &ldquo;{workouts.find(w => w.id === pendingWorkoutToAdd)?.name}&rdquo;?
+            </Text>
+            <TouchableOpacity 
+              style={styles.optionButton}
+              onPress={handleConfirmAddAfterRename}>
+              <Text style={styles.optionButtonText}>Add</Text>
+            </TouchableOpacity>
+            <TouchableOpacity 
+              style={styles.closeButton}
+              onPress={() => {
+                setShowConfirmAddAfterRename(false);
+                setPendingWorkoutToAdd(null);
+              }}>
+              <Text style={styles.closeButtonText}>Cancel</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
+
+      {/* Name Still Matches Modal */}
+      <Modal
+        visible={showNameStillMatches}
+        transparent={true}
+        animationType="fade"
+        onRequestClose={() => {
+          setShowNameStillMatches(false);
+          setPendingWorkoutToAdd(null);
+        }}>
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContent}>
+            <TouchableOpacity 
+              style={styles.closeX}
+              onPress={() => {
+                setShowNameStillMatches(false);
+                setPendingWorkoutToAdd(null);
+              }}>
+              <Text style={styles.closeXText}>✕</Text>
+            </TouchableOpacity>
+            <Text style={styles.modalTitle}>Name Still Matches</Text>
+            <Text style={styles.modalDescription}>
+              A workout with this name already exists. Please rename it again.
+            </Text>
+            <TouchableOpacity 
+              style={styles.optionButton}
+              onPress={() => {
+                // Go back to edit - reopen the workouts tab
+                setShowNameStillMatches(false);
+                if (conflictingWorkout && pendingWorkoutToAdd) {
+                  setWorkoutEditState(conflictingWorkout.id, pendingWorkoutToAdd, workouts.find(w => w.id === pendingWorkoutToAdd)?.name || null);
+                  navigation.navigate('workouts' as never);
+                }
+              }}>
+              <Text style={styles.optionButtonText}>Rename</Text>
+            </TouchableOpacity>
+            <TouchableOpacity 
+              style={styles.closeButton}
+              onPress={() => {
+                setShowNameStillMatches(false);
+                setPendingWorkoutToAdd(null);
+                setConflictingWorkout(null);
+                clearWorkoutEditState();
               }}>
               <Text style={styles.closeButtonText}>Cancel</Text>
             </TouchableOpacity>
