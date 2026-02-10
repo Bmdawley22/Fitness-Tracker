@@ -1,5 +1,5 @@
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Modal, Alert } from 'react-native';
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { useNavigation } from '@react-navigation/native';
 import { exercises } from '@/data/exercises';
 import { workouts } from '@/data/workouts';
@@ -15,6 +15,7 @@ export default function HomeScreen() {
 
   const [selectedFilter, setSelectedFilter] = useState<FilterType>('exercises');
   const [selectedExercise, setSelectedExercise] = useState<string | null>(null);
+  const [selectedExerciseCategory, setSelectedExerciseCategory] = useState('All');
   const [selectedWorkout, setSelectedWorkout] = useState<string | null>(null);
   const [showAddExerciseModal, setShowAddExerciseModal] = useState(false);
   const [exerciseToAdd, setExerciseToAdd] = useState<string | null>(null);
@@ -29,6 +30,29 @@ export default function HomeScreen() {
   const [pendingWorkoutToAdd, setPendingWorkoutToAdd] = useState<string | null>(null);
   const [showConfirmAddAfterRename, setShowConfirmAddAfterRename] = useState(false);
   const [showNameStillMatches, setShowNameStillMatches] = useState(false);
+
+  // Check if saved workout differs from original
+  const exerciseCategories = useMemo(() => {
+    const uniqueCategories = Array.from(new Set(exercises.map(exercise => exercise.category)));
+    const priority = ['Triceps', 'Back', 'Legs', 'Abs'];
+    const prioritized = priority.filter(category => uniqueCategories.includes(category));
+    const rest = uniqueCategories
+      .filter(category => !priority.includes(category))
+      .sort();
+    return ['All', ...prioritized, ...rest];
+  }, []);
+
+  useEffect(() => {
+    if (selectedFilter !== 'exercises') {
+      setSelectedExerciseCategory('All');
+    }
+  }, [selectedFilter]);
+
+  const filteredExercises = useMemo(() => {
+    if (selectedFilter !== 'exercises') return [];
+    if (selectedExerciseCategory === 'All') return exercises;
+    return exercises.filter(exercise => exercise.category === selectedExerciseCategory);
+  }, [selectedFilter, selectedExerciseCategory]);
 
   // Check if saved workout differs from original
   const hasWorkoutChanged = (originalId: string): boolean => {
@@ -108,20 +132,13 @@ export default function HomeScreen() {
     }
   }, [toastMessage]);
 
-  const handleAddToSavedExercises = () => {
-    if (!exerciseToAdd) return;
+  const addExerciseToSavedById = (exerciseId: string) => {
+    const exercise = exercises.find(e => e.id === exerciseId);
+    if (!exercise) return false;
 
-    const exercise = exercises.find(e => e.id === exerciseToAdd);
-    if (!exercise) return;
-
-    // Close the add exercise modal first
-    setShowAddExerciseModal(false);
-
-    // Check for duplicate
-    if (isExerciseSaved(exerciseToAdd)) {
+    if (isExerciseSaved(exerciseId)) {
       Alert.alert('Already Saved', `"${exercise.name}" is already in your saved exercises.`);
-      setExerciseToAdd(null);
-      return;
+      return false;
     }
 
     const success = addExercise({
@@ -133,10 +150,18 @@ export default function HomeScreen() {
 
     if (success) {
       setToastMessage(`"${exercise.name}" added to saved exercises!`);
-    } else {
-      Alert.alert('Already Saved', `"${exercise.name}" is already in your saved exercises.`);
+      return true;
     }
 
+    Alert.alert('Already Saved', `"${exercise.name}" is already in your saved exercises.`);
+    return false;
+  };
+
+  const handleAddToSavedExercises = () => {
+    if (!exerciseToAdd) return;
+
+    setShowAddExerciseModal(false);
+    addExerciseToSavedById(exerciseToAdd);
     setExerciseToAdd(null);
   };
 
@@ -148,6 +173,27 @@ export default function HomeScreen() {
   const handleWorkoutPlusClick = (workoutId: string) => {
     setWorkoutToAdd(workoutId);
     setShowAddWorkoutModal(true);
+  };
+
+  const handleAddExerciseToExistingFromDetailModal = () => {
+    if (!selectedExercise) return;
+    const exerciseId = selectedExercise;
+    setSelectedExercise(null);
+
+    if (savedWorkouts.length === 0) {
+      Alert.alert('You have no Saved Workouts', 'OK');
+      return;
+    }
+
+    setExerciseToAdd(exerciseId);
+    setShowWorkoutSelectionModal(true);
+  };
+
+  const handleAddExerciseToSavedFromDetailModal = () => {
+    if (!selectedExercise) return;
+    const exerciseId = selectedExercise;
+    setSelectedExercise(null);
+    addExerciseToSavedById(exerciseId);
   };
 
   const handleAddToExistingWorkout = () => {
@@ -190,6 +236,8 @@ export default function HomeScreen() {
           const success = addExerciseToWorkout(workoutId, exerciseToAdd);
           if (success) {
             setToastMessage(`Exercise added to ${workoutName}!`);
+          } else {
+            Alert.alert('Limit reached', 'You can only add 12 exercises to a workout.');
           }
           // Auto-close modal after 1 second
           setTimeout(() => {
@@ -294,22 +342,57 @@ export default function HomeScreen() {
         </TouchableOpacity>
       </View>
 
+      {selectedFilter === 'exercises' && (
+        <View style={styles.categoryFilterContainer}>
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            contentContainerStyle={styles.categoryFilterScroll}>
+            {exerciseCategories.map(category => (
+              <TouchableOpacity
+                key={category}
+                style={[
+                  styles.categoryFilterButton,
+                  selectedExerciseCategory === category && styles.categoryFilterButtonActive,
+                ]}
+                onPress={() => setSelectedExerciseCategory(category)}>
+                <Text
+                  style={[
+                    styles.categoryFilterText,
+                    selectedExerciseCategory === category && styles.categoryFilterTextActive,
+                  ]}>
+                  {category}
+                </Text>
+              </TouchableOpacity>
+            ))}
+          </ScrollView>
+        </View>
+      )}
+
       {/* List */}
       <ScrollView style={styles.listContainer}>
-        {selectedFilter === 'exercises' && exercises.map(exercise => (
-          <View key={exercise.id} style={styles.listItem}>
-            <TouchableOpacity 
-              style={styles.listItemButton}
-              onPress={() => setSelectedExercise(exercise.id)}>
-              <Text style={styles.listItemText}>{exercise.name}</Text>
-            </TouchableOpacity>
-            <TouchableOpacity 
-              style={styles.plusButton}
-              onPress={() => handleExercisePlusClick(exercise.id)}>
-              <Text style={styles.plusText}>+</Text>
-            </TouchableOpacity>
-          </View>
-        ))}
+        {selectedFilter === 'exercises' && (
+          filteredExercises.length === 0 ? (
+            <Text style={styles.noExercisesText}>No exercises found in {
+              selectedExerciseCategory === 'All' ? 'this list' : selectedExerciseCategory
+            }.</Text>
+          ) : (
+            filteredExercises.map(exercise => (
+              <View key={exercise.id} style={styles.listItem}>
+                <TouchableOpacity 
+                  style={styles.listItemButton}
+                  onPress={() => setSelectedExercise(exercise.id)}>
+                  <Text style={styles.listItemText}>{exercise.name}</Text>
+                </TouchableOpacity>
+                <TouchableOpacity 
+                  style={styles.plusButton}
+                  onPress={() => handleExercisePlusClick(exercise.id)}>
+                  <Text style={styles.plusText}>+</Text>
+                </TouchableOpacity>
+              </View>
+            ))
+          )
+        )}
 
         {selectedFilter === 'workouts' && workouts.map(workout => {
           const isSaved = isWorkoutSaved(workout.id);
@@ -366,9 +449,14 @@ export default function HomeScreen() {
             <Text style={styles.modalTitle}>{selectedExerciseData?.name}</Text>
             <Text style={styles.modalDescription}>{selectedExerciseData?.description}</Text>
             <TouchableOpacity 
-              style={styles.closeButton}
-              onPress={() => setSelectedExercise(null)}>
-              <Text style={styles.closeButtonText}>Close</Text>
+              style={styles.optionButton}
+              onPress={handleAddExerciseToExistingFromDetailModal}>
+              <Text style={styles.optionButtonText}>Add to Existing Workout</Text>
+            </TouchableOpacity>
+            <TouchableOpacity 
+              style={styles.optionButton}
+              onPress={handleAddExerciseToSavedFromDetailModal}>
+              <Text style={styles.optionButtonText}>Add to Saved Exercises</Text>
             </TouchableOpacity>
           </View>
         </View>
@@ -696,6 +784,33 @@ const styles = StyleSheet.create({
     gap: 8,
     marginBottom: 16,
   },
+  categoryFilterContainer: {
+    paddingHorizontal: 16,
+    marginBottom: 12,
+  },
+  categoryFilterScroll: {
+    gap: 8,
+  },
+  categoryFilterButton: {
+    paddingVertical: 6,
+    paddingHorizontal: 14,
+    borderRadius: 16,
+    backgroundColor: '#111',
+    borderWidth: 1,
+    borderColor: '#333',
+  },
+  categoryFilterButtonActive: {
+    backgroundColor: '#fff',
+    borderColor: '#fff',
+  },
+  categoryFilterText: {
+    color: '#fff',
+    fontSize: 12,
+    fontWeight: '600',
+  },
+  categoryFilterTextActive: {
+    color: '#000',
+  },
   filterButton: {
     paddingVertical: 8,
     paddingHorizontal: 16,
@@ -884,6 +999,12 @@ const styles = StyleSheet.create({
     color: '#000',
     fontSize: 16,
     fontWeight: '600',
+  },
+  noExercisesText: {
+    color: '#888',
+    fontSize: 16,
+    textAlign: 'center',
+    marginVertical: 24,
   },
   noWorkoutsText: {
     color: '#888',

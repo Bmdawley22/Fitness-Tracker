@@ -1,27 +1,209 @@
-import { View, Text, StyleSheet, Modal, TouchableOpacity } from 'react-native';
-import React, { useState } from 'react';
+import { Alert, Dimensions, Modal, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import React, { useMemo, useState } from 'react';
+import { exercises as allExercises } from '@/data/exercises';
+import { useSavedWorkoutsStore } from '@/store/savedWorkouts';
+
+const WINDOW_HEIGHT = Dimensions.get('window').height;
 
 export default function AddScreen() {
-  const [modalVisible, setModalVisible] = useState(true);
+  const [createModalVisible, setCreateModalVisible] = useState(false);
+  const [workoutName, setWorkoutName] = useState('');
+  const [workoutDescription, setWorkoutDescription] = useState('');
+  const [selectedExercises, setSelectedExercises] = useState<string[]>([]);
+  const { savedExercises, addWorkout } = useSavedWorkoutsStore();
+
+  const MAX_EXERCISES = 12;
+
+  const savedExerciseIds = useMemo(
+    () => new Set(savedExercises.map(exercise => exercise.originalId)),
+    [savedExercises]
+  );
+
+  const allExercisesWithoutSaved = useMemo(
+    () => allExercises.filter(exercise => !savedExerciseIds.has(exercise.id)),
+    [savedExerciseIds]
+  );
+
+  const selectedExerciseDetails = selectedExercises
+    .map(id => allExercises.find(exercise => exercise.id === id))
+    .filter(Boolean) as (typeof allExercises)[number][];
+
+  const selectedExerciseSet = useMemo(
+    () => new Set(selectedExercises),
+    [selectedExercises]
+  );
+
+  const resetForm = () => {
+    setWorkoutName('');
+    setWorkoutDescription('');
+    setSelectedExercises([]);
+  };
+
+  const openCreateModal = () => {
+    resetForm();
+    setCreateModalVisible(true);
+  };
+
+  const closeAddFlow = () => {
+    setCreateModalVisible(false);
+    resetForm();
+  };
+
+  const handleSelectExercise = (exerciseId: string) => {
+    if (selectedExercises.includes(exerciseId)) {
+      Alert.alert('Exercise already selected', 'This exercise is already in your list.');
+      return;
+    }
+
+    if (selectedExercises.length >= MAX_EXERCISES) {
+      Alert.alert('Limit reached', `You can only add up to ${MAX_EXERCISES} exercises per workout.`);
+      return;
+    }
+
+    setSelectedExercises(prev => [...prev, exerciseId]);
+  };
+
+  const handleRemoveExercise = (exerciseId: string) => {
+    setSelectedExercises(prev => prev.filter(id => id !== exerciseId));
+  };
+
+  const handleCreateWorkout = () => {
+    if (!workoutName.trim()) {
+      Alert.alert('Name required', 'Please add a name for your workout.');
+      return;
+    }
+
+    if (selectedExercises.length === 0) {
+      Alert.alert('Add exercises', 'Select at least one exercise to create a workout.');
+      return;
+    }
+
+    const success = addWorkout({
+      originalId: `custom-${Date.now()}`,
+      name: workoutName.trim(),
+      description: workoutDescription.trim(),
+      exercises: selectedExercises,
+    });
+
+    if (success) {
+      Alert.alert('Workout created', 'Your new workout has been saved.', [
+        {
+          text: 'OK',
+          onPress: () => {
+            resetForm();
+            setCreateModalVisible(false);
+          },
+        },
+      ]);
+    } else {
+      Alert.alert('Unable to save', 'A workout with these settings already exists.');
+    }
+  };
 
   return (
     <View style={styles.container}>
+      <View style={styles.launchWrapper}>
+        <TouchableOpacity style={styles.launchButton} onPress={openCreateModal}>
+          <Text style={styles.launchButtonText}>Create New Workout</Text>
+        </TouchableOpacity>
+      </View>
+
       <Modal
-        animationType="fade"
-        transparent={true}
-        visible={modalVisible}
-        onRequestClose={() => setModalVisible(false)}>
+        visible={createModalVisible}
+        transparent
+        animationType="slide"
+        onRequestClose={closeAddFlow}>
         <View style={styles.centeredView}>
-          <View style={styles.modalView}>
-            <Text style={styles.modalTitle}>Create</Text>
-            <TouchableOpacity 
-              style={styles.button}
-              onPress={() => {
-                // TODO: Navigate to workout creation screen
-                console.log('New Workout pressed');
-              }}>
-              <Text style={styles.buttonText}>New Workout</Text>
-            </TouchableOpacity>
+          <View style={styles.createModal}>
+            <View style={styles.headerRow}>
+              <TouchableOpacity onPress={closeAddFlow} style={styles.topCloseButton}>
+                <Text style={styles.topCloseText}>Close</Text>
+              </TouchableOpacity>
+              <View style={styles.titleRow}>
+                <Text style={styles.modalTitle}>Create New Workout</Text>
+              </View>
+              <TouchableOpacity style={styles.topSaveButton} onPress={handleCreateWorkout}>
+                <Text style={styles.topSaveText}>Save</Text>
+              </TouchableOpacity>
+            </View>
+
+            <View style={styles.inputsContainer}>
+              <TextInput
+                style={styles.input}
+                placeholder="Workout Name"
+                placeholderTextColor="#888"
+                value={workoutName}
+                onChangeText={setWorkoutName}
+              />
+              <TextInput
+                style={[styles.input, styles.descriptionInput]}
+                placeholder="Description (optional)"
+                placeholderTextColor="#888"
+                value={workoutDescription}
+                onChangeText={setWorkoutDescription}
+                multiline
+              />
+            </View>
+
+            <View style={styles.selectedContainer}>
+              <Text style={styles.sectionLabel}>Selected Exercises</Text>
+              {selectedExerciseDetails.length === 0 ? (
+                <Text style={styles.emptySelectionText}>No exercises yet. Tap one of the lists below to add it.</Text>
+              ) : (
+                <ScrollView
+                  horizontal
+                  showsHorizontalScrollIndicator={false}
+                  contentContainerStyle={styles.selectedWrap}>
+                  {selectedExerciseDetails.map(exercise => (
+                    <View key={exercise.id} style={styles.selectedChip}>
+                      <Text style={styles.selectedText}>{exercise.name}</Text>
+                      <TouchableOpacity onPress={() => handleRemoveExercise(exercise.id)} style={styles.removeButton}>
+                        <Text style={styles.removeButtonText}>✕</Text>
+                      </TouchableOpacity>
+                    </View>
+                  ))}
+                </ScrollView>
+              )}
+            </View>
+
+            <View style={styles.sectionContainer}>
+              <Text style={styles.sectionLabel}>Saved</Text>
+              <ScrollView style={styles.exerciseList} nestedScrollEnabled>
+                {savedExercises.filter(exercise => !selectedExerciseSet.has(exercise.originalId)).length === 0 ? (
+                  <Text style={styles.emptyText}>No saved exercises left.</Text>
+                ) : (
+                  savedExercises
+                    .filter(exercise => !selectedExerciseSet.has(exercise.originalId))
+                    .map(exercise => (
+                      <TouchableOpacity
+                        key={exercise.id}
+                        style={styles.exerciseRow}
+                        onPress={() => handleSelectExercise(exercise.originalId)}>
+                        <Text style={styles.exerciseText}>{exercise.name}</Text>
+                        <Text style={styles.exerciseAdd}>+</Text>
+                      </TouchableOpacity>
+                    ))
+                )}
+              </ScrollView>
+            </View>
+
+            <View style={styles.sectionContainer}>
+              <Text style={styles.sectionLabel}>All Exercises</Text>
+              <ScrollView style={styles.exerciseList} nestedScrollEnabled>
+                {allExercisesWithoutSaved
+                  .filter(exercise => !selectedExerciseSet.has(exercise.id))
+                  .map(exercise => (
+                    <TouchableOpacity
+                      key={exercise.id}
+                      style={styles.exerciseRow}
+                      onPress={() => handleSelectExercise(exercise.id)}>
+                      <Text style={styles.exerciseText}>{exercise.name}</Text>
+                      <Text style={styles.exerciseAdd}>+</Text>
+                    </TouchableOpacity>
+                  ))}
+              </ScrollView>
+            </View>
+
           </View>
         </View>
       </Modal>
@@ -34,44 +216,161 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: '#000',
   },
+  launchWrapper: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  launchButton: {
+    backgroundColor: '#fff',
+    paddingVertical: 14,
+    paddingHorizontal: 32,
+    borderRadius: 16,
+  },
+  launchButtonText: {
+    color: '#000',
+    fontSize: 18,
+    fontWeight: '700',
+  },
   centeredView: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    backgroundColor: 'rgba(0, 0, 0, 0.7)',
   },
-  modalView: {
+  createModal: {
+    width: '94%',
+    minHeight: WINDOW_HEIGHT * 0.75,
+    maxHeight: WINDOW_HEIGHT * 0.92,
     backgroundColor: '#1a1a1a',
-    borderRadius: 12,
-    padding: 24,
+    borderRadius: 24,
+    padding: 20,
+  },
+  headerRow: {
+    flexDirection: 'row',
     alignItems: 'center',
-    shadowColor: '#000',
-    shadowOffset: {
-      width: 0,
-      height: 2,
-    },
-    shadowOpacity: 0.25,
-    shadowRadius: 4,
-    elevation: 5,
-    minWidth: 280,
+    justifyContent: 'space-between',
+    marginBottom: 12,
+  },
+  backLink: {
+    padding: 4,
+  },
+  backText: {
+    color: '#888',
+    fontSize: 16,
   },
   modalTitle: {
-    fontSize: 24,
+    fontSize: 20,
     fontWeight: '700',
     color: '#fff',
-    marginBottom: 20,
   },
-  button: {
+  bodyWrapper: {
+    flex: 1,
+    marginBottom: 12,
+  },
+  inputsContainer: {
+    marginBottom: 12,
+  },
+  input: {
+    backgroundColor: '#111',
+    borderRadius: 12,
+    padding: 12,
+    color: '#fff',
+    fontSize: 16,
+    marginBottom: 12,
+  },
+  descriptionInput: {
+    height: 90,
+    textAlignVertical: 'top',
+  },
+  selectedContainer: {
+    marginBottom: 16,
+  },
+  sectionLabel: {
+    color: '#fff',
+    fontSize: 14,
+    fontWeight: '600',
+    marginBottom: 8,
+    textAlign: 'left',
+  },
+  emptySelectionText: {
+    color: '#888',
+    fontSize: 14,
+  },
+  selectedWrap: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+  },
+  selectedChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#222',
+    borderRadius: 16,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    marginRight: 8,
+    marginBottom: 8,
+  },
+  selectedText: {
+    color: '#fff',
+  },
+  removeButton: {
+    marginLeft: 8,
+  },
+  removeButtonText: {
+    color: '#f66',
+    fontSize: 16,
+  },
+  sectionContainer: {
+    marginBottom: 16,
+  },
+  emptyText: {
+    color: '#888',
+    fontSize: 14,
+  },
+  exerciseRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    padding: 12,
+    backgroundColor: '#111',
+    borderRadius: 12,
+    marginBottom: 8,
+  },
+  exerciseText: {
+    color: '#fff',
+    fontSize: 14,
+  },
+  exerciseAdd: {
+    color: '#0f0',
+    fontSize: 16,
+    fontWeight: '700',
+  },
+  exerciseList: {
+    maxHeight: 160,
+    marginBottom: 14,
+  },
+  topSaveButton: {
     backgroundColor: '#fff',
-    paddingVertical: 12,
-    paddingHorizontal: 24,
-    borderRadius: 8,
-    minWidth: 160,
+    paddingVertical: 6,
+    paddingHorizontal: 16,
+    borderRadius: 12,
+  },
+  topSaveText: {
+    color: '#000',
+    fontSize: 14,
+    fontWeight: '700',
+  },
+  titleRow: {
+    flex: 1,
     alignItems: 'center',
   },
-  buttonText: {
-    color: '#000',
-    fontSize: 16,
-    fontWeight: '600',
+  topCloseButton: {
+    paddingVertical: 6,
+    paddingHorizontal: 16,
+  },
+  topCloseText: {
+    color: '#fff',
+    fontSize: 14,
   },
 });
