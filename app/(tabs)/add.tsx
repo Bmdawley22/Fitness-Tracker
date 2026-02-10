@@ -10,6 +10,7 @@ export default function AddScreen() {
   const [workoutName, setWorkoutName] = useState('');
   const [workoutDescription, setWorkoutDescription] = useState('');
   const [selectedExercises, setSelectedExercises] = useState<string[]>([]);
+  const [searchText, setSearchText] = useState('');
   const { savedExercises, addWorkout } = useSavedWorkoutsStore();
 
   const MAX_EXERCISES = 12;
@@ -33,10 +34,29 @@ export default function AddScreen() {
     [selectedExercises]
   );
 
+  const normalizedSearch = searchText.trim().toLowerCase();
+
+  const filteredSavedExercises = useMemo(() => {
+    const base = savedExercises.filter(exercise => !selectedExerciseSet.has(exercise.originalId));
+    if (!normalizedSearch) return base;
+    return base.filter(exercise =>
+      `${exercise.name} ${exercise.category}`.toLowerCase().includes(normalizedSearch)
+    );
+  }, [savedExercises, selectedExerciseSet, normalizedSearch]);
+
+  const filteredAllExercises = useMemo(() => {
+    const base = allExercisesWithoutSaved.filter(exercise => !selectedExerciseSet.has(exercise.id));
+    if (!normalizedSearch) return base;
+    return base.filter(exercise =>
+      `${exercise.name} ${exercise.category}`.toLowerCase().includes(normalizedSearch)
+    );
+  }, [allExercisesWithoutSaved, selectedExerciseSet, normalizedSearch]);
+
   const resetForm = () => {
     setWorkoutName('');
     setWorkoutDescription('');
     setSelectedExercises([]);
+    setSearchText('');
   };
 
   const openCreateModal = () => {
@@ -142,6 +162,16 @@ export default function AddScreen() {
                 value={workoutDescription}
                 onChangeText={setWorkoutDescription}
                 multiline
+                numberOfLines={2}
+                scrollEnabled
+              />
+              <TextInput
+                style={[styles.input, styles.searchInput]}
+                placeholder="Search exercises by name or category"
+                placeholderTextColor="#888"
+                value={searchText}
+                onChangeText={setSearchText}
+                returnKeyType="search"
               />
             </View>
 
@@ -169,12 +199,10 @@ export default function AddScreen() {
             <View style={styles.sectionContainer}>
               <Text style={styles.sectionLabel}>Saved</Text>
               <ScrollView style={styles.exerciseList} nestedScrollEnabled>
-                {savedExercises.filter(exercise => !selectedExerciseSet.has(exercise.originalId)).length === 0 ? (
+                {filteredSavedExercises.length === 0 ? (
                   <Text style={styles.emptyText}>No saved exercises left.</Text>
                 ) : (
-                  savedExercises
-                    .filter(exercise => !selectedExerciseSet.has(exercise.originalId))
-                    .map(exercise => (
+                  filteredSavedExercises.map(exercise => (
                       <TouchableOpacity
                         key={exercise.id}
                         style={styles.exerciseRow}
@@ -190,9 +218,10 @@ export default function AddScreen() {
             <View style={styles.sectionContainer}>
               <Text style={styles.sectionLabel}>All Exercises</Text>
               <ScrollView style={styles.exerciseList} nestedScrollEnabled>
-                {allExercisesWithoutSaved
-                  .filter(exercise => !selectedExerciseSet.has(exercise.id))
-                  .map(exercise => (
+                {filteredAllExercises.length === 0 ? (
+                  <Text style={styles.emptyText}>No exercises found.</Text>
+                ) : (
+                  filteredAllExercises.map(exercise => (
                     <TouchableOpacity
                       key={exercise.id}
                       style={styles.exerciseRow}
@@ -200,7 +229,8 @@ export default function AddScreen() {
                       <Text style={styles.exerciseText}>{exercise.name}</Text>
                       <Text style={styles.exerciseAdd}>+</Text>
                     </TouchableOpacity>
-                  ))}
+                  ))
+                )}
               </ScrollView>
             </View>
 
@@ -280,8 +310,12 @@ const styles = StyleSheet.create({
     marginBottom: 12,
   },
   descriptionInput: {
-    height: 90,
+    height: 52,
+    maxHeight: 52,
     textAlignVertical: 'top',
+  },
+  searchInput: {
+    marginTop: 0,
   },
   selectedContainer: {
     marginBottom: 16,
