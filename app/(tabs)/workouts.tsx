@@ -35,6 +35,10 @@ export default function SavedScreen() {
   const [exerciseToAdd, setExerciseToAdd] = useState<string | null>(null);
   const [exerciseNameToAdd, setExerciseNameToAdd] = useState<string | null>(null);
   
+  // Exercise selection from edit modal states
+  const [showExerciseSelectionModal, setShowExerciseSelectionModal] = useState(false);
+  const [exerciseSearchText, setExerciseSearchText] = useState('');
+  
   // Rename flow states
   const [showConfirmAddModal, setShowConfirmAddModal] = useState(false);
   const [pendingWorkoutInfo, setPendingWorkoutInfo] = useState<{ id: string; name: string } | null>(null);
@@ -169,7 +173,7 @@ export default function SavedScreen() {
     }
     
     // Add the workout
-    const success = addWorkout({
+    addWorkout({
       originalId: workoutToAdd.id,
       name: workoutToAdd.name,
       description: workoutToAdd.description,
@@ -204,6 +208,37 @@ export default function SavedScreen() {
         ]
       );
     }
+  };
+
+  const handleAddExerciseFromEditPage = () => {
+    setShowExerciseSelectionModal(true);
+    setExerciseSearchText('');
+  };
+
+  const handleSelectExerciseFromList = (exerciseId: string, exerciseName: string) => {
+    if (!editingWorkout) return;
+
+    // Check for duplicate
+    if (editingWorkout.exercises.includes(exerciseId)) {
+      Alert.alert('This exercise is already in this workout', '', [{ text: 'OK' }]);
+      return;
+    }
+
+    // Add exercise to workout
+    const updatedExercises = [...editingWorkout.exercises, exerciseId];
+    setEditingWorkout({
+      ...editingWorkout,
+      exercises: updatedExercises
+    });
+
+    // Also update the store
+    updateWorkout(editingWorkout.id, {
+      exercises: updatedExercises
+    });
+
+    // Close the modal
+    setShowExerciseSelectionModal(false);
+    setExerciseSearchText('');
   };
 
   const handleRemoveFromSaved = () => {
@@ -521,7 +556,9 @@ export default function SavedScreen() {
               placeholderTextColor="#666"
             />
 
-            <TouchableOpacity style={styles.addExerciseButton}>
+            <TouchableOpacity 
+              style={styles.addExerciseButton}
+              onPress={handleAddExerciseFromEditPage}>
               <Text style={styles.addExerciseButtonText}>+ Add Exercise</Text>
             </TouchableOpacity>
 
@@ -580,6 +617,106 @@ export default function SavedScreen() {
               <Text style={styles.closeButtonText}>Cancel</Text>
             </TouchableOpacity>
           </View>
+        </View>
+      </Modal>
+
+      {/* Exercise Selection Modal for Edit Page */}
+      <Modal
+        visible={showExerciseSelectionModal}
+        animationType="slide"
+        onRequestClose={() => {
+          setShowExerciseSelectionModal(false);
+          setExerciseSearchText('');
+        }}>
+        <View style={styles.editContainer}>
+          <View style={styles.editHeader}>
+            <TouchableOpacity onPress={() => {
+              setShowExerciseSelectionModal(false);
+              setExerciseSearchText('');
+            }}>
+              <Text style={styles.editCancelText}>Cancel</Text>
+            </TouchableOpacity>
+            <Text style={styles.editTitle}>Add Exercise</Text>
+            <View style={{ width: 50 }} />
+          </View>
+
+          <TextInput
+            style={styles.searchInput}
+            placeholder="Search exercises..."
+            placeholderTextColor="#666"
+            value={exerciseSearchText}
+            onChangeText={setExerciseSearchText}
+          />
+
+          <FlatList
+            data={(() => {
+              // Filter exercises based on search text
+              const filteredAllExercises = allExercises.filter(e =>
+                e.name.toLowerCase().includes(exerciseSearchText.toLowerCase())
+              );
+
+              // Get saved exercises
+              const savedExerciseIds = savedExercises.map(se => se.originalId);
+
+              // Split into saved and all
+              const savedInList = filteredAllExercises.filter(e =>
+                savedExerciseIds.includes(e.id)
+              );
+              const allInList = filteredAllExercises.filter(e =>
+                !savedExerciseIds.includes(e.id)
+              );
+
+              // Create sections
+              const sections = [];
+
+              if (savedInList.length > 0) {
+                sections.push({ type: 'header', title: 'Saved', data: [] });
+                savedInList.forEach(e => {
+                  sections.push({ type: 'item', exerciseId: e.id, exerciseName: e.name, isSaved: true });
+                });
+              }
+
+              if (allInList.length > 0) {
+                sections.push({ type: 'header', title: 'All Exercises', data: [] });
+                allInList.forEach(e => {
+                  sections.push({ type: 'item', exerciseId: e.id, exerciseName: e.name, isSaved: false });
+                });
+              }
+
+              return sections;
+            })()}
+            keyExtractor={(item, index) => {
+              if (item.type === 'header') {
+                return `header-${item.title}-${index}`;
+              }
+              return item.exerciseId;
+            }}
+            renderItem={({ item }) => {
+              if (item.type === 'header') {
+                return (
+                  <View style={styles.sectionHeaderContainer}>
+                    <Text style={styles.sectionHeader}>{item.title}</Text>
+                  </View>
+                );
+              }
+              return (
+                <TouchableOpacity
+                  style={styles.exerciseSelectionItem}
+                  onPress={() => handleSelectExerciseFromList(item.exerciseId, item.exerciseName)}>
+                  <Text style={styles.exerciseSelectionText}>{item.exerciseName}</Text>
+                  {item.isSaved && (
+                    <Text style={styles.savedBadge}>★</Text>
+                  )}
+                </TouchableOpacity>
+              );
+            }}
+            ListEmptyComponent={
+              <View style={styles.emptyState}>
+                <Text style={styles.emptyText}>No exercises found</Text>
+              </View>
+            }
+            contentContainerStyle={styles.exerciseListContent}
+          />
         </View>
       </Modal>
     </View>
@@ -883,21 +1020,6 @@ const styles = StyleSheet.create({
     maxHeight: '70%',
     position: 'relative',
   },
-  closeX: {
-    position: 'absolute',
-    top: 12,
-    right: 12,
-    width: 30,
-    height: 30,
-    alignItems: 'center',
-    justifyContent: 'center',
-    zIndex: 10,
-  },
-  closeXText: {
-    color: '#888',
-    fontSize: 20,
-    fontWeight: '600',
-  },
   optionButton: {
     backgroundColor: '#fff',
     padding: 16,
@@ -935,5 +1057,50 @@ const styles = StyleSheet.create({
     color: '#000',
     fontSize: 16,
     fontWeight: '500',
+  },
+  // Exercise Selection Modal Styles
+  searchInput: {
+    backgroundColor: '#1a1a1a',
+    borderRadius: 8,
+    padding: 12,
+    color: '#fff',
+    fontSize: 16,
+    margin: 16,
+    marginBottom: 8,
+  },
+  sectionHeaderContainer: {
+    alignItems: 'center',
+    paddingVertical: 16,
+    paddingHorizontal: 16,
+  },
+  sectionHeader: {
+    color: '#888',
+    fontSize: 14,
+    fontWeight: '600',
+    textTransform: 'uppercase',
+  },
+  exerciseSelectionItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    backgroundColor: '#1a1a1a',
+    padding: 16,
+    marginHorizontal: 16,
+    marginBottom: 8,
+    borderRadius: 8,
+  },
+  exerciseSelectionText: {
+    color: '#fff',
+    fontSize: 16,
+    fontWeight: '500',
+    flex: 1,
+  },
+  savedBadge: {
+    color: '#ffd700',
+    fontSize: 14,
+    marginLeft: 8,
+  },
+  exerciseListContent: {
+    paddingBottom: 20,
   },
 });
