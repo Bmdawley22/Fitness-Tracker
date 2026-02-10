@@ -1,5 +1,6 @@
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Modal, TextInput, Alert } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Modal, TextInput, Alert, PanResponder } from 'react-native';
 import React, { useState } from 'react';
+import * as Haptics from 'expo-haptics';
 import { useSavedWorkoutsStore, SavedWorkout } from '@/store/savedWorkouts';
 import { exercises as allExercises } from '@/data/exercises';
 
@@ -7,6 +8,7 @@ type SavedFilter = 'workouts' | 'exercises';
 
 export default function SavedScreen() {
   const [selectedFilter, setSelectedFilter] = useState<SavedFilter>('workouts');
+  const [detailWorkout, setDetailWorkout] = useState<SavedWorkout | null>(null);
   const [menuWorkout, setMenuWorkout] = useState<SavedWorkout | null>(null);
   const [editingWorkout, setEditingWorkout] = useState<SavedWorkout | null>(null);
   const [editName, setEditName] = useState('');
@@ -106,6 +108,29 @@ export default function SavedScreen() {
     return allExercises.find(e => e.id === exerciseId)?.name || exerciseId;
   };
 
+  const createPanResponder = (index: number, sortedWorkouts: SavedWorkout[]) => {
+    const DRAG_THRESHOLD = 40;
+    
+    return PanResponder.create({
+      onStartShouldSetPanResponder: () => true,
+      onMoveShouldSetPanResponder: () => true,
+      onPanResponderRelease: (evt, gestureState) => {
+        const { dy } = gestureState;
+        
+        // Drag up - move up in list
+        if (dy < -DRAG_THRESHOLD && index > 0) {
+          Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+          handleMoveUp(index);
+        }
+        // Drag down - move down in list
+        else if (dy > DRAG_THRESHOLD && index < sortedWorkouts.length - 1) {
+          Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+          handleMoveDown(index);
+        }
+      },
+    });
+  };
+
   // Sort workouts by order
   const sortedWorkouts = [...savedWorkouts].sort((a, b) => a.order - b.order);
 
@@ -139,10 +164,14 @@ export default function SavedScreen() {
           </View>
         )}
 
-        {selectedFilter === 'workouts' && sortedWorkouts.map((workout, index) => (
+        {selectedFilter === 'workouts' && sortedWorkouts.map((workout, index) => {
+          const panResponder = createPanResponder(index, sortedWorkouts);
+          return (
           <View key={workout.id} style={styles.listItem}>
             {/* Drag Handle */}
-            <View style={styles.dragHandleContainer}>
+            <View 
+              style={styles.dragHandleContainer}
+              {...panResponder.panHandlers}>
               <TouchableOpacity 
                 style={styles.moveButton}
                 onPress={() => handleMoveUp(index)}
@@ -158,10 +187,12 @@ export default function SavedScreen() {
               </TouchableOpacity>
             </View>
             
-            <View style={styles.workoutContent}>
+            <TouchableOpacity 
+              style={styles.workoutContent}
+              onPress={() => setDetailWorkout(workout)}>
               <Text style={styles.listItemText}>{workout.name}</Text>
               <Text style={styles.listItemDescription}>{workout.description}</Text>
-            </View>
+            </TouchableOpacity>
             
             {/* 3-dot menu button */}
             <TouchableOpacity 
@@ -170,7 +201,8 @@ export default function SavedScreen() {
               <Text style={styles.menuButtonText}>⋯</Text>
             </TouchableOpacity>
           </View>
-        ))}
+          );
+        })}
 
         {selectedFilter === 'exercises' && savedExercises.length === 0 && (
           <View style={styles.emptyState}>
@@ -212,6 +244,35 @@ export default function SavedScreen() {
             <TouchableOpacity style={styles.menuOptionDanger} onPress={handleRemoveFromSaved}>
               <Text style={styles.menuOptionDangerText}>Remove from Saved</Text>
             </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
+
+      {/* Workout Detail Modal */}
+      <Modal
+        visible={detailWorkout !== null}
+        transparent={true}
+        animationType="fade"
+        onRequestClose={() => setDetailWorkout(null)}>
+        <View style={styles.modalOverlay}>
+          <View style={styles.workoutDetailModalContent}>
+            <TouchableOpacity 
+              style={styles.closeX}
+              onPress={() => setDetailWorkout(null)}>
+              <Text style={styles.closeXText}>✕</Text>
+            </TouchableOpacity>
+            
+            <Text style={styles.modalTitle}>{detailWorkout?.name}</Text>
+            <Text style={styles.modalDescription}>{detailWorkout?.description}</Text>
+            
+            <Text style={styles.exercisesHeader}>Exercises</Text>
+            <ScrollView style={styles.exercisesList}>
+              {detailWorkout?.exercises.map((exerciseId, index) => (
+                <View key={exerciseId || index} style={styles.exerciseListItem}>
+                  <Text style={styles.exerciseListText}>{getExerciseName(exerciseId)}</Text>
+                </View>
+              ))}
+            </ScrollView>
           </View>
         </View>
       </Modal>
@@ -385,6 +446,46 @@ const styles = StyleSheet.create({
     padding: 24,
     width: '80%',
     position: 'relative',
+  },
+  workoutDetailModalContent: {
+    backgroundColor: '#1a1a1a',
+    borderRadius: 12,
+    padding: 24,
+    width: '85%',
+    maxHeight: '80%',
+    position: 'relative',
+  },
+  modalTitle: {
+    color: '#fff',
+    fontSize: 18,
+    fontWeight: '700',
+    marginBottom: 12,
+    paddingRight: 30,
+  },
+  modalDescription: {
+    color: '#888',
+    fontSize: 14,
+    marginBottom: 20,
+  },
+  exercisesHeader: {
+    color: '#888',
+    fontSize: 12,
+    fontWeight: '600',
+    marginBottom: 12,
+    textTransform: 'uppercase',
+  },
+  exercisesList: {
+    maxHeight: 300,
+  },
+  exerciseListItem: {
+    backgroundColor: '#333',
+    padding: 12,
+    borderRadius: 8,
+    marginBottom: 8,
+  },
+  exerciseListText: {
+    color: '#fff',
+    fontSize: 14,
   },
   closeX: {
     position: 'absolute',
