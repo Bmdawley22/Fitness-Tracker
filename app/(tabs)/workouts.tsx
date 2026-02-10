@@ -14,6 +14,7 @@ export default function SavedScreen() {
     savedExercises, 
     removeWorkout, 
     updateWorkout,
+    updateAndRegenerateId,
     removeExerciseFromWorkout,
     reorderWorkouts,
     addWorkout
@@ -66,18 +67,22 @@ export default function SavedScreen() {
 
   const handleSaveEdit = () => {
     if (editingWorkout) {
-      updateWorkout(editingWorkout.id, {
-        name: editName,
-        description: editDescription,
-      });
-      
-      // If in rename flow, show confirmation modal instead of closing
+      // If in rename flow, regenerate ID to make it a distinct entry
+      // This allows adding the original workout without overwriting
       if (pendingWorkoutInfo) {
+        updateAndRegenerateId(editingWorkout.id, {
+          name: editName,
+          description: editDescription,
+        });
         setShowConfirmAddModal(true);
-        setEditingWorkout(null);
       } else {
-        setEditingWorkout(null);
+        // Normal edit: keep the same ID
+        updateWorkout(editingWorkout.id, {
+          name: editName,
+          description: editDescription,
+        });
       }
+      setEditingWorkout(null);
     }
   };
 
