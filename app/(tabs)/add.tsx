@@ -149,32 +149,36 @@ export default function AddScreen() {
 
               <View style={styles.sectionContainer}>
                 <Text style={styles.sectionLabel}>Saved</Text>
-                {savedExercises.length === 0 ? (
-                  <Text style={styles.emptyText}>You haven’t saved any exercises yet.</Text>
-                ) : (
-                  savedExercises.map(exercise => (
-                    <TouchableOpacity
-                      key={exercise.id}
-                      style={styles.exerciseRow}
-                      onPress={() => handleSelectExercise(exercise.originalId)}>
-                      <Text style={styles.exerciseText}>{exercise.name}</Text>
-                      <Text style={styles.exerciseAdd}>+</Text>
-                    </TouchableOpacity>
-                  ))
-                )}
+                <ScrollView style={styles.exerciseList} nestedScrollEnabled>
+                  {savedExercises.length === 0 ? (
+                    <Text style={styles.emptyText}>You haven’t saved any exercises yet.</Text>
+                  ) : (
+                    savedExercises.map(exercise => (
+                      <TouchableOpacity
+                        key={exercise.id}
+                        style={styles.exerciseRow}
+                        onPress={() => handleSelectExercise(exercise.originalId)}>
+                        <Text style={styles.exerciseText}>{exercise.name}</Text>
+                        <Text style={styles.exerciseAdd}>+</Text>
+                      </TouchableOpacity>
+                    ))
+                  )}
+                </ScrollView>
               </View>
 
               <View style={styles.sectionContainer}>
                 <Text style={styles.sectionLabel}>All Exercises</Text>
-                {allExercisesWithoutSaved.map(exercise => (
-                  <TouchableOpacity
-                    key={exercise.id}
-                    style={styles.exerciseRow}
-                    onPress={() => handleSelectExercise(exercise.id)}>
-                    <Text style={styles.exerciseText}>{exercise.name}</Text>
-                    <Text style={styles.exerciseAdd}>+</Text>
-                  </TouchableOpacity>
-                ))}
+                <ScrollView style={styles.exerciseList} nestedScrollEnabled>
+                  {allExercisesWithoutSaved.map(exercise => (
+                    <TouchableOpacity
+                      key={exercise.id}
+                      style={styles.exerciseRow}
+                      onPress={() => handleSelectExercise(exercise.id)}>
+                      <Text style={styles.exerciseText}>{exercise.name}</Text>
+                      <Text style={styles.exerciseAdd}>+</Text>
+                    </TouchableOpacity>
+                  ))}
+                </ScrollView>
               </View>
             </ScrollView>
 
@@ -325,6 +329,10 @@ const styles = StyleSheet.create({
     color: '#0f0',
     fontSize: 20,
     fontWeight: '700',
+  },
+  exerciseList: {
+    maxHeight: 200,
+    marginBottom: 16,
   },
   actionRow: {
     flexDirection: 'row',
