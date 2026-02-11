@@ -2,7 +2,7 @@ import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Modal } from 'rea
 import React, { useEffect, useMemo, useState } from 'react';
 import { exercises } from '@/data/exercises';
 import { useSavedWorkoutsStore } from '@/store/savedWorkouts';
-import { WEEK_DAYS, WeekDay, useScheduleStore } from '@/store/schedule';
+import { toLocalDateKey, useScheduleStore, WEEK_DAYS } from '@/store/schedule';
 import { Ionicons } from '@expo/vector-icons';
 
 type WorkoutOption = {
@@ -51,13 +51,14 @@ export default function SearchScreen() {
   const { savedWorkouts, savedExercises, customExercises, hasHydrated: savedHydrated } = useSavedWorkoutsStore();
   const {
     schedule,
-    assignWorkoutToDay,
-    clearDay,
+    assignWorkoutToDate,
+    clearDateAssignment,
     cleanupInvalidAssignments,
     hasHydrated: scheduleHydrated,
   } = useScheduleStore();
 
-  const [assignmentDay, setAssignmentDay] = useState<WeekDay | null>(null);
+  const [assignmentDateKey, setAssignmentDateKey] = useState<string | null>(null);
+  const [assignmentDateLabel, setAssignmentDateLabel] = useState<string | null>(null);
   const [detailWorkoutId, setDetailWorkoutId] = useState<string | null>(null);
   const [isCalendarOpen, setIsCalendarOpen] = useState(false);
   const [selectedDate, setSelectedDate] = useState(() => normalizeDate(new Date()));
@@ -106,6 +107,14 @@ export default function SearchScreen() {
 
   const detailWorkout = detailWorkoutId ? workoutById.get(detailWorkoutId) : null;
   const weekRange = useMemo(() => getWeekRange(selectedDate), [selectedDate]);
+  const weekDates = useMemo(
+    () =>
+      WEEK_DAYS.map((day, index) => {
+        const date = new Date(weekRange.start.getFullYear(), weekRange.start.getMonth(), weekRange.start.getDate() + index);
+        return { day, date, dateKey: toLocalDateKey(date) };
+      }),
+    [weekRange.start],
+  );
   const weekRangeLabel = `${formatShortDate(weekRange.start)} - ${formatShortDate(weekRange.end)}`;
   const todayWeekRange = useMemo(() => getWeekRange(normalizeDate(new Date())), []);
   const isCurrentWeek =
@@ -146,17 +155,19 @@ export default function SearchScreen() {
   }, [savedHydrated, scheduleHydrated, savedWorkouts, cleanupInvalidAssignments]);
 
   const handleAssignWorkout = (workoutId: string) => {
-    if (!assignmentDay) return;
+    if (!assignmentDateKey) return;
 
-    assignWorkoutToDay(assignmentDay, workoutId);
-    setAssignmentDay(null);
+    assignWorkoutToDate(assignmentDateKey, workoutId);
+    setAssignmentDateKey(null);
+    setAssignmentDateLabel(null);
   };
 
   const handleClearDay = () => {
-    if (!assignmentDay) return;
+    if (!assignmentDateKey) return;
 
-    clearDay(assignmentDay);
-    setAssignmentDay(null);
+    clearDateAssignment(assignmentDateKey);
+    setAssignmentDateKey(null);
+    setAssignmentDateLabel(null);
   };
 
   if (!savedHydrated || !scheduleHydrated) {
@@ -186,8 +197,8 @@ export default function SearchScreen() {
       </View>
 
       <ScrollView style={styles.listContainer} contentContainerStyle={styles.listContent}>
-        {WEEK_DAYS.map((day, index) => {
-          const assignedWorkoutId = schedule[day];
+        {weekDates.map(({ day, date: calendarDate, dateKey }) => {
+          const assignedWorkoutId = schedule[dateKey];
           const assignedWorkout = assignedWorkoutId ? workoutById.get(assignedWorkoutId) : null;
           const assignedExerciseNames = assignedWorkout
             ? assignedWorkout.exercises
@@ -196,15 +207,10 @@ export default function SearchScreen() {
           const firstColumnExercises = assignedExerciseNames.slice(0, 4);
           const secondColumnExercises = assignedExerciseNames.slice(4, 8);
           const thirdColumnExercises = assignedExerciseNames.slice(8, 12);
-          const calendarDate = new Date(
-            weekRange.start.getFullYear(),
-            weekRange.start.getMonth(),
-            weekRange.start.getDate() + index,
-          );
           const dayLabel = `${day} — ${formatShortDate(calendarDate)}`;
 
           return (
-            <View key={day} style={styles.dayRow}>
+            <View key={dateKey} style={styles.dayRow}>
               <Text style={styles.dayTitle}>{dayLabel}</Text>
 
               {assignedWorkout ? (
@@ -220,7 +226,10 @@ export default function SearchScreen() {
 
                     <TouchableOpacity
                       style={styles.editButtonInline}
-                      onPress={() => setAssignmentDay(day)}>
+                      onPress={() => {
+                        setAssignmentDateKey(dateKey);
+                        setAssignmentDateLabel(dayLabel);
+                      }}>
                       <Ionicons name="pencil-outline" size={12} color="#000" />
                     </TouchableOpacity>
                   </View>
@@ -265,7 +274,12 @@ export default function SearchScreen() {
                   </TouchableOpacity>
                 </View>
               ) : (
-                <TouchableOpacity style={styles.assignButton} onPress={() => setAssignmentDay(day)}>
+                <TouchableOpacity
+                  style={styles.assignButton}
+                  onPress={() => {
+                    setAssignmentDateKey(dateKey);
+                    setAssignmentDateLabel(dayLabel);
+                  }}>
                   <Text style={styles.assignButtonLabel}>Tap to assign workout</Text>
                 </TouchableOpacity>
               )}
@@ -357,18 +371,26 @@ export default function SearchScreen() {
       </Modal>
 
       <Modal
-        visible={assignmentDay !== null}
+        visible={assignmentDateKey !== null}
         transparent={true}
         animationType="fade"
-        onRequestClose={() => setAssignmentDay(null)}>
+        onRequestClose={() => {
+          setAssignmentDateKey(null);
+          setAssignmentDateLabel(null);
+        }}>
         <View style={styles.modalOverlay}>
           <View style={styles.modalContent}>
-            <TouchableOpacity style={styles.closeX} onPress={() => setAssignmentDay(null)}>
+            <TouchableOpacity
+              style={styles.closeX}
+              onPress={() => {
+                setAssignmentDateKey(null);
+                setAssignmentDateLabel(null);
+              }}>
               <Text style={styles.closeXText}>✕</Text>
             </TouchableOpacity>
 
             <Text style={styles.modalTitle}>Assign Workout</Text>
-            <Text style={styles.modalSubtitle}>{assignmentDay}</Text>
+            <Text style={styles.modalSubtitle}>{assignmentDateLabel}</Text>
 
             <ScrollView style={styles.workoutList}>
               {workoutOptions.length === 0 ? (
@@ -389,7 +411,12 @@ export default function SearchScreen() {
               <Text style={styles.clearButtonText}>Clear Day</Text>
             </TouchableOpacity>
 
-            <TouchableOpacity style={styles.closeButton} onPress={() => setAssignmentDay(null)}>
+            <TouchableOpacity
+              style={styles.closeButton}
+              onPress={() => {
+                setAssignmentDateKey(null);
+                setAssignmentDateLabel(null);
+              }}>
               <Text style={styles.closeButtonText}>Cancel</Text>
             </TouchableOpacity>
           </View>
