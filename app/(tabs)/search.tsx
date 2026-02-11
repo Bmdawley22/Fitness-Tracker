@@ -1,6 +1,7 @@
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Modal } from 'react-native';
 import React, { useMemo, useState } from 'react';
 import { workouts } from '@/data/workouts';
+import { exercises } from '@/data/exercises';
 import { useSavedWorkoutsStore } from '@/store/savedWorkouts';
 
 const WEEK_DAYS = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'] as const;
@@ -9,9 +10,19 @@ type WeekDay = (typeof WEEK_DAYS)[number];
 
 type ScheduleState = Record<WeekDay, string | null>;
 
+type WorkoutOption = {
+  id: string;
+  name: string;
+  description: string;
+  exercises: string[];
+};
+
 export default function SearchScreen() {
-  const { savedWorkouts } = useSavedWorkoutsStore();
-  const [selectedDay, setSelectedDay] = useState<WeekDay | null>(null);
+  const { savedWorkouts, savedExercises, customExercises } = useSavedWorkoutsStore();
+
+  const [assignmentDay, setAssignmentDay] = useState<WeekDay | null>(null);
+  const [actionMenuDay, setActionMenuDay] = useState<WeekDay | null>(null);
+  const [detailWorkoutId, setDetailWorkoutId] = useState<string | null>(null);
   const [schedule, setSchedule] = useState<ScheduleState>({
     Sunday: null,
     Monday: null,
@@ -22,30 +33,104 @@ export default function SearchScreen() {
     Saturday: null,
   });
 
-  const workoutOptions = useMemo(() => {
-    const savedNames = savedWorkouts.map(workout => workout.name);
-    const fallbackNames = workouts.map(workout => workout.name).filter(name => !savedNames.includes(name));
-    return [...savedNames, ...fallbackNames];
+  const workoutOptions = useMemo<WorkoutOption[]>(() => {
+    const saved = savedWorkouts.map(workout => ({
+      id: workout.id,
+      name: workout.name,
+      description: workout.description,
+      exercises: workout.exercises,
+    }));
+
+    const savedOriginalIds = new Set(savedWorkouts.map(workout => workout.originalId).filter(Boolean));
+
+    const fallback = workouts
+      .filter(workout => !savedOriginalIds.has(workout.id))
+      .map(workout => ({
+        id: workout.id,
+        name: workout.name,
+        description: workout.description,
+        exercises: workout.exercises,
+      }));
+
+    return [...saved, ...fallback];
   }, [savedWorkouts]);
 
-  const handleAssignWorkout = (workoutName: string) => {
-    if (!selectedDay) return;
+  const workoutById = useMemo(() => {
+    const map = new Map<string, WorkoutOption>();
+    workoutOptions.forEach(workout => {
+      map.set(workout.id, workout);
+    });
+    return map;
+  }, [workoutOptions]);
+
+  const exerciseById = useMemo(() => {
+    const map = new Map<string, { id: string; name: string }>();
+
+    exercises.forEach(exercise => {
+      map.set(exercise.id, exercise);
+    });
+
+    savedExercises.forEach(exercise => {
+      map.set(exercise.id, exercise);
+      if (exercise.originalId) {
+        map.set(exercise.originalId, exercise);
+      }
+    });
+
+    customExercises.forEach(exercise => {
+      map.set(exercise.id, exercise);
+    });
+
+    return map;
+  }, [savedExercises, customExercises]);
+
+  const detailWorkout = detailWorkoutId ? workoutById.get(detailWorkoutId) : null;
+  const detailExercises = useMemo(() => {
+    if (!detailWorkout) return [];
+    return detailWorkout.exercises
+      .map(exerciseId => exerciseById.get(exerciseId))
+      .filter((exercise): exercise is { id: string; name: string } => Boolean(exercise));
+  }, [detailWorkout, exerciseById]);
+
+  const handleAssignWorkout = (workoutId: string) => {
+    if (!assignmentDay) return;
 
     setSchedule(prev => ({
       ...prev,
-      [selectedDay]: workoutName,
+      [assignmentDay]: workoutId,
     }));
-    setSelectedDay(null);
+    setAssignmentDay(null);
   };
 
   const handleClearDay = () => {
-    if (!selectedDay) return;
+    if (!assignmentDay) return;
 
     setSchedule(prev => ({
       ...prev,
-      [selectedDay]: null,
+      [assignmentDay]: null,
     }));
-    setSelectedDay(null);
+    setAssignmentDay(null);
+  };
+
+  const handleOpenActionMenu = (day: WeekDay) => {
+    setActionMenuDay(day);
+  };
+
+  const handleChangeAssignedWorkout = () => {
+    if (!actionMenuDay) return;
+    setAssignmentDay(actionMenuDay);
+    setActionMenuDay(null);
+  };
+
+  const handleClearAssignedWorkout = () => {
+    if (!actionMenuDay) return;
+
+    setSchedule(prev => ({
+      ...prev,
+      [actionMenuDay]: null,
+    }));
+
+    setActionMenuDay(null);
   };
 
   return (
@@ -53,39 +138,59 @@ export default function SearchScreen() {
       <Text style={styles.header}>Schedule</Text>
 
       <ScrollView style={styles.listContainer} contentContainerStyle={styles.listContent}>
-        {WEEK_DAYS.map(day => (
-          <View key={day} style={styles.dayRow}>
-            <Text style={styles.dayTitle}>{day}</Text>
-            <TouchableOpacity style={styles.assignButton} onPress={() => setSelectedDay(day)}>
-              <Text style={styles.assignButtonLabel}>
-                {schedule[day] ? schedule[day] : 'Tap to assign workout'}
-              </Text>
-            </TouchableOpacity>
-          </View>
-        ))}
+        {WEEK_DAYS.map(day => {
+          const assignedWorkoutId = schedule[day];
+          const assignedWorkout = assignedWorkoutId ? workoutById.get(assignedWorkoutId) : null;
+
+          return (
+            <View key={day} style={styles.dayRow}>
+              <Text style={styles.dayTitle}>{day}</Text>
+
+              {assignedWorkout ? (
+                <>
+                  <TouchableOpacity
+                    style={styles.assignButton}
+                    onPress={() => setDetailWorkoutId(assignedWorkoutId)}>
+                    <Text style={styles.assignButtonLabel}>{assignedWorkout.name}</Text>
+                  </TouchableOpacity>
+
+                  <TouchableOpacity
+                    style={styles.editButton}
+                    onPress={() => handleOpenActionMenu(day)}>
+                    <Text style={styles.editButtonText}>✎</Text>
+                  </TouchableOpacity>
+                </>
+              ) : (
+                <TouchableOpacity style={styles.assignButton} onPress={() => setAssignmentDay(day)}>
+                  <Text style={styles.assignButtonLabel}>Tap to assign workout</Text>
+                </TouchableOpacity>
+              )}
+            </View>
+          );
+        })}
       </ScrollView>
 
       <Modal
-        visible={selectedDay !== null}
+        visible={assignmentDay !== null}
         transparent={true}
         animationType="fade"
-        onRequestClose={() => setSelectedDay(null)}>
+        onRequestClose={() => setAssignmentDay(null)}>
         <View style={styles.modalOverlay}>
           <View style={styles.modalContent}>
-            <TouchableOpacity style={styles.closeX} onPress={() => setSelectedDay(null)}>
+            <TouchableOpacity style={styles.closeX} onPress={() => setAssignmentDay(null)}>
               <Text style={styles.closeXText}>✕</Text>
             </TouchableOpacity>
 
             <Text style={styles.modalTitle}>Assign Workout</Text>
-            <Text style={styles.modalSubtitle}>{selectedDay}</Text>
+            <Text style={styles.modalSubtitle}>{assignmentDay}</Text>
 
             <ScrollView style={styles.workoutList}>
-              {workoutOptions.map(workoutName => (
+              {workoutOptions.map(workout => (
                 <TouchableOpacity
-                  key={workoutName}
+                  key={workout.id}
                   style={styles.workoutOption}
-                  onPress={() => handleAssignWorkout(workoutName)}>
-                  <Text style={styles.workoutOptionText}>{workoutName}</Text>
+                  onPress={() => handleAssignWorkout(workout.id)}>
+                  <Text style={styles.workoutOptionText}>{workout.name}</Text>
                 </TouchableOpacity>
               ))}
             </ScrollView>
@@ -94,8 +199,71 @@ export default function SearchScreen() {
               <Text style={styles.clearButtonText}>Clear Day</Text>
             </TouchableOpacity>
 
-            <TouchableOpacity style={styles.closeButton} onPress={() => setSelectedDay(null)}>
+            <TouchableOpacity style={styles.closeButton} onPress={() => setAssignmentDay(null)}>
               <Text style={styles.closeButtonText}>Cancel</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
+
+      <Modal
+        visible={actionMenuDay !== null}
+        transparent={true}
+        animationType="fade"
+        onRequestClose={() => setActionMenuDay(null)}>
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContent}>
+            <TouchableOpacity style={styles.closeX} onPress={() => setActionMenuDay(null)}>
+              <Text style={styles.closeXText}>✕</Text>
+            </TouchableOpacity>
+
+            <Text style={styles.modalTitle}>Edit Assignment</Text>
+            <Text style={styles.modalSubtitle}>{actionMenuDay}</Text>
+
+            <TouchableOpacity style={styles.workoutOption} onPress={handleChangeAssignedWorkout}>
+              <Text style={styles.workoutOptionText}>Change assigned workout</Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity style={styles.clearButton} onPress={handleClearAssignedWorkout}>
+              <Text style={styles.clearButtonText}>Clear assignment</Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity style={styles.closeButton} onPress={() => setActionMenuDay(null)}>
+              <Text style={styles.closeButtonText}>Cancel</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
+
+      <Modal
+        visible={detailWorkoutId !== null}
+        transparent={true}
+        animationType="fade"
+        onRequestClose={() => setDetailWorkoutId(null)}>
+        <View style={styles.modalOverlay}>
+          <View style={styles.workoutModalContent}>
+            <View style={styles.workoutModalHeader}>
+              <View style={styles.workoutTitleRow}>
+                <Text style={styles.modalTitle}>{detailWorkout?.name}</Text>
+              </View>
+              <TouchableOpacity style={styles.closeX} onPress={() => setDetailWorkoutId(null)}>
+                <Text style={styles.closeXText}>✕</Text>
+              </TouchableOpacity>
+            </View>
+
+            <Text style={styles.modalDescription}>{detailWorkout?.description}</Text>
+
+            <Text style={styles.exercisesHeader}>Exercises</Text>
+            <ScrollView style={styles.exercisesList}>
+              {detailExercises.map((exercise, index) => (
+                <View key={exercise?.id || index} style={styles.exerciseListItem}>
+                  <Text style={styles.exerciseListText}>{exercise?.name}</Text>
+                </View>
+              ))}
+            </ScrollView>
+
+            <TouchableOpacity style={styles.closeButton} onPress={() => setDetailWorkoutId(null)}>
+              <Text style={styles.closeButtonText}>Close</Text>
             </TouchableOpacity>
           </View>
         </View>
@@ -130,6 +298,7 @@ const styles = StyleSheet.create({
     borderRadius: 10,
     padding: 12,
     marginBottom: 12,
+    position: 'relative',
   },
   dayTitle: {
     color: '#fff',
@@ -154,6 +323,24 @@ const styles = StyleSheet.create({
     fontWeight: '500',
     textAlign: 'center',
   },
+  editButton: {
+    position: 'absolute',
+    top: 44,
+    right: 22,
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: '#fff',
+    backgroundColor: '#000',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  editButtonText: {
+    color: '#fff',
+    fontSize: 14,
+    fontWeight: '700',
+  },
   modalOverlay: {
     flex: 1,
     backgroundColor: 'rgba(0, 0, 0, 0.7)',
@@ -167,6 +354,26 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     padding: 24,
     position: 'relative',
+  },
+  workoutModalContent: {
+    backgroundColor: '#1a1a1a',
+    borderRadius: 12,
+    padding: 24,
+    width: '90%',
+    maxHeight: '80%',
+    position: 'relative',
+  },
+  workoutModalHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'flex-start',
+    marginBottom: 16,
+  },
+  workoutTitleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flex: 1,
+    gap: 12,
   },
   closeX: {
     position: 'absolute',
@@ -188,12 +395,38 @@ const styles = StyleSheet.create({
     fontSize: 20,
     fontWeight: '700',
     marginTop: 8,
+    paddingRight: 30,
   },
   modalSubtitle: {
     color: '#aaa',
     fontSize: 14,
     marginTop: 4,
     marginBottom: 12,
+  },
+  modalDescription: {
+    color: '#ccc',
+    fontSize: 16,
+    lineHeight: 24,
+    marginBottom: 16,
+  },
+  exercisesHeader: {
+    color: '#fff',
+    fontSize: 16,
+    fontWeight: '600',
+    marginBottom: 8,
+  },
+  exercisesList: {
+    maxHeight: 200,
+    marginBottom: 16,
+  },
+  exerciseListItem: {
+    paddingVertical: 8,
+    borderBottomWidth: 1,
+    borderBottomColor: '#333',
+  },
+  exerciseListText: {
+    color: '#ccc',
+    fontSize: 14,
   },
   workoutList: {
     maxHeight: 280,
