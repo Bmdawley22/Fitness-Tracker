@@ -1,4 +1,4 @@
-import { Alert, Dimensions, Modal, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import { Alert, Dimensions, Keyboard, Modal, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, TouchableWithoutFeedback, View } from 'react-native';
 import React, { forwardRef, useEffect, useImperativeHandle, useMemo, useState } from 'react';
 import { exercises as allExercises } from '@/data/exercises';
 import { useSavedWorkoutsStore, CustomExercise } from '@/store/savedWorkouts';
@@ -9,6 +9,8 @@ const DEFAULT_SET_COUNT = 3;
 const MIN_SET_COUNT = 1;
 const MAX_SET_COUNT = 6;
 const DEFAULT_REPS = 6;
+const REP_OPTIONS = Array.from({ length: 30 }, (_, index) => index + 1);
+const WEIGHT_OPTIONS = Array.from({ length: 101 }, (_, index) => index * 5);
 
 type ExerciseSetDraft = { reps: string; weight: string };
 
@@ -468,6 +470,9 @@ export default function AddScreen() {
   const [removeSetPickerVisible, setRemoveSetPickerVisible] = useState(false);
   const [targetSetCountAfterRemove, setTargetSetCountAfterRemove] = useState<number | null>(null);
   const [selectedSetIndexesToRemove, setSelectedSetIndexesToRemove] = useState<number[]>([]);
+  const [valuePickerVisible, setValuePickerVisible] = useState(false);
+  const [valuePickerField, setValuePickerField] = useState<'reps' | 'weight' | null>(null);
+  const [valuePickerSetIndex, setValuePickerSetIndex] = useState<number | null>(null);
   const {
     savedWorkouts,
     savedExercises,
@@ -589,6 +594,9 @@ export default function AddScreen() {
     setRemoveSetPickerVisible(false);
     setTargetSetCountAfterRemove(null);
     setSelectedSetIndexesToRemove([]);
+    setValuePickerVisible(false);
+    setValuePickerField(null);
+    setValuePickerSetIndex(null);
     setActiveExerciseRowId(null);
     setActiveExerciseName('');
     setActiveExerciseDescription('');
@@ -609,8 +617,11 @@ export default function AddScreen() {
       return;
     }
 
+    const removeCount = draftSetCount - clampedCount;
+    const defaultSelected = Array.from({ length: removeCount }, (_, idx) => draftSetCount - 1 - idx);
+
     setTargetSetCountAfterRemove(clampedCount);
-    setSelectedSetIndexesToRemove([]);
+    setSelectedSetIndexesToRemove(defaultSelected);
     setRemoveSetPickerVisible(true);
   };
 
@@ -638,17 +649,29 @@ export default function AddScreen() {
     setSelectedSetIndexesToRemove([]);
   };
 
-  const updateDraftSetValue = (rowIndex: number, field: 'reps' | 'weight', value: string) => {
-    const numericOnly = value.replace(/[^0-9]/g, '');
+  const openValuePicker = (rowIndex: number, field: 'reps' | 'weight') => {
+    Keyboard.dismiss();
+    setValuePickerSetIndex(rowIndex);
+    setValuePickerField(field);
+    setValuePickerVisible(true);
+  };
+
+  const handleSelectPickerValue = (value: number) => {
+    if (valuePickerSetIndex === null || !valuePickerField) return;
+
     setDraftSets(prev =>
       prev.map((row, idx) => {
-        if (idx !== rowIndex) return row;
+        if (idx !== valuePickerSetIndex) return row;
         return {
           ...row,
-          [field]: numericOnly,
+          [valuePickerField]: String(value),
         };
       }),
     );
+
+    setValuePickerVisible(false);
+    setValuePickerField(null);
+    setValuePickerSetIndex(null);
   };
 
   const handleSaveExerciseLog = () => {
@@ -735,7 +758,8 @@ export default function AddScreen() {
   }
 
   return (
-    <View style={styles.todayContainer}>
+    <TouchableWithoutFeedback onPress={Keyboard.dismiss} accessible={false}>
+      <View style={styles.todayContainer}>
       <View style={[styles.todayCard, isCompletedToday && styles.todayCardCompleted]}>
         <View style={styles.todayHeaderRow}>
           <Text style={styles.todayHeader}>{weekdayTitle}</Text>
@@ -851,26 +875,28 @@ export default function AddScreen() {
 
             <Text style={styles.lbsHint}>Weight is in lbs</Text>
 
-            <ScrollView style={styles.exerciseLogList}>
+            <View style={styles.setTableHeaderRow}>
+              <Text style={styles.setTableSetHeader}>Set</Text>
+              <Text style={styles.setTableRepsHeader}>Reps</Text>
+              <Text style={styles.setTableWeightHeader}>Weight (lbs)</Text>
+            </View>
+
+            <ScrollView style={styles.exerciseLogList} keyboardShouldPersistTaps="handled">
               {draftSets.slice(0, draftSetCount).map((setRow, index) => (
                 <View key={`set-${index}`} style={styles.setRow}>
                   <Text style={styles.setRowLabel}>Set {index + 1}</Text>
-                  <TextInput
-                    style={styles.setInput}
-                    value={setRow.reps}
-                    onChangeText={value => updateDraftSetValue(index, 'reps', value)}
-                    keyboardType="number-pad"
-                    placeholder="Reps"
-                    placeholderTextColor="#666"
-                  />
-                  <TextInput
-                    style={styles.setInput}
-                    value={setRow.weight}
-                    onChangeText={value => updateDraftSetValue(index, 'weight', value)}
-                    keyboardType="number-pad"
-                    placeholder="Weight"
-                    placeholderTextColor="#666"
-                  />
+
+                  <TouchableOpacity
+                    style={[styles.setPickerButton, styles.repsPickerButton]}
+                    onPress={() => openValuePicker(index, 'reps')}>
+                    <Text style={styles.setPickerButtonText}>{setRow.reps}</Text>
+                  </TouchableOpacity>
+
+                  <TouchableOpacity
+                    style={[styles.setPickerButton, styles.weightPickerButton]}
+                    onPress={() => openValuePicker(index, 'weight')}>
+                    <Text style={styles.setPickerButtonText}>{setRow.weight}</Text>
+                  </TouchableOpacity>
                 </View>
               ))}
             </ScrollView>
@@ -888,10 +914,49 @@ export default function AddScreen() {
       </Modal>
 
       <Modal
+        visible={valuePickerVisible}
+        transparent
+        animationType="fade"
+        onRequestClose={() => {
+          setValuePickerVisible(false);
+          setValuePickerField(null);
+          setValuePickerSetIndex(null);
+        }}>
+        <View style={styles.modalOverlay}>
+          <View style={styles.valuePickerModalContent}>
+            <Text style={styles.modalTitle}>{valuePickerField === 'weight' ? 'Select Weight (lbs)' : 'Select Reps'}</Text>
+            <ScrollView style={styles.valuePickerList} keyboardShouldPersistTaps="handled">
+              {(valuePickerField === 'weight' ? WEIGHT_OPTIONS : REP_OPTIONS).map(option => (
+                <TouchableOpacity
+                  key={`${valuePickerField}-${option}`}
+                  style={styles.valuePickerOption}
+                  onPress={() => handleSelectPickerValue(option)}>
+                  <Text style={styles.valuePickerOptionText}>{option}</Text>
+                </TouchableOpacity>
+              ))}
+            </ScrollView>
+            <TouchableOpacity
+              style={styles.closeButton}
+              onPress={() => {
+                setValuePickerVisible(false);
+                setValuePickerField(null);
+                setValuePickerSetIndex(null);
+              }}>
+              <Text style={styles.closeButtonText}>Cancel</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
+
+      <Modal
         visible={removeSetPickerVisible}
         transparent
         animationType="fade"
-        onRequestClose={() => setRemoveSetPickerVisible(false)}>
+        onRequestClose={() => {
+          setRemoveSetPickerVisible(false);
+          setTargetSetCountAfterRemove(null);
+          setSelectedSetIndexesToRemove([]);
+        }}>
         <View style={styles.modalOverlay}>
           <View style={styles.removeSetsModalContent}>
             <Text style={styles.modalTitle}>Choose sets to remove</Text>
@@ -915,7 +980,13 @@ export default function AddScreen() {
             </ScrollView>
 
             <View style={styles.exerciseLogButtonsRow}>
-              <TouchableOpacity style={styles.exerciseLogCancelButton} onPress={() => setRemoveSetPickerVisible(false)}>
+              <TouchableOpacity
+                style={styles.exerciseLogCancelButton}
+                onPress={() => {
+                  setRemoveSetPickerVisible(false);
+                  setTargetSetCountAfterRemove(null);
+                  setSelectedSetIndexesToRemove([]);
+                }}>
                 <Text style={styles.closeButtonText}>Cancel</Text>
               </TouchableOpacity>
               <TouchableOpacity style={styles.exerciseLogSaveButton} onPress={confirmRemoveSelectedSets}>
@@ -926,6 +997,7 @@ export default function AddScreen() {
         </View>
       </Modal>
     </View>
+    </TouchableWithoutFeedback>
   );
 }
 
@@ -1421,6 +1493,33 @@ const styles = StyleSheet.create({
     maxHeight: 280,
     marginBottom: 12,
   },
+  setTableHeaderRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 6,
+  },
+  setTableSetHeader: {
+    width: 56,
+    color: '#888',
+    fontSize: 12,
+    fontWeight: '700',
+    textTransform: 'uppercase',
+  },
+  setTableRepsHeader: {
+    width: 84,
+    color: '#888',
+    fontSize: 12,
+    fontWeight: '700',
+    textTransform: 'uppercase',
+    marginRight: 8,
+  },
+  setTableWeightHeader: {
+    flex: 1,
+    color: '#888',
+    fontSize: 12,
+    fontWeight: '700',
+    textTransform: 'uppercase',
+  },
   setRow: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -1428,20 +1527,30 @@ const styles = StyleSheet.create({
   },
   setRowLabel: {
     color: '#fff',
-    width: 54,
+    width: 56,
     fontSize: 14,
     fontWeight: '600',
   },
-  setInput: {
-    flex: 1,
+  setPickerButton: {
     backgroundColor: '#111',
     borderWidth: 1,
     borderColor: '#333',
     borderRadius: 8,
-    color: '#fff',
+    minHeight: 40,
+    justifyContent: 'center',
     paddingHorizontal: 10,
-    paddingVertical: 8,
+  },
+  repsPickerButton: {
+    width: 84,
     marginRight: 8,
+  },
+  weightPickerButton: {
+    flex: 1,
+  },
+  setPickerButtonText: {
+    color: '#fff',
+    fontSize: 14,
+    fontWeight: '600',
   },
   exerciseLogButtonsRow: {
     flexDirection: 'row',
@@ -1465,6 +1574,29 @@ const styles = StyleSheet.create({
     color: '#000',
     fontSize: 16,
     fontWeight: '700',
+  },
+  valuePickerModalContent: {
+    width: '70%',
+    maxHeight: '70%',
+    backgroundColor: '#1a1a1a',
+    borderRadius: 12,
+    padding: 20,
+  },
+  valuePickerList: {
+    maxHeight: 300,
+    marginVertical: 12,
+  },
+  valuePickerOption: {
+    backgroundColor: '#111',
+    borderRadius: 8,
+    paddingVertical: 12,
+    paddingHorizontal: 12,
+    marginBottom: 8,
+  },
+  valuePickerOptionText: {
+    color: '#fff',
+    fontSize: 15,
+    fontWeight: '600',
   },
   removeSetsModalContent: {
     width: '85%',
