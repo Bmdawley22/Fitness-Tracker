@@ -274,7 +274,7 @@ export default function SearchScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#000',
+    backgroundColor: '#fff',
     paddingTop: 60,
   },
   header: {
@@ -371,12 +371,12 @@ const styles = StyleSheet.create({
     borderRadius: 8,
     borderWidth: 1,
     borderColor: '#fff',
-    backgroundColor: '#000',
+    backgroundColor: '#fff',
     justifyContent: 'center',
     alignItems: 'center',
   },
   editButtonText: {
-    color: '#fff',
+    color: '#000',
     fontSize: 11,
     fontWeight: '700',
   },
