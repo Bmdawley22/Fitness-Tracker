@@ -154,6 +154,12 @@ export default function SearchScreen() {
     cleanupInvalidAssignments(savedWorkouts.map(workout => workout.id));
   }, [savedHydrated, scheduleHydrated, savedWorkouts, cleanupInvalidAssignments]);
 
+  const shiftSelectedWeek = (days: number) => {
+    setSelectedDate(prev =>
+      normalizeDate(new Date(prev.getFullYear(), prev.getMonth(), prev.getDate() + days)),
+    );
+  };
+
   const handleAssignWorkout = (workoutId: string) => {
     if (!assignmentDateKey) return;
 
@@ -193,7 +199,27 @@ export default function SearchScreen() {
       </View>
 
       <View style={styles.weekBlock}>
-        <Text style={styles.weekTitle}>{weekTitleLine}</Text>
+        <View style={styles.weekHeaderRow}>
+          <TouchableOpacity
+            style={styles.weekNavButton}
+            onPress={() => shiftSelectedWeek(-7)}
+            accessibilityRole="button"
+            accessibilityLabel="Show previous week"
+            accessibilityHint="Moves the schedule view to the previous week">
+            <Ionicons name="chevron-back" size={18} color="#fff" />
+          </TouchableOpacity>
+
+          <Text style={styles.weekTitle}>{weekTitleLine}</Text>
+
+          <TouchableOpacity
+            style={styles.weekNavButton}
+            onPress={() => shiftSelectedWeek(7)}
+            accessibilityRole="button"
+            accessibilityLabel="Show next week"
+            accessibilityHint="Moves the schedule view to the next week">
+            <Ionicons name="chevron-forward" size={18} color="#fff" />
+          </TouchableOpacity>
+        </View>
       </View>
 
       <ScrollView style={styles.listContainer} contentContainerStyle={styles.listContent}>
@@ -495,7 +521,21 @@ const styles = StyleSheet.create({
   weekBlock: {
     paddingHorizontal: 16,
     marginBottom: 12,
+  },
+  weekHeaderRow: {
+    flexDirection: 'row',
     alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  weekNavButton: {
+    width: 34,
+    height: 34,
+    borderRadius: 17,
+    borderWidth: 1,
+    borderColor: '#333',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#111',
   },
   weekTitle: {
     color: '#fff',
@@ -503,6 +543,8 @@ const styles = StyleSheet.create({
     fontWeight: '800',
     textAlign: 'center',
     marginBottom: 2,
+    flex: 1,
+    marginHorizontal: 12,
   },
   listContainer: {
     flex: 1,
