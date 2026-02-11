@@ -54,9 +54,15 @@ export const useScheduleStore = create<ScheduleStoreState>()(
       clearDateAssignment: dateKey => {
         if (!DATE_KEY_REGEX.test(dateKey)) return;
 
-        set(state => ({
-          schedule: Object.fromEntries(Object.entries(state.schedule).filter(([key]) => key !== dateKey)),
-        }));
+        set(state => {
+          const { [dateKey]: _removedSchedule, ...restSchedule } = state.schedule;
+          const { [dateKey]: _removedCompleted, ...restCompleted } = state.completedDates;
+
+          return {
+            schedule: restSchedule,
+            completedDates: restCompleted,
+          };
+        });
       },
 
       setDateCompleted: (dateKey, completed) => {

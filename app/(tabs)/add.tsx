@@ -525,6 +525,30 @@ export default function AddScreen() {
   const closeWorkoutSelector = () => setWorkoutSelectorVisible(false);
 
   const handleAssignWorkout = (workoutId: string) => {
+    const currentWorkoutId = schedule[todayDateKey];
+    const isCompleted = Boolean(completedDates[todayDateKey]);
+    const isChangingCompletedDay = isCompleted && Boolean(currentWorkoutId) && currentWorkoutId !== workoutId;
+
+    if (isChangingCompletedDay) {
+      Alert.alert(
+        'Change completed workout?',
+        'This day is marked completed. Changing the workout will remove completed status for this day.',
+        [
+          { text: 'Cancel', style: 'cancel' },
+          {
+            text: 'Change Workout',
+            style: 'destructive',
+            onPress: () => {
+              assignWorkoutToDate(todayDateKey, workoutId);
+              setDateCompleted(todayDateKey, false);
+              closeWorkoutSelector();
+            },
+          },
+        ],
+      );
+      return;
+    }
+
     assignWorkoutToDate(todayDateKey, workoutId);
     closeWorkoutSelector();
   };
@@ -551,16 +575,14 @@ export default function AddScreen() {
       <View style={[styles.todayCard, isCompletedToday && styles.todayCardCompleted]}>
         <View style={styles.todayHeaderRow}>
           <Text style={styles.todayHeader}>{weekdayTitle}</Text>
-          {assignedWorkout ? (
-            <TouchableOpacity style={styles.changeButton} onPress={() => setWorkoutSelectorVisible(true)}>
-              <Text style={styles.changeButtonText}>Change</Text>
-            </TouchableOpacity>
-          ) : null}
         </View>
 
         {assignedWorkout ? (
           <>
             <Text style={styles.todayWorkoutTitle}>{assignedWorkout.name}</Text>
+            <TouchableOpacity style={styles.changeTodayButton} onPress={() => setWorkoutSelectorVisible(true)}>
+              <Text style={styles.changeTodayButtonText}>Change Today&apos;s Workout</Text>
+            </TouchableOpacity>
 
             <ScrollView style={styles.todayExercisesList} contentContainerStyle={styles.todayExercisesListContent}>
               {todayExercises.map(exercise => {
@@ -693,17 +715,17 @@ const styles = StyleSheet.create({
     marginBottom: 14,
     paddingHorizontal: 44,
   },
-  changeButton: {
-    position: 'absolute',
-    right: 0,
+  changeTodayButton: {
+    alignSelf: 'center',
     backgroundColor: '#111',
     borderWidth: 1,
     borderColor: '#333',
-    borderRadius: 8,
-    paddingHorizontal: 12,
-    paddingVertical: 6,
+    borderRadius: 10,
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+    marginBottom: 12,
   },
-  changeButtonText: {
+  changeTodayButtonText: {
     color: '#fff',
     fontSize: 14,
     fontWeight: '600',
