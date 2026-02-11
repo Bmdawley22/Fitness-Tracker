@@ -439,12 +439,14 @@ const styles = StyleSheet.create({
     marginBottom: 8,
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between',
+    justifyContent: 'center',
+    position: 'relative',
   },
   header: {
     color: '#fff',
     fontSize: 24,
     fontWeight: '700',
+    textAlign: 'center',
   },
   calendarButton: {
     width: 34,
@@ -455,10 +457,13 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     backgroundColor: '#111',
+    position: 'absolute',
+    right: 16,
   },
   weekBlock: {
     paddingHorizontal: 16,
     marginBottom: 12,
+    alignItems: 'center',
   },
   weekTitle: {
     color: '#fff',
@@ -471,6 +476,7 @@ const styles = StyleSheet.create({
     color: '#ddd',
     fontSize: 14,
     fontWeight: '500',
+    textAlign: 'center',
   },
   listContainer: {
     flex: 1,
