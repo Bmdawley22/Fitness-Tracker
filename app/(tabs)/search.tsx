@@ -137,7 +137,7 @@ export default function SearchScreen() {
                     <TouchableOpacity
                       style={styles.assignedTitleContainer}
                       onPress={() => setDetailWorkoutId(assignedWorkoutId)}>
-                      <Text style={[styles.assignButtonLabel, styles.assignButtonLabelCentered]} numberOfLines={2}>
+                      <Text style={[styles.assignButtonLabel, styles.assignButtonLabelLeft]} numberOfLines={2}>
                         {assignedWorkout.name}
                       </Text>
                     </TouchableOpacity>
@@ -148,6 +148,8 @@ export default function SearchScreen() {
                       <Text style={styles.editButtonText}>✎</Text>
                     </TouchableOpacity>
                   </View>
+
+                  <View style={styles.headerDivider} />
 
                   <TouchableOpacity
                     style={styles.exerciseListBox}
@@ -293,7 +295,9 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: '#fff',
     borderRadius: 10,
-    padding: 12,
+    paddingHorizontal: 12,
+    paddingTop: 0,
+    paddingBottom: 2,
     marginBottom: 12,
     position: 'relative',
   },
@@ -302,7 +306,15 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '700',
     textAlign: 'center',
-    marginBottom: 10,
+    backgroundColor: '#6a6a6a',
+    alignSelf: 'stretch',
+    marginHorizontal: -12,
+    marginTop: 0,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderTopLeftRadius: 8,
+    borderTopRightRadius: 8,
+    marginBottom: 5,
   },
   assignButton: {
     minHeight: 88,
@@ -316,24 +328,21 @@ const styles = StyleSheet.create({
   },
   assignedWorkoutContainer: {
     minHeight: 88,
-    justifyContent: 'space-between',
+    justifyContent: 'flex-start',
   },
   assignedHeaderRow: {
     height: 28,
     flexDirection: 'row',
-    justifyContent: 'center',
     alignItems: 'center',
-    marginBottom: 4,
-    paddingHorizontal: '10%',
+    width: '80%',
+    alignSelf: 'center',
   },
   assignedTitleContainer: {
+    flex: 1,
     height: '100%',
     justifyContent: 'center',
-    borderBottomWidth: 1,
-    borderBottomColor: '#fff',
-    paddingHorizontal: 8,
-    maxWidth: '70%',
-    marginRight: '10%',
+    paddingHorizontal: 0,
+    marginRight: 10,
   },
   assignButtonLabel: {
     color: '#fff',
@@ -341,16 +350,24 @@ const styles = StyleSheet.create({
     fontWeight: '500',
     textAlign: 'center',
   },
-  assignButtonLabelCentered: {
-    textAlign: 'center',
-    fontSize: 14,
-    lineHeight: 16,
+  assignButtonLabelLeft: {
+    textAlign: 'left',
+    fontSize: 15,
+    lineHeight: 18,
     fontWeight: '600',
+  },
+  headerDivider: {
+    width: '80%',
+    alignSelf: 'center',
+    borderBottomWidth: 1,
+    borderBottomColor: '#fff',
+    marginTop: 1,
+    marginBottom: 3,
   },
   editButtonInline: {
     marginLeft: 6,
-    height: 28,
-    width: 28,
+    height: 22,
+    width: 22,
     borderRadius: 8,
     borderWidth: 1,
     borderColor: '#fff',
@@ -360,13 +377,14 @@ const styles = StyleSheet.create({
   },
   editButtonText: {
     color: '#fff',
-    fontSize: 14,
+    fontSize: 11,
     fontWeight: '700',
   },
   exerciseListBox: {
     flex: 1,
     width: '80%',
     alignSelf: 'center',
+    marginBottom: 0,
     borderWidth: 1,
     borderColor: '#111',
     borderRadius: 6,
@@ -389,14 +407,14 @@ const styles = StyleSheet.create({
   },
   exerciseBullet: {
     color: '#fff',
-    fontSize: 8,
+    fontSize: 9,
     marginRight: 2,
-    lineHeight: 10,
+    lineHeight: 11,
   },
   exerciseBulletText: {
     color: '#fff',
-    fontSize: 8,
-    lineHeight: 10,
+    fontSize: 9,
+    lineHeight: 11,
     flex: 1,
   },
   modalOverlay: {
@@ -423,7 +441,7 @@ const styles = StyleSheet.create({
   },
   workoutModalHeader: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
+    justifyContent: 'flex-start',
     alignItems: 'flex-start',
     marginBottom: 16,
   },
@@ -457,7 +475,7 @@ const styles = StyleSheet.create({
   },
   modalSubtitle: {
     color: '#aaa',
-    fontSize: 14,
+    fontSize: 15,
     marginTop: 4,
     marginBottom: 12,
   },
@@ -484,7 +502,7 @@ const styles = StyleSheet.create({
   },
   exerciseListText: {
     color: '#ccc',
-    fontSize: 14,
+    fontSize: 15,
   },
   workoutList: {
     maxHeight: 280,
