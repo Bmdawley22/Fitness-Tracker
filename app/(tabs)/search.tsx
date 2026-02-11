@@ -121,8 +121,7 @@ export default function SearchScreen() {
           const assignedWorkout = assignedWorkoutId ? workoutById.get(assignedWorkoutId) : null;
           const assignedExerciseNames = assignedWorkout
             ? assignedWorkout.exercises
-                .map(exerciseId => exerciseById.get(exerciseId)?.name)
-                .filter((name): name is string => Boolean(name))
+                .map(exerciseId => exerciseById.get(exerciseId)?.name ?? exerciseId.replace(/-/g, ' '))
             : [];
           const firstColumnExercises = assignedExerciseNames.slice(0, 6);
           const secondColumnExercises = assignedExerciseNames.slice(6, 12);
@@ -305,9 +304,6 @@ const styles = StyleSheet.create({
   },
   assignButtonWithEdit: {
     paddingRight: 64,
-    paddingVertical: 6,
-    alignItems: 'stretch',
-    justifyContent: 'space-between',
   },
   assignButtonLabel: {
     color: '#fff',
@@ -318,6 +314,12 @@ const styles = StyleSheet.create({
   assignButtonLabelLeft: {
     width: '100%',
     textAlign: 'left',
+    position: 'absolute',
+    top: 8,
+    left: 12,
+    right: 70,
+    fontSize: 14,
+    zIndex: 2,
   },
   editButton: {
     position: 'absolute',
@@ -338,13 +340,15 @@ const styles = StyleSheet.create({
     fontWeight: '700',
   },
   exerciseListBox: {
-    height: '80%',
+    position: 'absolute',
+    top: '10%',
+    bottom: '10%',
+    left: 10,
+    right: 66,
     borderWidth: 1,
     borderColor: '#111',
     borderRadius: 6,
     backgroundColor: '#111',
-    width: '84%',
-    alignSelf: 'center',
     justifyContent: 'center',
     paddingHorizontal: 6,
     paddingVertical: 4,
@@ -359,6 +363,7 @@ const styles = StyleSheet.create({
   exerciseBulletRow: {
     flexDirection: 'row',
     alignItems: 'center',
+    minWidth: 0,
   },
   exerciseBullet: {
     color: '#fff',
