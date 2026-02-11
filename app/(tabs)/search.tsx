@@ -121,7 +121,7 @@ export default function SearchScreen() {
     weekRange.start.getFullYear() === todayWeekRange.start.getFullYear() &&
     weekRange.start.getMonth() === todayWeekRange.start.getMonth() &&
     weekRange.start.getDate() === todayWeekRange.start.getDate();
-  const weekTitleLine = `${isCurrentWeek ? 'Current Week' : 'Week'}: ${weekRangeLabel}`;
+  const weekTitleLine = isCurrentWeek ? 'Current Week' : 'Week';
   const calendarMonthLabel = `${MONTH_NAMES[viewingMonth.getMonth()]} ${viewingMonth.getFullYear()}`;
   const daysInMonth = new Date(viewingMonth.getFullYear(), viewingMonth.getMonth() + 1, 0).getDate();
   const firstDayOfMonth = new Date(viewingMonth.getFullYear(), viewingMonth.getMonth(), 1).getDay();
@@ -153,6 +153,12 @@ export default function SearchScreen() {
     if (!savedHydrated || !scheduleHydrated) return;
     cleanupInvalidAssignments(savedWorkouts.map(workout => workout.id));
   }, [savedHydrated, scheduleHydrated, savedWorkouts, cleanupInvalidAssignments]);
+
+  const shiftSelectedWeek = (days: number) => {
+    setSelectedDate(prev =>
+      normalizeDate(new Date(prev.getFullYear(), prev.getMonth(), prev.getDate() + days)),
+    );
+  };
 
   const handleAssignWorkout = (workoutId: string) => {
     if (!assignmentDateKey) return;
@@ -193,7 +199,30 @@ export default function SearchScreen() {
       </View>
 
       <View style={styles.weekBlock}>
-        <Text style={styles.weekTitle}>{weekTitleLine}</Text>
+        <View style={styles.weekHeaderRow}>
+          <TouchableOpacity
+            style={styles.weekNavButton}
+            onPress={() => shiftSelectedWeek(-7)}
+            accessibilityRole="button"
+            accessibilityLabel="Show previous week"
+            accessibilityHint="Moves the schedule view to the previous week">
+            <Ionicons name="chevron-back" size={18} color="#fff" />
+          </TouchableOpacity>
+
+          <View style={styles.weekTitleContainer}>
+            <Text style={styles.weekTitle}>{weekTitleLine}</Text>
+            <Text style={styles.weekRangeText}>{weekRangeLabel}</Text>
+          </View>
+
+          <TouchableOpacity
+            style={styles.weekNavButton}
+            onPress={() => shiftSelectedWeek(7)}
+            accessibilityRole="button"
+            accessibilityLabel="Show next week"
+            accessibilityHint="Moves the schedule view to the next week">
+            <Ionicons name="chevron-forward" size={18} color="#fff" />
+          </TouchableOpacity>
+        </View>
       </View>
 
       <ScrollView style={styles.listContainer} contentContainerStyle={styles.listContent}>
@@ -495,6 +524,25 @@ const styles = StyleSheet.create({
   weekBlock: {
     paddingHorizontal: 16,
     marginBottom: 12,
+  },
+  weekHeaderRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  weekNavButton: {
+    width: 34,
+    height: 34,
+    borderRadius: 17,
+    borderWidth: 1,
+    borderColor: '#333',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#111',
+  },
+  weekTitleContainer: {
+    flex: 1,
+    marginHorizontal: 12,
     alignItems: 'center',
   },
   weekTitle: {
@@ -503,6 +551,12 @@ const styles = StyleSheet.create({
     fontWeight: '800',
     textAlign: 'center',
     marginBottom: 2,
+  },
+  weekRangeText: {
+    color: '#fff',
+    fontSize: 15,
+    fontWeight: '600',
+    textAlign: 'center',
   },
   listContainer: {
     flex: 1,
