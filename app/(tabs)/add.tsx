@@ -9,8 +9,8 @@ const DEFAULT_SET_COUNT = 3;
 const MIN_SET_COUNT = 1;
 const MAX_SET_COUNT = 6;
 const DEFAULT_REPS = 6;
-const REP_OPTIONS = Array.from({ length: 30 }, (_, index) => index + 1);
-const WEIGHT_OPTIONS = Array.from({ length: 101 }, (_, index) => index * 5);
+const REP_OPTIONS = Array.from({ length: 15 }, (_, index) => (index + 1) * 2);
+const WEIGHT_OPTIONS = Array.from({ length: 100 }, (_, index) => (index + 1) * 5);
 
 type ExerciseSetDraft = { reps: string; weight: string };
 
@@ -469,7 +469,7 @@ export default function AddScreen() {
   const [draftSets, setDraftSets] = useState<ExerciseSetDraft[]>([]);
   const [removeSetPickerVisible, setRemoveSetPickerVisible] = useState(false);
   const [targetSetCountAfterRemove, setTargetSetCountAfterRemove] = useState<number | null>(null);
-  const [selectedSetIndexesToRemove, setSelectedSetIndexesToRemove] = useState<number[]>([]);
+  const [selectedSetIndexToRemove, setSelectedSetIndexToRemove] = useState<number | null>(null);
   const [valuePickerVisible, setValuePickerVisible] = useState(false);
   const [valuePickerField, setValuePickerField] = useState<'reps' | 'weight' | null>(null);
   const [valuePickerSetIndex, setValuePickerSetIndex] = useState<number | null>(null);
@@ -554,10 +554,22 @@ export default function AddScreen() {
     return 100;
   };
 
+  const normalizeReps = (value: number): number => {
+    const rounded = Math.round(value);
+    const nearestEven = Math.round(rounded / 2) * 2;
+    return Math.min(30, Math.max(2, nearestEven));
+  };
+
+  const normalizeWeight = (value: number): number => {
+    const rounded = Math.round(value);
+    const nearestFive = Math.round(rounded / 5) * 5;
+    return Math.min(500, Math.max(5, nearestFive));
+  };
+
   const createDefaultSetRows = (count: number, defaultWeight: number): ExerciseSetDraft[] =>
     Array.from({ length: count }, () => ({
       reps: String(DEFAULT_REPS),
-      weight: String(defaultWeight),
+      weight: String(normalizeWeight(defaultWeight)),
     }));
 
   const openExerciseLog = (exerciseRowId: string) => {
@@ -574,9 +586,26 @@ export default function AddScreen() {
     setActiveExerciseDescription(selectedExercise.description);
 
     if (existingLog) {
+      const normalizedSets = existingLog.sets.slice(0, existingLog.setCount).map(setRow => ({
+        reps: normalizeReps(setRow.reps),
+        weight: normalizeWeight(setRow.weight),
+      }));
+
+      const changed = normalizedSets.some(
+        (setRow, index) => setRow.reps !== existingLog.sets[index]?.reps || setRow.weight !== existingLog.sets[index]?.weight,
+      );
+
+      if (changed) {
+        setExerciseLog(todayDateKey, assignedWorkoutId, exerciseRowId, {
+          setCount: existingLog.setCount,
+          sets: normalizedSets,
+          updatedAt: new Date().toISOString(),
+        });
+      }
+
       setDraftSetCount(existingLog.setCount);
       setDraftSets(
-        existingLog.sets.slice(0, existingLog.setCount).map(setRow => ({
+        normalizedSets.map(setRow => ({
           reps: String(setRow.reps),
           weight: String(setRow.weight),
         })),
@@ -593,7 +622,7 @@ export default function AddScreen() {
     setExerciseLogVisible(false);
     setRemoveSetPickerVisible(false);
     setTargetSetCountAfterRemove(null);
-    setSelectedSetIndexesToRemove([]);
+    setSelectedSetIndexToRemove(null);
     setValuePickerVisible(false);
     setValuePickerField(null);
     setValuePickerSetIndex(null);
@@ -617,36 +646,29 @@ export default function AddScreen() {
       return;
     }
 
-    const removeCount = draftSetCount - clampedCount;
-    const defaultSelected = Array.from({ length: removeCount }, (_, idx) => draftSetCount - 1 - idx);
-
     setTargetSetCountAfterRemove(clampedCount);
-    setSelectedSetIndexesToRemove(defaultSelected);
+    setSelectedSetIndexToRemove(null);
     setRemoveSetPickerVisible(true);
   };
 
   const toggleSetRemovalSelection = (rowIndex: number) => {
-    setSelectedSetIndexesToRemove(prev =>
-      prev.includes(rowIndex) ? prev.filter(index => index !== rowIndex) : [...prev, rowIndex],
-    );
+    setSelectedSetIndexToRemove(prev => (prev === rowIndex ? null : rowIndex));
   };
 
   const confirmRemoveSelectedSets = () => {
     if (targetSetCountAfterRemove === null) return;
 
-    const requiredRemoveCount = draftSetCount - targetSetCountAfterRemove;
-    if (selectedSetIndexesToRemove.length !== requiredRemoveCount) {
-      Alert.alert('Select exact sets', `Please select exactly ${requiredRemoveCount} set${requiredRemoveCount > 1 ? 's' : ''} to remove.`);
+    if (selectedSetIndexToRemove === null) {
+      Alert.alert('Select set', 'Please select one set to remove.');
       return;
     }
 
-    const selected = new Set(selectedSetIndexesToRemove);
-    const retained = draftSets.filter((_, index) => !selected.has(index));
+    const retained = draftSets.filter((_, index) => index !== selectedSetIndexToRemove);
     setDraftSets(retained);
-    setDraftSetCount(targetSetCountAfterRemove);
+    setDraftSetCount(Math.max(MIN_SET_COUNT, targetSetCountAfterRemove));
     setRemoveSetPickerVisible(false);
     setTargetSetCountAfterRemove(null);
-    setSelectedSetIndexesToRemove([]);
+    setSelectedSetIndexToRemove(null);
   };
 
   const openValuePicker = (rowIndex: number, field: 'reps' | 'weight') => {
@@ -685,7 +707,7 @@ export default function AddScreen() {
         throw new Error(`Set ${index + 1} requires integer reps and weight.`);
       }
 
-      return { reps, weight };
+      return { reps: normalizeReps(reps), weight: normalizeWeight(weight) };
     });
 
     try {
@@ -952,18 +974,16 @@ export default function AddScreen() {
         onRequestClose={() => {
           setRemoveSetPickerVisible(false);
           setTargetSetCountAfterRemove(null);
-          setSelectedSetIndexesToRemove([]);
+          setSelectedSetIndexToRemove(null);
         }}>
         <View style={styles.modalOverlay}>
           <View style={styles.removeSetsModalContent}>
-            <Text style={styles.modalTitle}>Choose sets to remove</Text>
-            <Text style={styles.modalSubtitle}>
-              Select exactly {draftSetCount - (targetSetCountAfterRemove ?? draftSetCount)} set(s)
-            </Text>
+            <Text style={styles.modalTitle}>Select set to remove</Text>
+            <Text style={styles.modalSubtitle}>Pick one set row to remove.</Text>
 
             <ScrollView style={styles.removeSetsList}>
               {draftSets.map((_, index) => {
-                const selected = selectedSetIndexesToRemove.includes(index);
+                const selected = selectedSetIndexToRemove === index;
                 return (
                   <TouchableOpacity
                     key={`remove-set-${index}`}
@@ -982,7 +1002,7 @@ export default function AddScreen() {
                 onPress={() => {
                   setRemoveSetPickerVisible(false);
                   setTargetSetCountAfterRemove(null);
-                  setSelectedSetIndexesToRemove([]);
+                  setSelectedSetIndexToRemove(null);
                 }}>
                 <Text style={styles.closeButtonText}>Cancel</Text>
               </TouchableOpacity>
