@@ -1,6 +1,5 @@
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Modal, TextInput, Alert, PanResponder, FlatList } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Modal, TextInput, Alert, FlatList } from 'react-native';
 import React, { useState, useEffect, useMemo } from 'react';
-import * as Haptics from 'expo-haptics';
 import { useSavedWorkoutsStore, SavedWorkout } from '@/store/savedWorkouts';
 import { exercises as allExercises } from '@/data/exercises';
 import { workouts } from '@/data/workouts';
@@ -21,7 +20,6 @@ export default function SavedScreen() {
     updateWorkout,
     updateAndRegenerateId,
     removeExerciseFromWorkout,
-    reorderWorkouts,
     addWorkout,
     addExerciseToWorkout,
     removeExercise,
@@ -314,20 +312,6 @@ export default function SavedScreen() {
     }
   };
 
-  const handleMoveUp = (index: number) => {
-    if (index === 0) return;
-    const newOrder = [...savedWorkouts];
-    [newOrder[index - 1], newOrder[index]] = [newOrder[index], newOrder[index - 1]];
-    reorderWorkouts(newOrder);
-  };
-
-  const handleMoveDown = (index: number) => {
-    if (index === savedWorkouts.length - 1) return;
-    const newOrder = [...savedWorkouts];
-    [newOrder[index], newOrder[index + 1]] = [newOrder[index + 1], newOrder[index]];
-    reorderWorkouts(newOrder);
-  };
-
   const exerciseNameById = useMemo(() => {
     const names = new Map<string, string>();
 
@@ -356,29 +340,6 @@ export default function SavedScreen() {
   const getExerciseName = (exerciseId: string) => {
     if (!hasHydrated) return exerciseId;
     return exerciseNameById.get(exerciseId) || exerciseId;
-  };
-
-  const createPanResponder = (index: number, sortedWorkouts: SavedWorkout[]) => {
-    const DRAG_THRESHOLD = 40;
-    
-    return PanResponder.create({
-      onStartShouldSetPanResponder: () => true,
-      onMoveShouldSetPanResponder: () => true,
-      onPanResponderRelease: (evt, gestureState) => {
-        const { dy } = gestureState;
-        
-        // Drag up - move up in list
-        if (dy < -DRAG_THRESHOLD && index > 0) {
-          Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-          handleMoveUp(index);
-        }
-        // Drag down - move down in list
-        else if (dy > DRAG_THRESHOLD && index < sortedWorkouts.length - 1) {
-          Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-          handleMoveDown(index);
-        }
-      },
-    });
   };
 
   const handleFilterChange = (filter: SavedFilter) => {
@@ -472,28 +433,8 @@ export default function SavedScreen() {
         )}
 
         {selectedFilter === 'workouts' && sortedWorkouts.map((workout, index) => {
-          const panResponder = createPanResponder(index, sortedWorkouts);
           return (
           <View key={workout.id} style={styles.listItem}>
-            {/* Drag Handle */}
-            <View 
-              style={styles.dragHandleContainer}
-              {...panResponder.panHandlers}>
-              <TouchableOpacity 
-                style={styles.moveButton}
-                onPress={() => handleMoveUp(index)}
-                disabled={index === 0}>
-                <Text style={[styles.moveButtonText, index === 0 && styles.moveButtonDisabled]}>▲</Text>
-              </TouchableOpacity>
-              <Text style={styles.dragHandle}>☰</Text>
-              <TouchableOpacity 
-                style={styles.moveButton}
-                onPress={() => handleMoveDown(index)}
-                disabled={index === sortedWorkouts.length - 1}>
-                <Text style={[styles.moveButtonText, index === sortedWorkouts.length - 1 && styles.moveButtonDisabled]}>▼</Text>
-              </TouchableOpacity>
-            </View>
-            
             <TouchableOpacity 
               style={styles.workoutContent}
               onPress={() => setDetailWorkout(workout)}>
@@ -1055,24 +996,6 @@ const styles = StyleSheet.create({
     paddingVertical: 12,
     borderBottomWidth: 1,
     borderBottomColor: '#222',
-  },
-  dragHandleContainer: {
-    alignItems: 'center',
-    marginRight: 12,
-  },
-  dragHandle: {
-    color: '#666',
-    fontSize: 16,
-  },
-  moveButton: {
-    padding: 4,
-  },
-  moveButtonText: {
-    color: '#888',
-    fontSize: 10,
-  },
-  moveButtonDisabled: {
-    color: '#333',
   },
   workoutContent: {
     flex: 1,
