@@ -135,29 +135,33 @@ export default function SearchScreen() {
                   <TouchableOpacity
                     style={[styles.assignButton, styles.assignButtonWithEdit]}
                     onPress={() => setDetailWorkoutId(assignedWorkoutId)}>
-                    <Text style={[styles.assignButtonLabel, styles.assignButtonLabelLeft]}>{assignedWorkout.name}</Text>
+                    <View style={styles.assignedContent}>
+                      <Text style={[styles.assignButtonLabel, styles.assignButtonLabelCentered]} numberOfLines={2}>
+                        {assignedWorkout.name}
+                      </Text>
 
-                    <View style={styles.exerciseListBox}>
-                      <View style={styles.exerciseListColumns}>
-                        <View style={styles.exerciseColumn}>
-                          {firstColumnExercises.map((exerciseName, index) => (
-                            <View key={`left-${index}-${exerciseName}`} style={styles.exerciseBulletRow}>
-                              <Text style={styles.exerciseBullet}>•</Text>
-                              <Text style={styles.exerciseBulletText} numberOfLines={1} ellipsizeMode="tail">
-                                {exerciseName}
-                              </Text>
-                            </View>
-                          ))}
-                        </View>
-                        <View style={styles.exerciseColumn}>
-                          {secondColumnExercises.map((exerciseName, index) => (
-                            <View key={`right-${index}-${exerciseName}`} style={styles.exerciseBulletRow}>
-                              <Text style={styles.exerciseBullet}>•</Text>
-                              <Text style={styles.exerciseBulletText} numberOfLines={1} ellipsizeMode="tail">
-                                {exerciseName}
-                              </Text>
-                            </View>
-                          ))}
+                      <View style={styles.exerciseListBox}>
+                        <View style={styles.exerciseListColumns}>
+                          <View style={styles.exerciseColumn}>
+                            {firstColumnExercises.map((exerciseName, index) => (
+                              <View key={`left-${index}-${exerciseName}`} style={styles.exerciseBulletRow}>
+                                <Text style={styles.exerciseBullet}>•</Text>
+                                <Text style={styles.exerciseBulletText} numberOfLines={1} ellipsizeMode="tail">
+                                  {exerciseName}
+                                </Text>
+                              </View>
+                            ))}
+                          </View>
+                          <View style={styles.exerciseColumn}>
+                            {secondColumnExercises.map((exerciseName, index) => (
+                              <View key={`right-${index}-${exerciseName}`} style={styles.exerciseBulletRow}>
+                                <Text style={styles.exerciseBullet}>•</Text>
+                                <Text style={styles.exerciseBulletText} numberOfLines={1} ellipsizeMode="tail">
+                                  {exerciseName}
+                                </Text>
+                              </View>
+                            ))}
+                          </View>
                         </View>
                       </View>
                     </View>
@@ -303,7 +307,14 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   assignButtonWithEdit: {
-    paddingRight: 64,
+    paddingRight: 12,
+  },
+  assignedContent: {
+    flex: 1,
+    marginRight: 64,
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingVertical: 4,
   },
   assignButtonLabel: {
     color: '#fff',
@@ -311,15 +322,13 @@ const styles = StyleSheet.create({
     fontWeight: '500',
     textAlign: 'center',
   },
-  assignButtonLabelLeft: {
+  assignButtonLabelCentered: {
     width: '100%',
-    textAlign: 'left',
-    position: 'absolute',
-    top: 8,
-    left: 12,
-    right: 70,
-    fontSize: 14,
-    zIndex: 2,
+    textAlign: 'center',
+    fontSize: 13,
+    lineHeight: 15,
+    marginBottom: 4,
+    paddingHorizontal: 8,
   },
   editButton: {
     position: 'absolute',
@@ -340,22 +349,22 @@ const styles = StyleSheet.create({
     fontWeight: '700',
   },
   exerciseListBox: {
-    position: 'absolute',
-    top: '10%',
-    bottom: '10%',
-    left: 10,
-    right: 66,
+    height: '80%',
     borderWidth: 1,
     borderColor: '#111',
     borderRadius: 6,
     backgroundColor: '#111',
     justifyContent: 'center',
-    paddingHorizontal: 6,
-    paddingVertical: 4,
+    paddingHorizontal: 5,
+    paddingVertical: 3,
+    alignSelf: 'center',
+    width: '72%',
+    minWidth: 170,
+    maxWidth: 260,
   },
   exerciseListColumns: {
     flexDirection: 'row',
-    gap: 6,
+    gap: 4,
   },
   exerciseColumn: {
     flex: 1,
@@ -367,14 +376,14 @@ const styles = StyleSheet.create({
   },
   exerciseBullet: {
     color: '#fff',
-    fontSize: 10,
-    marginRight: 3,
-    lineHeight: 12,
+    fontSize: 8,
+    marginRight: 2,
+    lineHeight: 10,
   },
   exerciseBulletText: {
     color: '#fff',
-    fontSize: 10,
-    lineHeight: 12,
+    fontSize: 8,
+    lineHeight: 10,
     flex: 1,
   },
   modalOverlay: {
