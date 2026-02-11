@@ -119,6 +119,13 @@ export default function SearchScreen() {
         {WEEK_DAYS.map(day => {
           const assignedWorkoutId = schedule[day];
           const assignedWorkout = assignedWorkoutId ? workoutById.get(assignedWorkoutId) : null;
+          const assignedExerciseNames = assignedWorkout
+            ? assignedWorkout.exercises
+                .map(exerciseId => exerciseById.get(exerciseId)?.name)
+                .filter((name): name is string => Boolean(name))
+            : [];
+          const firstColumnExercises = assignedExerciseNames.slice(0, 6);
+          const secondColumnExercises = assignedExerciseNames.slice(6, 12);
 
           return (
             <View key={day} style={styles.dayRow}>
@@ -130,6 +137,31 @@ export default function SearchScreen() {
                     style={[styles.assignButton, styles.assignButtonWithEdit]}
                     onPress={() => setDetailWorkoutId(assignedWorkoutId)}>
                     <Text style={[styles.assignButtonLabel, styles.assignButtonLabelLeft]}>{assignedWorkout.name}</Text>
+
+                    <View style={styles.exerciseListBox}>
+                      <View style={styles.exerciseListColumns}>
+                        <View style={styles.exerciseColumn}>
+                          {firstColumnExercises.map((exerciseName, index) => (
+                            <View key={`left-${index}-${exerciseName}`} style={styles.exerciseBulletRow}>
+                              <Text style={styles.exerciseBullet}>•</Text>
+                              <Text style={styles.exerciseBulletText} numberOfLines={1} ellipsizeMode="tail">
+                                {exerciseName}
+                              </Text>
+                            </View>
+                          ))}
+                        </View>
+                        <View style={styles.exerciseColumn}>
+                          {secondColumnExercises.map((exerciseName, index) => (
+                            <View key={`right-${index}-${exerciseName}`} style={styles.exerciseBulletRow}>
+                              <Text style={styles.exerciseBullet}>•</Text>
+                              <Text style={styles.exerciseBulletText} numberOfLines={1} ellipsizeMode="tail">
+                                {exerciseName}
+                              </Text>
+                            </View>
+                          ))}
+                        </View>
+                      </View>
+                    </View>
                   </TouchableOpacity>
 
                   <TouchableOpacity
@@ -273,6 +305,9 @@ const styles = StyleSheet.create({
   },
   assignButtonWithEdit: {
     paddingRight: 64,
+    paddingVertical: 6,
+    alignItems: 'stretch',
+    justifyContent: 'space-between',
   },
   assignButtonLabel: {
     color: '#fff',
@@ -301,6 +336,41 @@ const styles = StyleSheet.create({
     color: '#fff',
     fontSize: 14,
     fontWeight: '700',
+  },
+  exerciseListBox: {
+    height: '80%',
+    borderWidth: 1,
+    borderColor: '#111',
+    borderRadius: 6,
+    backgroundColor: '#111',
+    width: '84%',
+    alignSelf: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 6,
+    paddingVertical: 4,
+  },
+  exerciseListColumns: {
+    flexDirection: 'row',
+    gap: 6,
+  },
+  exerciseColumn: {
+    flex: 1,
+  },
+  exerciseBulletRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  exerciseBullet: {
+    color: '#fff',
+    fontSize: 10,
+    marginRight: 3,
+    lineHeight: 12,
+  },
+  exerciseBulletText: {
+    color: '#fff',
+    fontSize: 10,
+    lineHeight: 12,
+    flex: 1,
   },
   modalOverlay: {
     flex: 1,
