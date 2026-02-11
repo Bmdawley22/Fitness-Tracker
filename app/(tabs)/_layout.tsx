@@ -1,6 +1,6 @@
 import { Tabs } from 'expo-router';
 import React from 'react';
-import { Text } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
 
 import { HapticTab } from '@/components/haptic-tab';
 import { IconSymbol } from '@/components/ui/icon-symbol';
@@ -59,29 +59,7 @@ export default function TabLayout() {
         name="add"
         options={{
           title: "Today's Workout",
-          tabBarIcon: () => null,
-          tabBarItemStyle: {
-            justifyContent: 'center',
-            paddingTop: 0,
-            paddingBottom: 0,
-          },
-          tabBarLabelStyle: {
-            marginTop: 0,
-            fontSize: 12,
-            fontWeight: '500',
-          },
-          tabBarLabel: ({ color }) => (
-            <Text
-              style={{
-                color,
-                fontSize: 12,
-                fontWeight: '500',
-                textAlign: 'center',
-                width: '100%',
-              }}>
-              Today&apos;s Workout
-            </Text>
-          ),
+          tabBarIcon: ({ color }) => <Ionicons name="walk-outline" size={24} color={color} />,
         }}
       />
     </Tabs>
