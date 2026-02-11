@@ -12,6 +12,41 @@ type WorkoutOption = {
   exercises: string[];
 };
 
+const CALENDAR_WEEK_DAYS = ['S', 'M', 'T', 'W', 'T', 'F', 'S'];
+const MONTH_NAMES = [
+  'January',
+  'February',
+  'March',
+  'April',
+  'May',
+  'June',
+  'July',
+  'August',
+  'September',
+  'October',
+  'November',
+  'December',
+];
+
+const normalizeDate = (date: Date) => new Date(date.getFullYear(), date.getMonth(), date.getDate());
+
+const getWeekRange = (date: Date): { start: Date; end: Date } => {
+  const normalized = normalizeDate(date);
+  const dayOfWeek = normalized.getDay();
+
+  const start = new Date(normalized.getFullYear(), normalized.getMonth(), normalized.getDate() - dayOfWeek);
+  const end = new Date(start.getFullYear(), start.getMonth(), start.getDate() + 6);
+
+  return { start, end };
+};
+
+const formatShortDate = (date: Date): string => {
+  const month = date.getMonth() + 1;
+  const day = date.getDate();
+  const year = date.getFullYear() % 100;
+  return `${month}/${day}/${year.toString().padStart(2, '0')}`;
+};
+
 export default function SearchScreen() {
   const { savedWorkouts, savedExercises, customExercises, hasHydrated: savedHydrated } = useSavedWorkoutsStore();
   const {
@@ -24,6 +59,12 @@ export default function SearchScreen() {
 
   const [assignmentDay, setAssignmentDay] = useState<WeekDay | null>(null);
   const [detailWorkoutId, setDetailWorkoutId] = useState<string | null>(null);
+  const [isCalendarOpen, setIsCalendarOpen] = useState(false);
+  const [selectedDate, setSelectedDate] = useState(() => normalizeDate(new Date()));
+  const [viewingMonth, setViewingMonth] = useState(() => {
+    const today = normalizeDate(new Date());
+    return new Date(today.getFullYear(), today.getMonth(), 1);
+  });
 
   const workoutOptions = useMemo<WorkoutOption[]>(() => {
     return savedWorkouts.map(workout => ({
@@ -64,6 +105,34 @@ export default function SearchScreen() {
   }, [savedExercises, customExercises]);
 
   const detailWorkout = detailWorkoutId ? workoutById.get(detailWorkoutId) : null;
+  const weekRange = useMemo(() => getWeekRange(selectedDate), [selectedDate]);
+  const weekRangeLabel = `${formatShortDate(weekRange.start)} - ${formatShortDate(weekRange.end)}`;
+  const todayWeekRange = useMemo(() => getWeekRange(normalizeDate(new Date())), []);
+  const isCurrentWeek =
+    weekRange.start.getFullYear() === todayWeekRange.start.getFullYear() &&
+    weekRange.start.getMonth() === todayWeekRange.start.getMonth() &&
+    weekRange.start.getDate() === todayWeekRange.start.getDate();
+  const weekTitleLine = `${isCurrentWeek ? 'Current Week' : 'Week'}: ${weekRangeLabel}`;
+  const calendarMonthLabel = `${MONTH_NAMES[viewingMonth.getMonth()]} ${viewingMonth.getFullYear()}`;
+  const daysInMonth = new Date(viewingMonth.getFullYear(), viewingMonth.getMonth() + 1, 0).getDate();
+  const firstDayOfMonth = new Date(viewingMonth.getFullYear(), viewingMonth.getMonth(), 1).getDay();
+  const calendarCells = useMemo(() => {
+    const cells: (number | null)[] = [];
+
+    for (let i = 0; i < firstDayOfMonth; i += 1) {
+      cells.push(null);
+    }
+
+    for (let day = 1; day <= daysInMonth; day += 1) {
+      cells.push(day);
+    }
+
+    while (cells.length % 7 !== 0) {
+      cells.push(null);
+    }
+
+    return cells;
+  }, [firstDayOfMonth, daysInMonth]);
   const detailExercises = useMemo(() => {
     if (!detailWorkout) return [];
     return detailWorkout.exercises
@@ -93,17 +162,31 @@ export default function SearchScreen() {
   if (!savedHydrated || !scheduleHydrated) {
     return (
       <View style={styles.container}>
-        <Text style={styles.header}>Schedule</Text>
+        <View style={styles.headerRow}>
+          <Text style={styles.header}>Schedule</Text>
+        </View>
       </View>
     );
   }
 
   return (
     <View style={styles.container}>
-      <Text style={styles.header}>Schedule</Text>
+      <View style={styles.headerRow}>
+        <Text style={styles.header}>Schedule</Text>
+        <TouchableOpacity
+          style={styles.calendarButton}
+          onPress={() => setIsCalendarOpen(true)}
+          accessibilityLabel="Open calendar">
+          <Ionicons name="calendar-outline" size={20} color="#fff" />
+        </TouchableOpacity>
+      </View>
+
+      <View style={styles.weekBlock}>
+        <Text style={styles.weekTitle}>{weekTitleLine}</Text>
+      </View>
 
       <ScrollView style={styles.listContainer} contentContainerStyle={styles.listContent}>
-        {WEEK_DAYS.map(day => {
+        {WEEK_DAYS.map((day, index) => {
           const assignedWorkoutId = schedule[day];
           const assignedWorkout = assignedWorkoutId ? workoutById.get(assignedWorkoutId) : null;
           const assignedExerciseNames = assignedWorkout
@@ -113,10 +196,16 @@ export default function SearchScreen() {
           const firstColumnExercises = assignedExerciseNames.slice(0, 4);
           const secondColumnExercises = assignedExerciseNames.slice(4, 8);
           const thirdColumnExercises = assignedExerciseNames.slice(8, 12);
+          const calendarDate = new Date(
+            weekRange.start.getFullYear(),
+            weekRange.start.getMonth(),
+            weekRange.start.getDate() + index,
+          );
+          const dayLabel = `${day} — ${formatShortDate(calendarDate)}`;
 
           return (
             <View key={day} style={styles.dayRow}>
-              <Text style={styles.dayTitle}>{day}</Text>
+              <Text style={styles.dayTitle}>{dayLabel}</Text>
 
               {assignedWorkout ? (
                 <View style={styles.assignedWorkoutContainer}>
@@ -184,6 +273,88 @@ export default function SearchScreen() {
           );
         })}
       </ScrollView>
+
+
+      <Modal
+        visible={isCalendarOpen}
+        transparent={true}
+        animationType="fade"
+        onRequestClose={() => setIsCalendarOpen(false)}>
+        <View style={styles.modalOverlay}>
+          <View style={styles.calendarModalContent}>
+            <TouchableOpacity style={styles.closeX} onPress={() => setIsCalendarOpen(false)}>
+              <Text style={styles.closeXText}>✕</Text>
+            </TouchableOpacity>
+
+            <View style={styles.calendarHeaderRow}>
+              <TouchableOpacity
+                style={styles.calendarNavButton}
+                onPress={() =>
+                  setViewingMonth(
+                    prev => new Date(prev.getFullYear(), prev.getMonth() - 1, 1),
+                  )
+                }
+                accessibilityLabel="Previous month">
+                <Ionicons name="chevron-back" size={18} color="#fff" />
+              </TouchableOpacity>
+
+              <Text style={styles.calendarMonthLabel}>{calendarMonthLabel}</Text>
+
+              <TouchableOpacity
+                style={styles.calendarNavButton}
+                onPress={() =>
+                  setViewingMonth(
+                    prev => new Date(prev.getFullYear(), prev.getMonth() + 1, 1),
+                  )
+                }
+                accessibilityLabel="Next month">
+                <Ionicons name="chevron-forward" size={18} color="#fff" />
+              </TouchableOpacity>
+            </View>
+
+            <View style={styles.calendarWeekDaysRow}>
+              {CALENDAR_WEEK_DAYS.map((day, index) => (
+                <Text key={`${day}-${index}`} style={styles.calendarWeekDayText}>
+                  {day}
+                </Text>
+              ))}
+            </View>
+
+            <View style={styles.calendarGrid}>
+              {calendarCells.map((dayNumber, index) => {
+                if (!dayNumber) {
+                  return <View key={`blank-${index}`} style={styles.calendarDayCell} />;
+                }
+
+                const cellDate = new Date(viewingMonth.getFullYear(), viewingMonth.getMonth(), dayNumber);
+                const isSelected =
+                  cellDate.getFullYear() === selectedDate.getFullYear() &&
+                  cellDate.getMonth() === selectedDate.getMonth() &&
+                  cellDate.getDate() === selectedDate.getDate();
+
+                return (
+                  <TouchableOpacity
+                    key={`day-${dayNumber}`}
+                    style={[styles.calendarDayCell, isSelected && styles.calendarDayCellSelected]}
+                    onPress={() => {
+                      setSelectedDate(cellDate);
+                      setIsCalendarOpen(false);
+                    }}>
+                    <Text
+                      style={[styles.calendarDayText, isSelected && styles.calendarDayTextSelected]}>
+                      {dayNumber}
+                    </Text>
+                  </TouchableOpacity>
+                );
+              })}
+            </View>
+
+            <TouchableOpacity style={styles.closeButton} onPress={() => setIsCalendarOpen(false)}>
+              <Text style={styles.closeButtonText}>Cancel</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
 
       <Modal
         visible={assignmentDay !== null}
@@ -268,12 +439,43 @@ const styles = StyleSheet.create({
     backgroundColor: '#000',
     paddingTop: 60,
   },
+  headerRow: {
+    paddingHorizontal: 16,
+    marginBottom: 8,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    position: 'relative',
+  },
   header: {
     color: '#fff',
     fontSize: 24,
     fontWeight: '700',
+    textAlign: 'center',
+  },
+  calendarButton: {
+    width: 34,
+    height: 34,
+    borderRadius: 17,
+    borderWidth: 1,
+    borderColor: '#333',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#111',
+    position: 'absolute',
+    right: 16,
+  },
+  weekBlock: {
     paddingHorizontal: 16,
-    marginBottom: 16,
+    marginBottom: 12,
+    alignItems: 'center',
+  },
+  weekTitle: {
+    color: '#fff',
+    fontSize: 20,
+    fontWeight: '800',
+    textAlign: 'center',
+    marginBottom: 2,
   },
   listContainer: {
     flex: 1,
@@ -424,6 +626,70 @@ const styles = StyleSheet.create({
     width: '90%',
     maxHeight: '80%',
     position: 'relative',
+  },
+  calendarModalContent: {
+    width: '88%',
+    backgroundColor: '#1a1a1a',
+    borderRadius: 12,
+    padding: 20,
+    position: 'relative',
+  },
+  calendarHeaderRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 14,
+    marginTop: 8,
+  },
+  calendarNavButton: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: '#333',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#111',
+  },
+  calendarMonthLabel: {
+    color: '#fff',
+    fontSize: 17,
+    fontWeight: '700',
+  },
+  calendarWeekDaysRow: {
+    flexDirection: 'row',
+    marginBottom: 6,
+  },
+  calendarWeekDayText: {
+    flex: 1,
+    textAlign: 'center',
+    color: '#999',
+    fontSize: 12,
+    fontWeight: '600',
+  },
+  calendarGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    marginBottom: 14,
+  },
+  calendarDayCell: {
+    width: '14.2857%',
+    aspectRatio: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderRadius: 8,
+  },
+  calendarDayCellSelected: {
+    backgroundColor: '#fff',
+  },
+  calendarDayText: {
+    color: '#fff',
+    fontSize: 14,
+    fontWeight: '500',
+  },
+  calendarDayTextSelected: {
+    color: '#000',
+    fontWeight: '700',
   },
   workoutModalHeader: {
     flexDirection: 'row',
