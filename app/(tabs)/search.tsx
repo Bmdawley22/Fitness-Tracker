@@ -302,8 +302,8 @@ export default function SearchScreen() {
             </View>
 
             <View style={styles.calendarWeekDaysRow}>
-              {CALENDAR_WEEK_DAYS.map(day => (
-                <Text key={day} style={styles.calendarWeekDayText}>
+              {CALENDAR_WEEK_DAYS.map((day, index) => (
+                <Text key={`${day}-${index}`} style={styles.calendarWeekDayText}>
                   {day}
                 </Text>
               ))}
