@@ -1,7 +1,8 @@
 import { Alert, Dimensions, Modal, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
-import React, { forwardRef, useImperativeHandle, useMemo, useState } from 'react';
+import React, { forwardRef, useEffect, useImperativeHandle, useMemo, useState } from 'react';
 import { exercises as allExercises } from '@/data/exercises';
 import { useSavedWorkoutsStore, CustomExercise } from '@/store/savedWorkouts';
+import { toLocalDateKey, useScheduleStore, WEEK_DAYS } from '@/store/schedule';
 
 const WINDOW_HEIGHT = Dimensions.get('window').height;
 
@@ -450,13 +451,202 @@ export const CreateFlowModals = forwardRef<CreateFlowHandle>(function CreateFlow
 });
 
 export default function AddScreen() {
-  return <View style={styles.container} />;
+  const [workoutSelectorVisible, setWorkoutSelectorVisible] = useState(false);
+  const { savedWorkouts, hasHydrated: savedHydrated } = useSavedWorkoutsStore();
+  const {
+    schedule,
+    assignWorkoutToDate,
+    clearDateAssignment,
+    cleanupInvalidAssignments,
+    hasHydrated: scheduleHydrated,
+  } = useScheduleStore();
+
+  const today = new Date();
+  const todayDateKey = toLocalDateKey(today);
+  const weekdayTitle = WEEK_DAYS[today.getDay()];
+  const assignedWorkoutId = schedule[todayDateKey] ?? null;
+  const assignedWorkout = useMemo(
+    () => savedWorkouts.find(workout => workout.id === assignedWorkoutId) ?? null,
+    [savedWorkouts, assignedWorkoutId],
+  );
+
+  useEffect(() => {
+    if (!savedHydrated || !scheduleHydrated) return;
+    cleanupInvalidAssignments(savedWorkouts.map(workout => workout.id));
+  }, [savedHydrated, scheduleHydrated, savedWorkouts, cleanupInvalidAssignments]);
+
+  const closeWorkoutSelector = () => setWorkoutSelectorVisible(false);
+
+  const handleAssignWorkout = (workoutId: string) => {
+    assignWorkoutToDate(todayDateKey, workoutId);
+    closeWorkoutSelector();
+  };
+
+  const handleClearToday = () => {
+    clearDateAssignment(todayDateKey);
+    closeWorkoutSelector();
+  };
+
+  if (!savedHydrated || !scheduleHydrated) {
+    return <View style={styles.container} />;
+  }
+
+  return (
+    <View style={styles.todayContainer}>
+      <View style={styles.todayHeaderRow}>
+        <Text style={styles.todayHeader}>{weekdayTitle}</Text>
+
+        {assignedWorkout ? (
+          <TouchableOpacity style={styles.changeButton} onPress={() => setWorkoutSelectorVisible(true)}>
+            <Text style={styles.changeButtonText}>Change</Text>
+          </TouchableOpacity>
+        ) : null}
+      </View>
+
+      <View style={styles.todayContent}>
+        {assignedWorkout ? (
+          <View style={styles.assignedTodayCard}>
+            <Text style={styles.assignedTodayLabel}>Today&apos;s Workout</Text>
+            <Text style={styles.assignedTodayWorkoutName}>{assignedWorkout.name}</Text>
+          </View>
+        ) : (
+          <TouchableOpacity style={styles.addTodayButton} onPress={() => setWorkoutSelectorVisible(true)}>
+            <Text style={styles.addTodayButtonText}>Add workout for today</Text>
+          </TouchableOpacity>
+        )}
+      </View>
+
+      <Modal
+        visible={workoutSelectorVisible}
+        transparent={true}
+        animationType="fade"
+        onRequestClose={closeWorkoutSelector}>
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContent}>
+            <TouchableOpacity style={styles.closeX} onPress={closeWorkoutSelector}>
+              <Text style={styles.closeXText}>✕</Text>
+            </TouchableOpacity>
+
+            <Text style={styles.modalTitle}>Assign Workout</Text>
+            <Text style={styles.modalSubtitle}>Today ({todayDateKey})</Text>
+
+            <ScrollView style={styles.workoutList}>
+              {savedWorkouts.length === 0 ? (
+                <Text style={styles.emptyWorkoutOptionsText}>No saved workouts yet</Text>
+              ) : (
+                savedWorkouts.map(workout => (
+                  <TouchableOpacity
+                    key={workout.id}
+                    style={styles.workoutOption}
+                    onPress={() => handleAssignWorkout(workout.id)}>
+                    <Text style={styles.workoutOptionText}>{workout.name}</Text>
+                  </TouchableOpacity>
+                ))
+              )}
+            </ScrollView>
+
+            {assignedWorkout ? (
+              <TouchableOpacity style={styles.clearButton} onPress={handleClearToday}>
+                <Text style={styles.clearButtonText}>Clear Day</Text>
+              </TouchableOpacity>
+            ) : null}
+
+            <TouchableOpacity style={styles.closeButton} onPress={closeWorkoutSelector}>
+              <Text style={styles.closeButtonText}>Cancel</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
+    </View>
+  );
 }
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: '#000',
+  },
+  todayContainer: {
+    flex: 1,
+    backgroundColor: '#000',
+    paddingTop: 60,
+  },
+  todayHeaderRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 16,
+    marginBottom: 24,
+    position: 'relative',
+  },
+  todayHeader: {
+    color: '#fff',
+    fontSize: 32,
+    fontWeight: '700',
+    textAlign: 'center',
+  },
+  changeButton: {
+    position: 'absolute',
+    right: 16,
+    backgroundColor: '#111',
+    borderWidth: 1,
+    borderColor: '#333',
+    borderRadius: 8,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+  },
+  changeButtonText: {
+    color: '#fff',
+    fontSize: 14,
+    fontWeight: '600',
+  },
+  todayContent: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 24,
+    paddingBottom: 50,
+  },
+  assignedTodayCard: {
+    width: '100%',
+    maxWidth: 360,
+    borderWidth: 1,
+    borderColor: '#333',
+    borderRadius: 14,
+    backgroundColor: '#111',
+    paddingVertical: 24,
+    paddingHorizontal: 20,
+    alignItems: 'center',
+  },
+  assignedTodayLabel: {
+    color: '#aaa',
+    fontSize: 14,
+    fontWeight: '600',
+    marginBottom: 10,
+    textTransform: 'uppercase',
+    letterSpacing: 0.8,
+  },
+  assignedTodayWorkoutName: {
+    color: '#fff',
+    fontSize: 28,
+    fontWeight: '700',
+    textAlign: 'center',
+  },
+  addTodayButton: {
+    borderWidth: 1,
+    borderColor: '#fff',
+    borderRadius: 12,
+    backgroundColor: '#111',
+    paddingVertical: 16,
+    paddingHorizontal: 22,
+    minWidth: 240,
+    alignItems: 'center',
+  },
+  addTodayButtonText: {
+    color: '#fff',
+    fontSize: 18,
+    fontWeight: '600',
+    textAlign: 'center',
   },
   centeredView: {
     flex: 1,
@@ -660,5 +850,83 @@ const styles = StyleSheet.create({
   checkboxLabel: {
     color: '#fff',
     fontSize: 14,
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.7)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  modalContent: {
+    width: '85%',
+    maxHeight: '75%',
+    backgroundColor: '#1a1a1a',
+    borderRadius: 12,
+    padding: 24,
+    position: 'relative',
+  },
+  closeX: {
+    position: 'absolute',
+    top: 12,
+    right: 12,
+    width: 30,
+    height: 30,
+    alignItems: 'center',
+    justifyContent: 'center',
+    zIndex: 10,
+  },
+  closeXText: {
+    color: '#888',
+    fontSize: 20,
+    fontWeight: '600',
+  },
+  modalSubtitle: {
+    color: '#aaa',
+    fontSize: 15,
+    marginTop: 4,
+    marginBottom: 12,
+  },
+  workoutList: {
+    maxHeight: 280,
+    marginBottom: 12,
+  },
+  workoutOption: {
+    backgroundColor: '#fff',
+    borderRadius: 8,
+    padding: 14,
+    marginBottom: 8,
+  },
+  workoutOptionText: {
+    color: '#000',
+    fontSize: 16,
+    fontWeight: '500',
+  },
+  emptyWorkoutOptionsText: {
+    color: '#888',
+    textAlign: 'center',
+    paddingVertical: 16,
+  },
+  clearButton: {
+    backgroundColor: '#333',
+    borderRadius: 8,
+    padding: 12,
+    alignItems: 'center',
+    marginBottom: 8,
+  },
+  clearButtonText: {
+    color: '#fff',
+    fontSize: 16,
+    fontWeight: '600',
+  },
+  closeButton: {
+    backgroundColor: '#333',
+    borderRadius: 8,
+    padding: 12,
+    alignItems: 'center',
+  },
+  closeButtonText: {
+    color: '#fff',
+    fontSize: 16,
+    fontWeight: '600',
   },
 });
