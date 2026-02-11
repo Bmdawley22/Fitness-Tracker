@@ -1,15 +1,9 @@
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Modal } from 'react-native';
-import React, { useMemo, useState } from 'react';
-import { workouts } from '@/data/workouts';
+import React, { useEffect, useMemo, useState } from 'react';
 import { exercises } from '@/data/exercises';
 import { useSavedWorkoutsStore } from '@/store/savedWorkouts';
+import { WEEK_DAYS, WeekDay, useScheduleStore } from '@/store/schedule';
 import { Ionicons } from '@expo/vector-icons';
-
-const WEEK_DAYS = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'] as const;
-
-type WeekDay = (typeof WEEK_DAYS)[number];
-
-type ScheduleState = Record<WeekDay, string | null>;
 
 type WorkoutOption = {
   id: string;
@@ -19,40 +13,25 @@ type WorkoutOption = {
 };
 
 export default function SearchScreen() {
-  const { savedWorkouts, savedExercises, customExercises } = useSavedWorkoutsStore();
+  const { savedWorkouts, savedExercises, customExercises, hasHydrated: savedHydrated } = useSavedWorkoutsStore();
+  const {
+    schedule,
+    assignWorkoutToDay,
+    clearDay,
+    cleanupInvalidAssignments,
+    hasHydrated: scheduleHydrated,
+  } = useScheduleStore();
 
   const [assignmentDay, setAssignmentDay] = useState<WeekDay | null>(null);
   const [detailWorkoutId, setDetailWorkoutId] = useState<string | null>(null);
-  const [schedule, setSchedule] = useState<ScheduleState>({
-    Sunday: null,
-    Monday: null,
-    Tuesday: null,
-    Wednesday: null,
-    Thursday: null,
-    Friday: null,
-    Saturday: null,
-  });
 
   const workoutOptions = useMemo<WorkoutOption[]>(() => {
-    const saved = savedWorkouts.map(workout => ({
+    return savedWorkouts.map(workout => ({
       id: workout.id,
       name: workout.name,
       description: workout.description,
       exercises: workout.exercises,
     }));
-
-    const savedOriginalIds = new Set(savedWorkouts.map(workout => workout.originalId).filter(Boolean));
-
-    const fallback = workouts
-      .filter(workout => !savedOriginalIds.has(workout.id))
-      .map(workout => ({
-        id: workout.id,
-        name: workout.name,
-        description: workout.description,
-        exercises: workout.exercises,
-      }));
-
-    return [...saved, ...fallback];
   }, [savedWorkouts]);
 
   const workoutById = useMemo(() => {
@@ -92,25 +71,32 @@ export default function SearchScreen() {
       .filter((exercise): exercise is { id: string; name: string } => Boolean(exercise));
   }, [detailWorkout, exerciseById]);
 
+  useEffect(() => {
+    if (!savedHydrated || !scheduleHydrated) return;
+    cleanupInvalidAssignments(savedWorkouts.map(workout => workout.id));
+  }, [savedHydrated, scheduleHydrated, savedWorkouts, cleanupInvalidAssignments]);
+
   const handleAssignWorkout = (workoutId: string) => {
     if (!assignmentDay) return;
 
-    setSchedule(prev => ({
-      ...prev,
-      [assignmentDay]: workoutId,
-    }));
+    assignWorkoutToDay(assignmentDay, workoutId);
     setAssignmentDay(null);
   };
 
   const handleClearDay = () => {
     if (!assignmentDay) return;
 
-    setSchedule(prev => ({
-      ...prev,
-      [assignmentDay]: null,
-    }));
+    clearDay(assignmentDay);
     setAssignmentDay(null);
   };
+
+  if (!savedHydrated || !scheduleHydrated) {
+    return (
+      <View style={styles.container}>
+        <Text style={styles.header}>Schedule</Text>
+      </View>
+    );
+  }
 
   return (
     <View style={styles.container}>
@@ -214,14 +200,18 @@ export default function SearchScreen() {
             <Text style={styles.modalSubtitle}>{assignmentDay}</Text>
 
             <ScrollView style={styles.workoutList}>
-              {workoutOptions.map(workout => (
-                <TouchableOpacity
-                  key={workout.id}
-                  style={styles.workoutOption}
-                  onPress={() => handleAssignWorkout(workout.id)}>
-                  <Text style={styles.workoutOptionText}>{workout.name}</Text>
-                </TouchableOpacity>
-              ))}
+              {workoutOptions.length === 0 ? (
+                <Text style={styles.emptyWorkoutOptionsText}>No saved workouts yet</Text>
+              ) : (
+                workoutOptions.map(workout => (
+                  <TouchableOpacity
+                    key={workout.id}
+                    style={styles.workoutOption}
+                    onPress={() => handleAssignWorkout(workout.id)}>
+                    <Text style={styles.workoutOptionText}>{workout.name}</Text>
+                  </TouchableOpacity>
+                ))
+              )}
             </ScrollView>
 
             <TouchableOpacity style={styles.clearButton} onPress={handleClearDay}>
@@ -514,6 +504,11 @@ const styles = StyleSheet.create({
     color: '#000',
     fontSize: 16,
     fontWeight: '500',
+  },
+  emptyWorkoutOptionsText: {
+    color: '#888',
+    textAlign: 'center',
+    paddingVertical: 16,
   },
   clearButton: {
     backgroundColor: '#333',

@@ -1,6 +1,7 @@
 import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { useScheduleStore } from '@/store/schedule';
 
 const MAX_EXERCISES = 12;
 
@@ -35,6 +36,8 @@ interface SavedWorkoutsState {
   savedWorkouts: SavedWorkout[];
   savedExercises: SavedExercise[];
   customExercises: CustomExercise[];
+  hasHydrated: boolean;
+  setHasHydrated: (hydrated: boolean) => void;
   
   addCustomExercise: (exercise: Omit<CustomExercise, 'id' | 'createdAt'>) => CustomExercise;
   
@@ -62,6 +65,8 @@ export const useSavedWorkoutsStore = create<SavedWorkoutsState>()(
       savedWorkouts: [],
       savedExercises: [],
       customExercises: [],
+      hasHydrated: false,
+      setHasHydrated: hydrated => set({ hasHydrated: hydrated }),
       
       addWorkout: (workout) => {
         const state = get();
@@ -89,6 +94,7 @@ export const useSavedWorkoutsStore = create<SavedWorkoutsState>()(
         set(state => ({
           savedWorkouts: state.savedWorkouts.filter(w => w.id !== id)
         }));
+        useScheduleStore.getState().removeAssignmentsForWorkoutId(id);
       },
       
       updateWorkout: (id, updates) => {
@@ -100,24 +106,34 @@ export const useSavedWorkoutsStore = create<SavedWorkoutsState>()(
       },
       
       updateAndRegenerateId: (id, updates) => {
+        let oldWorkoutId: string | null = null;
+        let newWorkoutId: string | null = null;
+
         set(state => {
           const workoutToUpdate = state.savedWorkouts.find(w => w.id === id);
           if (!workoutToUpdate) return state;
-          
+
+          oldWorkoutId = workoutToUpdate.id;
+          newWorkoutId = `saved-${Date.now()}`;
+
           const updatedWorkout: SavedWorkout = {
             ...workoutToUpdate,
             ...updates,
-            id: `saved-${Date.now()}`, // Generate new ID
+            id: newWorkoutId,
             originalId: '', // Clear originalId - this is now a custom edited workout
             createdAt: Date.now(),
           };
-          
+
           return {
             savedWorkouts: state.savedWorkouts.map(w =>
               w.id === id ? updatedWorkout : w
             )
           };
         });
+
+        if (oldWorkoutId && newWorkoutId) {
+          useScheduleStore.getState().remapWorkoutId(oldWorkoutId, newWorkoutId);
+        }
       },
       
       removeExerciseFromWorkout: (workoutId, exerciseId) => {
@@ -206,6 +222,9 @@ export const useSavedWorkoutsStore = create<SavedWorkoutsState>()(
     {
       name: 'saved-workouts-storage',
       storage: createJSONStorage(() => AsyncStorage),
+      onRehydrateStorage: () => state => {
+        state?.setHasHydrated(true);
+      },
     }
   )
 );
