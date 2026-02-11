@@ -119,6 +119,13 @@ export default function SearchScreen() {
         {WEEK_DAYS.map(day => {
           const assignedWorkoutId = schedule[day];
           const assignedWorkout = assignedWorkoutId ? workoutById.get(assignedWorkoutId) : null;
+          const assignedExerciseNames = assignedWorkout
+            ? assignedWorkout.exercises
+                .map(exerciseId => exerciseById.get(exerciseId)?.name ?? exerciseId.replace(/-/g, ' '))
+            : [];
+          const firstColumnExercises = assignedExerciseNames.slice(0, 4);
+          const secondColumnExercises = assignedExerciseNames.slice(4, 8);
+          const thirdColumnExercises = assignedExerciseNames.slice(8, 12);
 
           return (
             <View key={day} style={styles.dayRow}>
@@ -126,16 +133,57 @@ export default function SearchScreen() {
 
               {assignedWorkout ? (
                 <View style={styles.assignedWorkoutContainer}>
-                  <TouchableOpacity
-                    style={[styles.assignButton, styles.assignButtonWithEdit]}
-                    onPress={() => setDetailWorkoutId(assignedWorkoutId)}>
-                    <Text style={[styles.assignButtonLabel, styles.assignButtonLabelLeft]}>{assignedWorkout.name}</Text>
-                  </TouchableOpacity>
+                  <View style={styles.assignedHeaderRow}>
+                    <TouchableOpacity
+                      style={styles.assignedTitleContainer}
+                      onPress={() => setDetailWorkoutId(assignedWorkoutId)}>
+                      <Text style={[styles.assignButtonLabel, styles.assignButtonLabelCentered]} numberOfLines={2}>
+                        {assignedWorkout.name}
+                      </Text>
+                    </TouchableOpacity>
+
+                    <TouchableOpacity
+                      style={styles.editButtonInline}
+                      onPress={() => setAssignmentDay(day)}>
+                      <Text style={styles.editButtonText}>✎</Text>
+                    </TouchableOpacity>
+                  </View>
 
                   <TouchableOpacity
-                    style={styles.editButton}
-                    onPress={() => setAssignmentDay(day)}>
-                    <Text style={styles.editButtonText}>✎</Text>
+                    style={styles.exerciseListBox}
+                    onPress={() => setDetailWorkoutId(assignedWorkoutId)}>
+                    <View style={styles.exerciseListColumns}>
+                      <View style={styles.exerciseColumn}>
+                        {firstColumnExercises.map((exerciseName, index) => (
+                          <View key={`left-${index}-${exerciseName}`} style={styles.exerciseBulletRow}>
+                            <Text style={styles.exerciseBullet}>•</Text>
+                            <Text style={styles.exerciseBulletText} numberOfLines={1} ellipsizeMode="tail">
+                              {exerciseName}
+                            </Text>
+                          </View>
+                        ))}
+                      </View>
+                      <View style={styles.exerciseColumn}>
+                        {secondColumnExercises.map((exerciseName, index) => (
+                          <View key={`mid-${index}-${exerciseName}`} style={styles.exerciseBulletRow}>
+                            <Text style={styles.exerciseBullet}>•</Text>
+                            <Text style={styles.exerciseBulletText} numberOfLines={1} ellipsizeMode="tail">
+                              {exerciseName}
+                            </Text>
+                          </View>
+                        ))}
+                      </View>
+                      <View style={styles.exerciseColumn}>
+                        {thirdColumnExercises.map((exerciseName, index) => (
+                          <View key={`right-${index}-${exerciseName}`} style={styles.exerciseBulletRow}>
+                            <Text style={styles.exerciseBullet}>•</Text>
+                            <Text style={styles.exerciseBulletText} numberOfLines={1} ellipsizeMode="tail">
+                              {exerciseName}
+                            </Text>
+                          </View>
+                        ))}
+                      </View>
+                    </View>
                   </TouchableOpacity>
                 </View>
               ) : (
@@ -268,11 +316,24 @@ const styles = StyleSheet.create({
   },
   assignedWorkoutContainer: {
     minHeight: 88,
-    position: 'relative',
-    justifyContent: 'center',
+    justifyContent: 'space-between',
   },
-  assignButtonWithEdit: {
-    paddingRight: 64,
+  assignedHeaderRow: {
+    height: 28,
+    flexDirection: 'row',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: 4,
+    paddingHorizontal: '10%',
+  },
+  assignedTitleContainer: {
+    height: '100%',
+    justifyContent: 'center',
+    borderBottomWidth: 1,
+    borderBottomColor: '#fff',
+    paddingHorizontal: 8,
+    maxWidth: '70%',
+    marginRight: '10%',
   },
   assignButtonLabel: {
     color: '#fff',
@@ -280,16 +341,16 @@ const styles = StyleSheet.create({
     fontWeight: '500',
     textAlign: 'center',
   },
-  assignButtonLabelLeft: {
-    width: '100%',
-    textAlign: 'left',
+  assignButtonLabelCentered: {
+    textAlign: 'center',
+    fontSize: 14,
+    lineHeight: 16,
+    fontWeight: '600',
   },
-  editButton: {
-    position: 'absolute',
-    right: 12,
-    top: '30%',
-    height: '40%',
-    aspectRatio: 1,
+  editButtonInline: {
+    marginLeft: 6,
+    height: 28,
+    width: 28,
     borderRadius: 8,
     borderWidth: 1,
     borderColor: '#fff',
@@ -301,6 +362,42 @@ const styles = StyleSheet.create({
     color: '#fff',
     fontSize: 14,
     fontWeight: '700',
+  },
+  exerciseListBox: {
+    flex: 1,
+    width: '80%',
+    alignSelf: 'center',
+    borderWidth: 1,
+    borderColor: '#111',
+    borderRadius: 6,
+    backgroundColor: '#111',
+    justifyContent: 'center',
+    paddingHorizontal: 4,
+    paddingVertical: 2,
+  },
+  exerciseListColumns: {
+    flexDirection: 'row',
+    gap: 3,
+  },
+  exerciseColumn: {
+    flex: 1,
+  },
+  exerciseBulletRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    minWidth: 0,
+  },
+  exerciseBullet: {
+    color: '#fff',
+    fontSize: 8,
+    marginRight: 2,
+    lineHeight: 10,
+  },
+  exerciseBulletText: {
+    color: '#fff',
+    fontSize: 8,
+    lineHeight: 10,
+    flex: 1,
   },
   modalOverlay: {
     flex: 1,
