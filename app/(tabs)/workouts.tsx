@@ -1,5 +1,5 @@
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Modal, TextInput, Alert, PanResponder, FlatList } from 'react-native';
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import * as Haptics from 'expo-haptics';
 import { useSavedWorkoutsStore, SavedWorkout } from '@/store/savedWorkouts';
 import { exercises as allExercises } from '@/data/exercises';
@@ -14,7 +14,9 @@ type SavedFilter = 'workouts' | 'exercises';
 export default function SavedScreen() {
   const { 
     savedWorkouts, 
-    savedExercises, 
+    savedExercises,
+    customExercises,
+    hasHydrated,
     removeWorkout, 
     updateWorkout,
     updateAndRegenerateId,
@@ -326,8 +328,34 @@ export default function SavedScreen() {
     reorderWorkouts(newOrder);
   };
 
+  const exerciseNameById = useMemo(() => {
+    const names = new Map<string, string>();
+
+    // 1) Built-in exercises by id
+    allExercises.forEach(exercise => {
+      names.set(exercise.id, exercise.name);
+    });
+
+    // 2) Custom exercises by id
+    customExercises.forEach(exercise => {
+      if (!names.has(exercise.id)) {
+        names.set(exercise.id, exercise.name);
+      }
+    });
+
+    // 3) Saved exercises by originalId (fallback mapping path)
+    savedExercises.forEach(exercise => {
+      if (exercise.originalId && !names.has(exercise.originalId)) {
+        names.set(exercise.originalId, exercise.name);
+      }
+    });
+
+    return names;
+  }, [customExercises, savedExercises]);
+
   const getExerciseName = (exerciseId: string) => {
-    return allExercises.find(e => e.id === exerciseId)?.name || exerciseId;
+    if (!hasHydrated) return exerciseId;
+    return exerciseNameById.get(exerciseId) || exerciseId;
   };
 
   const createPanResponder = (index: number, sortedWorkouts: SavedWorkout[]) => {
