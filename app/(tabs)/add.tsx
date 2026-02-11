@@ -1,10 +1,18 @@
-import { Alert, Dimensions, Modal, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import { Alert, Dimensions, Keyboard, Modal, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import React, { forwardRef, useEffect, useImperativeHandle, useMemo, useState } from 'react';
 import { exercises as allExercises } from '@/data/exercises';
 import { useSavedWorkoutsStore, CustomExercise } from '@/store/savedWorkouts';
-import { toLocalDateKey, useScheduleStore, WEEK_DAYS } from '@/store/schedule';
+import { ExerciseLogEntry, toLocalDateKey, useScheduleStore, WEEK_DAYS } from '@/store/schedule';
 
 const WINDOW_HEIGHT = Dimensions.get('window').height;
+const DEFAULT_SET_COUNT = 3;
+const MIN_SET_COUNT = 1;
+const MAX_SET_COUNT = 6;
+const DEFAULT_REPS = 6;
+const REP_OPTIONS = Array.from({ length: 30 }, (_, index) => index + 1);
+const WEIGHT_OPTIONS = Array.from({ length: 101 }, (_, index) => index * 5);
+
+type ExerciseSetDraft = { reps: string; weight: string };
 
 export type SelectableExercise = (typeof allExercises)[number] | CustomExercise;
 
@@ -453,6 +461,18 @@ export const CreateFlowModals = forwardRef<CreateFlowHandle>(function CreateFlow
 export default function AddScreen() {
   const [workoutSelectorVisible, setWorkoutSelectorVisible] = useState(false);
   const [checkedExercises, setCheckedExercises] = useState<Record<string, boolean>>({});
+  const [exerciseLogVisible, setExerciseLogVisible] = useState(false);
+  const [activeExerciseRowId, setActiveExerciseRowId] = useState<string | null>(null);
+  const [activeExerciseName, setActiveExerciseName] = useState('');
+  const [activeExerciseDescription, setActiveExerciseDescription] = useState('');
+  const [draftSetCount, setDraftSetCount] = useState(DEFAULT_SET_COUNT);
+  const [draftSets, setDraftSets] = useState<ExerciseSetDraft[]>([]);
+  const [removeSetPickerVisible, setRemoveSetPickerVisible] = useState(false);
+  const [targetSetCountAfterRemove, setTargetSetCountAfterRemove] = useState<number | null>(null);
+  const [selectedSetIndexesToRemove, setSelectedSetIndexesToRemove] = useState<number[]>([]);
+  const [valuePickerVisible, setValuePickerVisible] = useState(false);
+  const [valuePickerField, setValuePickerField] = useState<'reps' | 'weight' | null>(null);
+  const [valuePickerSetIndex, setValuePickerSetIndex] = useState<number | null>(null);
   const {
     savedWorkouts,
     savedExercises,
@@ -462,10 +482,13 @@ export default function AddScreen() {
   const {
     schedule,
     completedDates,
+    workoutLogsByDate,
     assignWorkoutToDate,
     clearDateAssignment,
     toggleDateCompleted,
     setDateCompleted,
+    setExerciseLog,
+    clearLogsForDateWorkout,
     cleanupInvalidAssignments,
     hasHydrated: scheduleHydrated,
   } = useScheduleStore();
@@ -481,7 +504,7 @@ export default function AddScreen() {
   const isCompletedToday = Boolean(completedDates[todayDateKey]);
 
   const exerciseById = useMemo(() => {
-    const map = new Map<string, { id: string; name: string }>();
+    const map = new Map<string, { id: string; name: string; description?: string }>();
 
     allExercises.forEach(exercise => {
       map.set(exercise.id, exercise);
@@ -505,10 +528,12 @@ export default function AddScreen() {
     if (!assignedWorkout) return [];
 
     return assignedWorkout.exercises.map((exerciseId, index) => {
-      const resolvedName = exerciseById.get(exerciseId)?.name;
+      const resolvedExercise = exerciseById.get(exerciseId);
       return {
         id: `${exerciseId}-${index}`,
-        name: resolvedName ?? exerciseId.replace(/-/g, ' '),
+        sourceExerciseId: exerciseId,
+        name: resolvedExercise?.name ?? exerciseId.replace(/-/g, ' '),
+        description: resolvedExercise?.description ?? 'No description available.',
       };
     });
   }, [assignedWorkout, exerciseById]);
@@ -521,6 +546,162 @@ export default function AddScreen() {
   useEffect(() => {
     setCheckedExercises({});
   }, [assignedWorkoutId]);
+
+  const inferDefaultWeight = (exerciseName: string): number => {
+    const normalized = exerciseName.toLowerCase();
+    if (normalized.includes('dumbbell')) return 20;
+    if (normalized.includes('barbell') || normalized.includes('ez-bar') || normalized.includes('ez bar')) return 100;
+    return 100;
+  };
+
+  const createDefaultSetRows = (count: number, defaultWeight: number): ExerciseSetDraft[] =>
+    Array.from({ length: count }, () => ({
+      reps: String(DEFAULT_REPS),
+      weight: String(defaultWeight),
+    }));
+
+  const openExerciseLog = (exerciseRowId: string) => {
+    if (!assignedWorkoutId) return;
+
+    const selectedExercise = todayExercises.find(exercise => exercise.id === exerciseRowId);
+    if (!selectedExercise) return;
+
+    const existingLog = workoutLogsByDate[todayDateKey]?.[assignedWorkoutId]?.[exerciseRowId];
+    const defaultWeight = inferDefaultWeight(selectedExercise.name);
+
+    setActiveExerciseRowId(exerciseRowId);
+    setActiveExerciseName(selectedExercise.name);
+    setActiveExerciseDescription(selectedExercise.description);
+
+    if (existingLog) {
+      setDraftSetCount(existingLog.setCount);
+      setDraftSets(
+        existingLog.sets.slice(0, existingLog.setCount).map(setRow => ({
+          reps: String(setRow.reps),
+          weight: String(setRow.weight),
+        })),
+      );
+    } else {
+      setDraftSetCount(DEFAULT_SET_COUNT);
+      setDraftSets(createDefaultSetRows(DEFAULT_SET_COUNT, defaultWeight));
+    }
+
+    setExerciseLogVisible(true);
+  };
+
+  const closeExerciseLog = () => {
+    setExerciseLogVisible(false);
+    setRemoveSetPickerVisible(false);
+    setTargetSetCountAfterRemove(null);
+    setSelectedSetIndexesToRemove([]);
+    setValuePickerVisible(false);
+    setValuePickerField(null);
+    setValuePickerSetIndex(null);
+    setActiveExerciseRowId(null);
+    setActiveExerciseName('');
+    setActiveExerciseDescription('');
+    setDraftSetCount(DEFAULT_SET_COUNT);
+    setDraftSets([]);
+  };
+
+  const handleSetCountChange = (nextCount: number) => {
+    if (!exerciseLogVisible) return;
+    const clampedCount = Math.max(MIN_SET_COUNT, Math.min(MAX_SET_COUNT, Math.floor(nextCount)));
+    if (clampedCount === draftSetCount) return;
+
+    if (clampedCount > draftSetCount) {
+      const defaultWeight = inferDefaultWeight(activeExerciseName);
+      const rowsToAdd = createDefaultSetRows(clampedCount - draftSetCount, defaultWeight);
+      setDraftSets(prev => [...prev, ...rowsToAdd]);
+      setDraftSetCount(clampedCount);
+      return;
+    }
+
+    const removeCount = draftSetCount - clampedCount;
+    const defaultSelected = Array.from({ length: removeCount }, (_, idx) => draftSetCount - 1 - idx);
+
+    setTargetSetCountAfterRemove(clampedCount);
+    setSelectedSetIndexesToRemove(defaultSelected);
+    setRemoveSetPickerVisible(true);
+  };
+
+  const toggleSetRemovalSelection = (rowIndex: number) => {
+    setSelectedSetIndexesToRemove(prev =>
+      prev.includes(rowIndex) ? prev.filter(index => index !== rowIndex) : [...prev, rowIndex],
+    );
+  };
+
+  const confirmRemoveSelectedSets = () => {
+    if (targetSetCountAfterRemove === null) return;
+
+    const requiredRemoveCount = draftSetCount - targetSetCountAfterRemove;
+    if (selectedSetIndexesToRemove.length !== requiredRemoveCount) {
+      Alert.alert('Select exact sets', `Please select exactly ${requiredRemoveCount} set${requiredRemoveCount > 1 ? 's' : ''} to remove.`);
+      return;
+    }
+
+    const selected = new Set(selectedSetIndexesToRemove);
+    const retained = draftSets.filter((_, index) => !selected.has(index));
+    setDraftSets(retained);
+    setDraftSetCount(targetSetCountAfterRemove);
+    setRemoveSetPickerVisible(false);
+    setTargetSetCountAfterRemove(null);
+    setSelectedSetIndexesToRemove([]);
+  };
+
+  const openValuePicker = (rowIndex: number, field: 'reps' | 'weight') => {
+    Keyboard.dismiss();
+    setValuePickerSetIndex(rowIndex);
+    setValuePickerField(field);
+    setValuePickerVisible(true);
+  };
+
+  const handleSelectPickerValue = (value: number) => {
+    if (valuePickerSetIndex === null || !valuePickerField) return;
+
+    setDraftSets(prev =>
+      prev.map((row, idx) => {
+        if (idx !== valuePickerSetIndex) return row;
+        return {
+          ...row,
+          [valuePickerField]: String(value),
+        };
+      }),
+    );
+
+    setValuePickerVisible(false);
+    setValuePickerField(null);
+    setValuePickerSetIndex(null);
+  };
+
+  const handleSaveExerciseLog = () => {
+    if (!activeExerciseRowId || !assignedWorkoutId) return;
+
+    const normalizedSets = draftSets.slice(0, draftSetCount).map((row, index) => {
+      const reps = Number.parseInt(row.reps, 10);
+      const weight = Number.parseInt(row.weight, 10);
+
+      if (Number.isNaN(reps) || Number.isNaN(weight)) {
+        throw new Error(`Set ${index + 1} requires integer reps and weight.`);
+      }
+
+      return { reps, weight };
+    });
+
+    try {
+      const payload: ExerciseLogEntry = {
+        setCount: draftSetCount,
+        sets: normalizedSets,
+        updatedAt: new Date().toISOString(),
+      };
+
+      setExerciseLog(todayDateKey, assignedWorkoutId, activeExerciseRowId, payload);
+      closeExerciseLog();
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Please enter integer values for all fields.';
+      Alert.alert('Invalid input', message);
+    }
+  };
 
   const closeWorkoutSelector = () => setWorkoutSelectorVisible(false);
 
@@ -539,6 +720,9 @@ export default function AddScreen() {
             text: 'Change Workout',
             style: 'destructive',
             onPress: () => {
+              if (currentWorkoutId) {
+                clearLogsForDateWorkout(todayDateKey, currentWorkoutId);
+              }
               assignWorkoutToDate(todayDateKey, workoutId);
               setDateCompleted(todayDateKey, false);
               closeWorkoutSelector();
@@ -549,6 +733,9 @@ export default function AddScreen() {
       return;
     }
 
+    if (currentWorkoutId && currentWorkoutId !== workoutId) {
+      clearLogsForDateWorkout(todayDateKey, currentWorkoutId);
+    }
     assignWorkoutToDate(todayDateKey, workoutId);
     closeWorkoutSelector();
   };
@@ -589,15 +776,18 @@ export default function AddScreen() {
                 const checked = Boolean(checkedExercises[exercise.id]);
 
                 return (
-                  <TouchableOpacity
-                    key={exercise.id}
-                    style={styles.todayExerciseRow}
-                    onPress={() => handleToggleExercise(exercise.id)}>
-                    <View style={[styles.sessionCheckbox, checked && styles.sessionCheckboxChecked]}>
-                      {checked ? <Text style={styles.sessionCheckboxCheck}>✓</Text> : null}
-                    </View>
-                    <Text style={styles.todayExerciseName}>{exercise.name}</Text>
-                  </TouchableOpacity>
+                  <View key={exercise.id} style={styles.todayExerciseRow}>
+                    <TouchableOpacity
+                      style={styles.sessionCheckboxTapTarget}
+                      onPress={() => handleToggleExercise(exercise.id)}>
+                      <View style={[styles.sessionCheckbox, checked && styles.sessionCheckboxChecked]}>
+                        {checked ? <Text style={styles.sessionCheckboxCheck}>✓</Text> : null}
+                      </View>
+                    </TouchableOpacity>
+                    <TouchableOpacity style={styles.todayExerciseNameButton} onPress={() => openExerciseLog(exercise.id)}>
+                      <Text style={styles.todayExerciseName}>{exercise.name}</Text>
+                    </TouchableOpacity>
+                  </View>
                 );
               })}
             </ScrollView>
@@ -659,6 +849,147 @@ export default function AddScreen() {
             <TouchableOpacity style={styles.closeButton} onPress={closeWorkoutSelector}>
               <Text style={styles.closeButtonText}>Cancel</Text>
             </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
+
+      <Modal visible={exerciseLogVisible} transparent animationType="fade" onRequestClose={closeExerciseLog}>
+        <View style={styles.modalOverlay}>
+          <View style={styles.exerciseLogModalContent}>
+            <Text style={styles.modalTitle}>{activeExerciseName}</Text>
+            <Text style={styles.exerciseLogDescription}>{activeExerciseDescription}</Text>
+
+            <View style={styles.setCountRow}>
+              <Text style={styles.setCountLabel}>Sets</Text>
+              <View style={styles.setCountControls}>
+                <TouchableOpacity style={styles.setCountButton} onPress={() => handleSetCountChange(draftSetCount - 1)}>
+                  <Text style={styles.setCountButtonText}>−</Text>
+                </TouchableOpacity>
+                <Text style={styles.setCountValue}>{draftSetCount}</Text>
+                <TouchableOpacity style={styles.setCountButton} onPress={() => handleSetCountChange(draftSetCount + 1)}>
+                  <Text style={styles.setCountButtonText}>+</Text>
+                </TouchableOpacity>
+              </View>
+            </View>
+
+            <View style={styles.setTableHeaderRow}>
+              <Text style={styles.setTableSetHeader}>Set</Text>
+              <Text style={styles.setTableRepsHeader}>Reps</Text>
+              <Text style={styles.setTableWeightHeader}>Weight (lbs)</Text>
+            </View>
+
+            <ScrollView style={styles.exerciseLogList} keyboardShouldPersistTaps="handled">
+              {draftSets.slice(0, draftSetCount).map((setRow, index) => (
+                <View key={`set-${index}`} style={styles.setRow}>
+                  <Text style={styles.setRowLabel}>Set {index + 1}</Text>
+
+                  <TouchableOpacity
+                    style={[styles.setPickerButton, styles.repsPickerButton]}
+                    onPress={() => openValuePicker(index, 'reps')}>
+                    <Text style={styles.setPickerButtonText}>{setRow.reps}</Text>
+                  </TouchableOpacity>
+
+                  <TouchableOpacity
+                    style={[styles.setPickerButton, styles.weightPickerButton]}
+                    onPress={() => openValuePicker(index, 'weight')}>
+                    <Text style={styles.setPickerButtonText}>{setRow.weight}</Text>
+                  </TouchableOpacity>
+                </View>
+              ))}
+            </ScrollView>
+
+            <View style={styles.exerciseLogButtonsRow}>
+              <TouchableOpacity style={styles.exerciseLogCancelButton} onPress={closeExerciseLog}>
+                <Text style={styles.closeButtonText}>Cancel</Text>
+              </TouchableOpacity>
+              <TouchableOpacity style={styles.exerciseLogSaveButton} onPress={handleSaveExerciseLog}>
+                <Text style={styles.exerciseLogSaveText}>Save</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
+
+      <Modal
+        visible={valuePickerVisible}
+        transparent
+        animationType="fade"
+        onRequestClose={() => {
+          setValuePickerVisible(false);
+          setValuePickerField(null);
+          setValuePickerSetIndex(null);
+        }}>
+        <View style={styles.modalOverlay}>
+          <View style={styles.valuePickerModalContent}>
+            <Text style={styles.modalTitle}>{valuePickerField === 'weight' ? 'Select Weight (lbs)' : 'Select Reps'}</Text>
+            <ScrollView style={styles.valuePickerList} keyboardShouldPersistTaps="handled">
+              {(valuePickerField === 'weight' ? WEIGHT_OPTIONS : REP_OPTIONS).map(option => (
+                <TouchableOpacity
+                  key={`${valuePickerField}-${option}`}
+                  style={styles.valuePickerOption}
+                  onPress={() => handleSelectPickerValue(option)}>
+                  <Text style={styles.valuePickerOptionText}>{option}</Text>
+                </TouchableOpacity>
+              ))}
+            </ScrollView>
+            <TouchableOpacity
+              style={styles.closeButton}
+              onPress={() => {
+                setValuePickerVisible(false);
+                setValuePickerField(null);
+                setValuePickerSetIndex(null);
+              }}>
+              <Text style={styles.closeButtonText}>Cancel</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
+
+      <Modal
+        visible={removeSetPickerVisible}
+        transparent
+        animationType="fade"
+        onRequestClose={() => {
+          setRemoveSetPickerVisible(false);
+          setTargetSetCountAfterRemove(null);
+          setSelectedSetIndexesToRemove([]);
+        }}>
+        <View style={styles.modalOverlay}>
+          <View style={styles.removeSetsModalContent}>
+            <Text style={styles.modalTitle}>Choose sets to remove</Text>
+            <Text style={styles.modalSubtitle}>
+              Select exactly {draftSetCount - (targetSetCountAfterRemove ?? draftSetCount)} set(s)
+            </Text>
+
+            <ScrollView style={styles.removeSetsList}>
+              {draftSets.map((_, index) => {
+                const selected = selectedSetIndexesToRemove.includes(index);
+                return (
+                  <TouchableOpacity
+                    key={`remove-set-${index}`}
+                    style={styles.removeSetRow}
+                    onPress={() => toggleSetRemovalSelection(index)}>
+                    <Text style={styles.removeSetRowText}>Set {index + 1}</Text>
+                    <Text style={styles.removeSetRowText}>{selected ? '☑' : '☐'}</Text>
+                  </TouchableOpacity>
+                );
+              })}
+            </ScrollView>
+
+            <View style={styles.exerciseLogButtonsRow}>
+              <TouchableOpacity
+                style={styles.exerciseLogCancelButton}
+                onPress={() => {
+                  setRemoveSetPickerVisible(false);
+                  setTargetSetCountAfterRemove(null);
+                  setSelectedSetIndexesToRemove([]);
+                }}>
+                <Text style={styles.closeButtonText}>Cancel</Text>
+              </TouchableOpacity>
+              <TouchableOpacity style={styles.exerciseLogSaveButton} onPress={confirmRemoveSelectedSets}>
+                <Text style={styles.exerciseLogSaveText}>Remove</Text>
+              </TouchableOpacity>
+            </View>
           </View>
         </View>
       </Modal>
@@ -743,6 +1074,10 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginBottom: 12,
   },
+  sessionCheckboxTapTarget: {
+    paddingRight: 12,
+    paddingVertical: 4,
+  },
   sessionCheckbox: {
     width: 20,
     height: 20,
@@ -751,7 +1086,6 @@ const styles = StyleSheet.create({
     borderColor: '#fff',
     alignItems: 'center',
     justifyContent: 'center',
-    marginRight: 12,
     backgroundColor: 'transparent',
   },
   sessionCheckboxChecked: {
@@ -762,6 +1096,10 @@ const styles = StyleSheet.create({
     fontSize: 13,
     fontWeight: '700',
     lineHeight: 14,
+  },
+  todayExerciseNameButton: {
+    flex: 1,
+    paddingVertical: 4,
   },
   todayExerciseName: {
     color: '#fff',
@@ -1091,5 +1429,190 @@ const styles = StyleSheet.create({
     color: '#fff',
     fontSize: 16,
     fontWeight: '600',
+  },
+  exerciseLogModalContent: {
+    width: '90%',
+    maxHeight: '80%',
+    backgroundColor: '#1a1a1a',
+    borderRadius: 12,
+    padding: 20,
+  },
+  exerciseLogDescription: {
+    color: '#aaa',
+    fontSize: 14,
+    marginTop: 6,
+    marginBottom: 14,
+  },
+  setCountRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 10,
+  },
+  setCountLabel: {
+    color: '#fff',
+    fontSize: 16,
+    fontWeight: '700',
+  },
+  setCountControls: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+  },
+  setCountButton: {
+    width: 30,
+    height: 30,
+    borderRadius: 6,
+    backgroundColor: '#333',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  setCountButtonText: {
+    color: '#fff',
+    fontSize: 20,
+    fontWeight: '700',
+    lineHeight: 21,
+  },
+  setCountValue: {
+    color: '#fff',
+    fontSize: 18,
+    fontWeight: '700',
+    minWidth: 22,
+    textAlign: 'center',
+  },
+  exerciseLogList: {
+    maxHeight: 280,
+    marginBottom: 12,
+  },
+  setTableHeaderRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 6,
+  },
+  setTableSetHeader: {
+    width: 56,
+    color: '#888',
+    fontSize: 12,
+    fontWeight: '700',
+    textTransform: 'uppercase',
+  },
+  setTableRepsHeader: {
+    width: 84,
+    color: '#888',
+    fontSize: 12,
+    fontWeight: '700',
+    textTransform: 'uppercase',
+    marginRight: 8,
+  },
+  setTableWeightHeader: {
+    flex: 1,
+    color: '#888',
+    fontSize: 12,
+    fontWeight: '700',
+    textTransform: 'uppercase',
+  },
+  setRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 10,
+  },
+  setRowLabel: {
+    color: '#fff',
+    width: 56,
+    fontSize: 14,
+    fontWeight: '600',
+  },
+  setPickerButton: {
+    backgroundColor: '#111',
+    borderWidth: 1,
+    borderColor: '#333',
+    borderRadius: 8,
+    minHeight: 40,
+    justifyContent: 'center',
+    paddingHorizontal: 10,
+  },
+  repsPickerButton: {
+    width: 84,
+    marginRight: 8,
+  },
+  weightPickerButton: {
+    flex: 1,
+  },
+  setPickerButtonText: {
+    color: '#fff',
+    fontSize: 14,
+    fontWeight: '600',
+  },
+  exerciseLogButtonsRow: {
+    flexDirection: 'row',
+    gap: 8,
+  },
+  exerciseLogCancelButton: {
+    flex: 1,
+    backgroundColor: '#333',
+    borderRadius: 8,
+    paddingVertical: 12,
+    alignItems: 'center',
+  },
+  exerciseLogSaveButton: {
+    flex: 1,
+    backgroundColor: '#fff',
+    borderRadius: 8,
+    paddingVertical: 12,
+    alignItems: 'center',
+  },
+  exerciseLogSaveText: {
+    color: '#000',
+    fontSize: 16,
+    fontWeight: '700',
+  },
+  valuePickerModalContent: {
+    width: '70%',
+    maxHeight: '70%',
+    backgroundColor: '#1a1a1a',
+    borderRadius: 12,
+    padding: 20,
+  },
+  valuePickerList: {
+    maxHeight: 300,
+    marginVertical: 12,
+  },
+  valuePickerOption: {
+    backgroundColor: '#111',
+    borderRadius: 8,
+    paddingVertical: 12,
+    paddingHorizontal: 12,
+    marginBottom: 8,
+  },
+  valuePickerOptionText: {
+    color: '#fff',
+    fontSize: 15,
+    fontWeight: '600',
+  },
+  removeSetsModalContent: {
+    width: '85%',
+    maxHeight: '70%',
+    backgroundColor: '#1a1a1a',
+    borderRadius: 12,
+    padding: 20,
+  },
+  removeSetsList: {
+    maxHeight: 240,
+    marginBottom: 12,
+  },
+  removeSetRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    backgroundColor: '#111',
+    borderRadius: 8,
+    paddingVertical: 12,
+    paddingHorizontal: 10,
+    marginBottom: 8,
+  },
+  removeSetRowText: {
+    color: '#fff',
+    fontSize: 15,
+    fontWeight: '500',
   },
 });
