@@ -242,7 +242,10 @@ export default function SearchScreen() {
 
           return (
             <View key={dateKey} style={[styles.dayRow, isCompleted && styles.dayRowCompleted]}>
-              <Text style={styles.dayTitle}>{dayLabel}</Text>
+              <View style={styles.dayTitleRow}>
+                <Text style={styles.dayTitle}>{dayLabel}</Text>
+                {isCompleted ? <Text style={styles.completedDayLabel}>Completed</Text> : null}
+              </View>
 
               {assignedWorkout ? (
                 <View style={styles.assignedWorkoutContainer}>
@@ -579,14 +582,10 @@ const styles = StyleSheet.create({
   },
   dayRowCompleted: {
     borderColor: '#2CD66F',
+    borderWidth: 3,
   },
-  dayTitle: {
-    color: '#fff',
-    fontSize: 16,
-    fontWeight: '700',
-    textAlign: 'center',
+  dayTitleRow: {
     backgroundColor: '#6a6a6a',
-    alignSelf: 'stretch',
     marginHorizontal: -12,
     marginTop: 0,
     paddingHorizontal: 12,
@@ -594,6 +593,22 @@ const styles = StyleSheet.create({
     borderTopLeftRadius: 8,
     borderTopRightRadius: 8,
     marginBottom: 5,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  dayTitle: {
+    color: '#fff',
+    fontSize: 16,
+    fontWeight: '700',
+    textAlign: 'left',
+    flex: 1,
+  },
+  completedDayLabel: {
+    color: '#2CD66F',
+    fontSize: 12,
+    fontWeight: '700',
+    marginLeft: 8,
   },
   assignButton: {
     minHeight: 88,
