@@ -41,13 +41,6 @@ export default function TabLayout() {
         }}
       />
       <Tabs.Screen
-        name="search"
-        options={{
-          title: 'Schedule',
-          tabBarIcon: ({ color }) => <IconSymbol size={32} name="calendar" color={color} />,
-        }}
-      />
-      <Tabs.Screen
         name="workouts"
         options={{
           title: 'Saved',
@@ -55,10 +48,17 @@ export default function TabLayout() {
         }}
       />
       <Tabs.Screen
+        name="search"
+        options={{
+          title: 'Schedule',
+          tabBarIcon: ({ color }) => <IconSymbol size={32} name="calendar" color={color} />,
+        }}
+      />
+      <Tabs.Screen
         name="add"
         options={{
-          title: '',
-          tabBarIcon: ({ color }) => <IconSymbol size={32} name="plus" color={color} />,
+          title: "Today's Workout",
+          tabBarIcon: () => null,
         }}
       />
     </Tabs>

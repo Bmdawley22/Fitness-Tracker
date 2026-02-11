@@ -1,5 +1,5 @@
 import { Alert, Dimensions, Modal, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
-import React, { useMemo, useState } from 'react';
+import React, { forwardRef, useImperativeHandle, useMemo, useState } from 'react';
 import { exercises as allExercises } from '@/data/exercises';
 import { useSavedWorkoutsStore, CustomExercise } from '@/store/savedWorkouts';
 
@@ -7,7 +7,12 @@ const WINDOW_HEIGHT = Dimensions.get('window').height;
 
 export type SelectableExercise = (typeof allExercises)[number] | CustomExercise;
 
-export default function AddScreen() {
+export type CreateFlowHandle = {
+  openCreateWorkout: () => void;
+  openCreateExercise: () => void;
+};
+
+export const CreateFlowModals = forwardRef<CreateFlowHandle>(function CreateFlowModals(_, ref) {
   const [createModalVisible, setCreateModalVisible] = useState(false);
   const [workoutName, setWorkoutName] = useState('');
   const [workoutDescription, setWorkoutDescription] = useState('');
@@ -36,27 +41,21 @@ export default function AddScreen() {
 
   const savedExerciseIds = useMemo(
     () => new Set(savedExercises.map(exercise => exercise.originalId)),
-    [savedExercises]
+    [savedExercises],
   );
 
-  const allSelectableExercises = useMemo(
-    () => [...allExercises, ...customExercises],
-    [customExercises]
-  );
+  const allSelectableExercises = useMemo(() => [...allExercises, ...customExercises], [customExercises]);
 
   const allExercisesWithoutSaved = useMemo(
     () => allSelectableExercises.filter(exercise => !savedExerciseIds.has(exercise.id)),
-    [allSelectableExercises, savedExerciseIds]
+    [allSelectableExercises, savedExerciseIds],
   );
 
   const selectedExerciseDetails = selectedExercises
     .map(id => allSelectableExercises.find(exercise => exercise.id === id))
     .filter(Boolean) as SelectableExercise[];
 
-  const selectedExerciseSet = useMemo(
-    () => new Set(selectedExercises),
-    [selectedExercises]
-  );
+  const selectedExerciseSet = useMemo(() => new Set(selectedExercises), [selectedExercises]);
 
   const selectedWorkoutName = selectedWorkoutForExercise
     ? savedWorkouts.find(workout => workout.id === selectedWorkoutForExercise)?.name || ''
@@ -67,17 +66,13 @@ export default function AddScreen() {
   const filteredSavedExercises = useMemo(() => {
     const base = savedExercises.filter(exercise => !selectedExerciseSet.has(exercise.originalId));
     if (!normalizedSearch) return base;
-    return base.filter(exercise =>
-      `${exercise.name} ${exercise.category}`.toLowerCase().includes(normalizedSearch)
-    );
+    return base.filter(exercise => `${exercise.name} ${exercise.category}`.toLowerCase().includes(normalizedSearch));
   }, [savedExercises, selectedExerciseSet, normalizedSearch]);
 
   const filteredAllExercises = useMemo(() => {
     const base = allExercisesWithoutSaved.filter(exercise => !selectedExerciseSet.has(exercise.id));
     if (!normalizedSearch) return base;
-    return base.filter(exercise =>
-      `${exercise.name} ${exercise.category}`.toLowerCase().includes(normalizedSearch)
-    );
+    return base.filter(exercise => `${exercise.name} ${exercise.category}`.toLowerCase().includes(normalizedSearch));
   }, [allExercisesWithoutSaved, selectedExerciseSet, normalizedSearch]);
 
   const toTitleCase = (value: string) =>
@@ -94,7 +89,7 @@ export default function AddScreen() {
     setSearchText('');
   };
 
-  const openCreateModal = () => {
+  const openCreateWorkoutModal = () => {
     resetForm();
     setCreateModalVisible(true);
   };
@@ -123,6 +118,11 @@ export default function AddScreen() {
     setCreateExerciseModalVisible(false);
     resetCreateExerciseForm();
   };
+
+  useImperativeHandle(ref, () => ({
+    openCreateWorkout: openCreateWorkoutModal,
+    openCreateExercise: openCreateExerciseModal,
+  }));
 
   const handleCreateExercise = () => {
     if (!exerciseName.trim()) {
@@ -157,10 +157,7 @@ export default function AddScreen() {
       if (workout) {
         const success = addExerciseToWorkout(workout.id, newExercise.id);
         if (!success) {
-          Alert.alert(
-            `Could not add to ${workout.name}`,
-            'This workout already contains that exercise or is full.'
-          );
+          Alert.alert(`Could not add to ${workout.name}`, 'This workout already contains that exercise or is full.');
           return;
         }
         workoutAdded = true;
@@ -225,10 +222,7 @@ export default function AddScreen() {
       Alert.alert('Workout created', 'Your new workout has been saved.', [
         {
           text: 'OK',
-          onPress: () => {
-            resetForm();
-            setCreateModalVisible(false);
-          },
+          onPress: closeAddFlow,
         },
       ]);
     } else {
@@ -237,23 +231,8 @@ export default function AddScreen() {
   };
 
   return (
-    <View style={styles.container}>
-      <View style={styles.launchWrapper}>
-        <TouchableOpacity style={styles.launchButton} onPress={openCreateModal}>
-          <Text style={styles.launchButtonText}>Create New Workout</Text>
-        </TouchableOpacity>
-        <TouchableOpacity
-          style={[styles.launchButton, styles.launchButtonSecondary]}
-          onPress={openCreateExerciseModal}>
-          <Text style={styles.launchButtonText}>Create New Exercise</Text>
-        </TouchableOpacity>
-      </View>
-
-      <Modal
-        visible={createModalVisible}
-        transparent
-        animationType="slide"
-        onRequestClose={closeAddFlow}>
+    <>
+      <Modal visible={createModalVisible} transparent animationType="slide" onRequestClose={closeAddFlow}>
         <View style={styles.centeredView}>
           <View style={styles.createModal}>
             <View style={styles.headerRow}>
@@ -301,10 +280,7 @@ export default function AddScreen() {
               {selectedExerciseDetails.length === 0 ? (
                 <Text style={styles.emptySelectionText}>No exercises yet. Tap one of the lists below to add it.</Text>
               ) : (
-                <ScrollView
-                  horizontal
-                  showsHorizontalScrollIndicator={false}
-                  contentContainerStyle={styles.selectedWrap}>
+                <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.selectedWrap}>
                   {selectedExerciseDetails.map(exercise => (
                     <View key={exercise.id} style={styles.selectedChip}>
                       <Text style={styles.selectedText}>{exercise.name}</Text>
@@ -324,14 +300,11 @@ export default function AddScreen() {
                   <Text style={styles.emptyText}>No saved exercises left.</Text>
                 ) : (
                   filteredSavedExercises.map(exercise => (
-                      <TouchableOpacity
-                        key={exercise.id}
-                        style={styles.exerciseRow}
-                        onPress={() => handleSelectExercise(exercise.originalId)}>
-                        <Text style={styles.exerciseText}>{exercise.name}</Text>
-                        <Text style={styles.exerciseAdd}>+</Text>
-                      </TouchableOpacity>
-                    ))
+                    <TouchableOpacity key={exercise.id} style={styles.exerciseRow} onPress={() => handleSelectExercise(exercise.originalId)}>
+                      <Text style={styles.exerciseText}>{exercise.name}</Text>
+                      <Text style={styles.exerciseAdd}>+</Text>
+                    </TouchableOpacity>
+                  ))
                 )}
               </ScrollView>
             </View>
@@ -343,10 +316,7 @@ export default function AddScreen() {
                   <Text style={styles.emptyText}>No exercises found.</Text>
                 ) : (
                   filteredAllExercises.map(exercise => (
-                    <TouchableOpacity
-                      key={exercise.id}
-                      style={styles.exerciseRow}
-                      onPress={() => handleSelectExercise(exercise.id)}>
+                    <TouchableOpacity key={exercise.id} style={styles.exerciseRow} onPress={() => handleSelectExercise(exercise.id)}>
                       <Text style={styles.exerciseText}>{exercise.name}</Text>
                       <Text style={styles.exerciseAdd}>+</Text>
                     </TouchableOpacity>
@@ -354,10 +324,10 @@ export default function AddScreen() {
                 )}
               </ScrollView>
             </View>
-
           </View>
         </View>
       </Modal>
+
       <Modal
         visible={createExerciseModalVisible}
         transparent
@@ -396,7 +366,7 @@ export default function AddScreen() {
                 multiline
               />
               <Text style={styles.sectionLabel}>Category</Text>
-              <View style={[styles.dropdownContainer, categoryDropdownVisible && { zIndex: 20 }]}>
+              <View style={[styles.dropdownContainer, categoryDropdownVisible && { zIndex: 20 }]}> 
                 <TouchableOpacity
                   style={styles.dropdownToggle}
                   onPress={() => {
@@ -426,7 +396,7 @@ export default function AddScreen() {
                 )}
               </View>
               <Text style={[styles.sectionLabel, { marginTop: 12 }]}>Add to Existing Workout</Text>
-              <View style={[styles.dropdownContainer, workoutDropdownVisible && { zIndex: 20 }]}>
+              <View style={[styles.dropdownContainer, workoutDropdownVisible && { zIndex: 20 }]}> 
                 <TouchableOpacity
                   style={styles.dropdownToggle}
                   onPress={() => {
@@ -467,9 +437,7 @@ export default function AddScreen() {
                   </View>
                 )}
               </View>
-              <TouchableOpacity
-                style={styles.checkboxRow}
-                onPress={() => setAddToSavedExercises(prev => !prev)}>
+              <TouchableOpacity style={styles.checkboxRow} onPress={() => setAddToSavedExercises(prev => !prev)}>
                 <Text style={styles.checkboxIcon}>{addToSavedExercises ? '☑' : '☐'}</Text>
                 <Text style={styles.checkboxLabel}>Add to Saved Exercises</Text>
               </TouchableOpacity>
@@ -477,30 +445,18 @@ export default function AddScreen() {
           </View>
         </View>
       </Modal>
-    </View>
+    </>
   );
+});
+
+export default function AddScreen() {
+  return <View style={styles.container} />;
 }
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: '#000',
-  },
-  launchWrapper: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  launchButton: {
-    backgroundColor: '#fff',
-    paddingVertical: 14,
-    paddingHorizontal: 32,
-    borderRadius: 16,
-  },
-  launchButtonText: {
-    color: '#000',
-    fontSize: 18,
-    fontWeight: '700',
   },
   centeredView: {
     flex: 1,
@@ -522,21 +478,10 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     marginBottom: 12,
   },
-  backLink: {
-    padding: 4,
-  },
-  backText: {
-    color: '#888',
-    fontSize: 16,
-  },
   modalTitle: {
     fontSize: 20,
     fontWeight: '700',
     color: '#fff',
-  },
-  bodyWrapper: {
-    flex: 1,
-    marginBottom: 12,
   },
   inputsContainer: {
     marginBottom: 12,
@@ -646,10 +591,6 @@ const styles = StyleSheet.create({
   topCloseText: {
     color: '#fff',
     fontSize: 14,
-  },
-  launchButtonSecondary: {
-    marginTop: 12,
-    backgroundColor: '#fff',
   },
   exerciseModalTitle: {
     textAlign: 'center',
