@@ -137,7 +137,7 @@ export default function SearchScreen() {
                     <TouchableOpacity
                       style={styles.assignedTitleContainer}
                       onPress={() => setDetailWorkoutId(assignedWorkoutId)}>
-                      <Text style={[styles.assignButtonLabel, styles.assignButtonLabelCentered]} numberOfLines={2}>
+                      <Text style={[styles.assignButtonLabel, styles.assignButtonLabelLeft]} numberOfLines={2}>
                         {assignedWorkout.name}
                       </Text>
                     </TouchableOpacity>
@@ -148,6 +148,8 @@ export default function SearchScreen() {
                       <Text style={styles.editButtonText}>✎</Text>
                     </TouchableOpacity>
                   </View>
+
+                  <View style={styles.headerDivider} />
 
                   <TouchableOpacity
                     style={styles.exerciseListBox}
@@ -328,19 +330,16 @@ const styles = StyleSheet.create({
   assignedHeaderRow: {
     height: 28,
     flexDirection: 'row',
-    justifyContent: 'center',
     alignItems: 'center',
-    marginBottom: 4,
-    paddingHorizontal: '10%',
+    width: '80%',
+    alignSelf: 'center',
   },
   assignedTitleContainer: {
+    flex: 1,
     height: '100%',
     justifyContent: 'center',
-    borderBottomWidth: 1,
-    borderBottomColor: '#fff',
-    paddingHorizontal: 8,
-    maxWidth: '70%',
-    marginRight: '10%',
+    paddingHorizontal: 0,
+    marginRight: 10,
   },
   assignButtonLabel: {
     color: '#fff',
@@ -348,11 +347,19 @@ const styles = StyleSheet.create({
     fontWeight: '500',
     textAlign: 'center',
   },
-  assignButtonLabelCentered: {
-    textAlign: 'center',
+  assignButtonLabelLeft: {
+    textAlign: 'left',
     fontSize: 14,
     lineHeight: 16,
     fontWeight: '600',
+  },
+  headerDivider: {
+    width: '80%',
+    alignSelf: 'center',
+    borderBottomWidth: 1,
+    borderBottomColor: '#fff',
+    marginTop: 2,
+    marginBottom: 4,
   },
   editButtonInline: {
     marginLeft: 6,
