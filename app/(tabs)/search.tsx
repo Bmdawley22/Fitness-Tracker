@@ -21,7 +21,6 @@ export default function SearchScreen() {
   const { savedWorkouts, savedExercises, customExercises } = useSavedWorkoutsStore();
 
   const [assignmentDay, setAssignmentDay] = useState<WeekDay | null>(null);
-  const [actionMenuDay, setActionMenuDay] = useState<WeekDay | null>(null);
   const [detailWorkoutId, setDetailWorkoutId] = useState<string | null>(null);
   const [schedule, setSchedule] = useState<ScheduleState>({
     Sunday: null,
@@ -112,27 +111,6 @@ export default function SearchScreen() {
     setAssignmentDay(null);
   };
 
-  const handleOpenActionMenu = (day: WeekDay) => {
-    setActionMenuDay(day);
-  };
-
-  const handleChangeAssignedWorkout = () => {
-    if (!actionMenuDay) return;
-    setAssignmentDay(actionMenuDay);
-    setActionMenuDay(null);
-  };
-
-  const handleClearAssignedWorkout = () => {
-    if (!actionMenuDay) return;
-
-    setSchedule(prev => ({
-      ...prev,
-      [actionMenuDay]: null,
-    }));
-
-    setActionMenuDay(null);
-  };
-
   return (
     <View style={styles.container}>
       <Text style={styles.header}>Schedule</Text>
@@ -147,19 +125,19 @@ export default function SearchScreen() {
               <Text style={styles.dayTitle}>{day}</Text>
 
               {assignedWorkout ? (
-                <>
+                <View style={styles.assignedWorkoutContainer}>
                   <TouchableOpacity
-                    style={styles.assignButton}
+                    style={[styles.assignButton, styles.assignButtonWithEdit]}
                     onPress={() => setDetailWorkoutId(assignedWorkoutId)}>
-                    <Text style={styles.assignButtonLabel}>{assignedWorkout.name}</Text>
+                    <Text style={[styles.assignButtonLabel, styles.assignButtonLabelLeft]}>{assignedWorkout.name}</Text>
                   </TouchableOpacity>
 
                   <TouchableOpacity
                     style={styles.editButton}
-                    onPress={() => handleOpenActionMenu(day)}>
+                    onPress={() => setAssignmentDay(day)}>
                     <Text style={styles.editButtonText}>✎</Text>
                   </TouchableOpacity>
-                </>
+                </View>
               ) : (
                 <TouchableOpacity style={styles.assignButton} onPress={() => setAssignmentDay(day)}>
                   <Text style={styles.assignButtonLabel}>Tap to assign workout</Text>
@@ -200,35 +178,6 @@ export default function SearchScreen() {
             </TouchableOpacity>
 
             <TouchableOpacity style={styles.closeButton} onPress={() => setAssignmentDay(null)}>
-              <Text style={styles.closeButtonText}>Cancel</Text>
-            </TouchableOpacity>
-          </View>
-        </View>
-      </Modal>
-
-      <Modal
-        visible={actionMenuDay !== null}
-        transparent={true}
-        animationType="fade"
-        onRequestClose={() => setActionMenuDay(null)}>
-        <View style={styles.modalOverlay}>
-          <View style={styles.modalContent}>
-            <TouchableOpacity style={styles.closeX} onPress={() => setActionMenuDay(null)}>
-              <Text style={styles.closeXText}>✕</Text>
-            </TouchableOpacity>
-
-            <Text style={styles.modalTitle}>Edit Assignment</Text>
-            <Text style={styles.modalSubtitle}>{actionMenuDay}</Text>
-
-            <TouchableOpacity style={styles.workoutOption} onPress={handleChangeAssignedWorkout}>
-              <Text style={styles.workoutOptionText}>Change assigned workout</Text>
-            </TouchableOpacity>
-
-            <TouchableOpacity style={styles.clearButton} onPress={handleClearAssignedWorkout}>
-              <Text style={styles.clearButtonText}>Clear assignment</Text>
-            </TouchableOpacity>
-
-            <TouchableOpacity style={styles.closeButton} onPress={() => setActionMenuDay(null)}>
               <Text style={styles.closeButtonText}>Cancel</Text>
             </TouchableOpacity>
           </View>
@@ -317,19 +266,31 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12,
     backgroundColor: '#111',
   },
+  assignedWorkoutContainer: {
+    minHeight: 88,
+    position: 'relative',
+    justifyContent: 'center',
+  },
+  assignButtonWithEdit: {
+    paddingRight: 64,
+  },
   assignButtonLabel: {
     color: '#fff',
     fontSize: 16,
     fontWeight: '500',
     textAlign: 'center',
   },
+  assignButtonLabelLeft: {
+    width: '100%',
+    textAlign: 'left',
+  },
   editButton: {
     position: 'absolute',
-    top: 44,
-    right: 22,
-    width: 28,
-    height: 28,
-    borderRadius: 14,
+    right: 12,
+    top: '30%',
+    height: '40%',
+    aspectRatio: 1,
+    borderRadius: 8,
     borderWidth: 1,
     borderColor: '#fff',
     backgroundColor: '#000',
