@@ -1,4 +1,4 @@
-import { Alert, Dimensions, Keyboard, Modal, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, TouchableWithoutFeedback, View } from 'react-native';
+import { Alert, Dimensions, Keyboard, Modal, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import React, { forwardRef, useEffect, useImperativeHandle, useMemo, useState } from 'react';
 import { exercises as allExercises } from '@/data/exercises';
 import { useSavedWorkoutsStore, CustomExercise } from '@/store/savedWorkouts';
@@ -758,8 +758,7 @@ export default function AddScreen() {
   }
 
   return (
-    <TouchableWithoutFeedback onPress={Keyboard.dismiss} accessible={false}>
-      <View style={styles.todayContainer}>
+    <View style={styles.todayContainer}>
       <View style={[styles.todayCard, isCompletedToday && styles.todayCardCompleted]}>
         <View style={styles.todayHeaderRow}>
           <Text style={styles.todayHeader}>{weekdayTitle}</Text>
@@ -872,8 +871,6 @@ export default function AddScreen() {
                 </TouchableOpacity>
               </View>
             </View>
-
-            <Text style={styles.lbsHint}>Weight is in lbs</Text>
 
             <View style={styles.setTableHeaderRow}>
               <Text style={styles.setTableSetHeader}>Set</Text>
@@ -997,7 +994,6 @@ export default function AddScreen() {
         </View>
       </Modal>
     </View>
-    </TouchableWithoutFeedback>
   );
 }
 
@@ -1483,11 +1479,6 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     minWidth: 22,
     textAlign: 'center',
-  },
-  lbsHint: {
-    color: '#888',
-    fontSize: 12,
-    marginBottom: 8,
   },
   exerciseLogList: {
     maxHeight: 280,
