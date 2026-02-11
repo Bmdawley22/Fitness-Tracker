@@ -3,6 +3,7 @@ import React, { useMemo, useState } from 'react';
 import { workouts } from '@/data/workouts';
 import { exercises } from '@/data/exercises';
 import { useSavedWorkoutsStore } from '@/store/savedWorkouts';
+import { Ionicons } from '@expo/vector-icons';
 
 const WEEK_DAYS = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'] as const;
 
@@ -145,7 +146,7 @@ export default function SearchScreen() {
                     <TouchableOpacity
                       style={styles.editButtonInline}
                       onPress={() => setAssignmentDay(day)}>
-                      <Text style={styles.editButtonText}>✎</Text>
+                      <Ionicons name="pencil-outline" size={12} color="#000" />
                     </TouchableOpacity>
                   </View>
 
@@ -370,15 +371,10 @@ const styles = StyleSheet.create({
     width: 22,
     borderRadius: 8,
     borderWidth: 1,
-    borderColor: '#fff',
+    borderColor: '#000',
     backgroundColor: '#fff',
     justifyContent: 'center',
     alignItems: 'center',
-  },
-  editButtonText: {
-    color: '#000',
-    fontSize: 11,
-    fontWeight: '700',
   },
   exerciseListBox: {
     flex: 1,
