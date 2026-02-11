@@ -107,6 +107,12 @@ export default function SearchScreen() {
   const detailWorkout = detailWorkoutId ? workoutById.get(detailWorkoutId) : null;
   const weekRange = useMemo(() => getWeekRange(selectedDate), [selectedDate]);
   const weekRangeLabel = `${formatShortDate(weekRange.start)} - ${formatShortDate(weekRange.end)}`;
+  const todayWeekRange = useMemo(() => getWeekRange(normalizeDate(new Date())), []);
+  const isCurrentWeek =
+    weekRange.start.getFullYear() === todayWeekRange.start.getFullYear() &&
+    weekRange.start.getMonth() === todayWeekRange.start.getMonth() &&
+    weekRange.start.getDate() === todayWeekRange.start.getDate();
+  const weekTitleLine = `${isCurrentWeek ? 'Current Week' : 'Week'}: ${weekRangeLabel}`;
   const calendarMonthLabel = `${MONTH_NAMES[viewingMonth.getMonth()]} ${viewingMonth.getFullYear()}`;
   const daysInMonth = new Date(viewingMonth.getFullYear(), viewingMonth.getMonth() + 1, 0).getDate();
   const firstDayOfMonth = new Date(viewingMonth.getFullYear(), viewingMonth.getMonth(), 1).getDay();
@@ -176,8 +182,7 @@ export default function SearchScreen() {
       </View>
 
       <View style={styles.weekBlock}>
-        <Text style={styles.weekTitle}>Week</Text>
-        <Text style={styles.weekRange}>{weekRangeLabel}</Text>
+        <Text style={styles.weekTitle}>{weekTitleLine}</Text>
       </View>
 
       <ScrollView style={styles.listContainer} contentContainerStyle={styles.listContent}>
@@ -467,16 +472,10 @@ const styles = StyleSheet.create({
   },
   weekTitle: {
     color: '#fff',
-    fontSize: 15,
-    fontWeight: '700',
-    textDecorationLine: 'underline',
-    marginBottom: 4,
-  },
-  weekRange: {
-    color: '#ddd',
-    fontSize: 14,
-    fontWeight: '500',
+    fontSize: 20,
+    fontWeight: '800',
     textAlign: 'center',
+    marginBottom: 2,
   },
   listContainer: {
     flex: 1,
