@@ -452,11 +452,20 @@ export const CreateFlowModals = forwardRef<CreateFlowHandle>(function CreateFlow
 
 export default function AddScreen() {
   const [workoutSelectorVisible, setWorkoutSelectorVisible] = useState(false);
-  const { savedWorkouts, hasHydrated: savedHydrated } = useSavedWorkoutsStore();
+  const [checkedExercises, setCheckedExercises] = useState<Record<string, boolean>>({});
+  const {
+    savedWorkouts,
+    savedExercises,
+    customExercises,
+    hasHydrated: savedHydrated,
+  } = useSavedWorkoutsStore();
   const {
     schedule,
+    completedDates,
     assignWorkoutToDate,
     clearDateAssignment,
+    toggleDateCompleted,
+    setDateCompleted,
     cleanupInvalidAssignments,
     hasHydrated: scheduleHydrated,
   } = useScheduleStore();
@@ -469,11 +478,49 @@ export default function AddScreen() {
     () => savedWorkouts.find(workout => workout.id === assignedWorkoutId) ?? null,
     [savedWorkouts, assignedWorkoutId],
   );
+  const isCompletedToday = Boolean(completedDates[todayDateKey]);
+
+  const exerciseById = useMemo(() => {
+    const map = new Map<string, { id: string; name: string }>();
+
+    allExercises.forEach(exercise => {
+      map.set(exercise.id, exercise);
+    });
+
+    savedExercises.forEach(exercise => {
+      map.set(exercise.id, exercise);
+      if (exercise.originalId) {
+        map.set(exercise.originalId, exercise);
+      }
+    });
+
+    customExercises.forEach(exercise => {
+      map.set(exercise.id, exercise);
+    });
+
+    return map;
+  }, [savedExercises, customExercises]);
+
+  const todayExercises = useMemo(() => {
+    if (!assignedWorkout) return [];
+
+    return assignedWorkout.exercises.map((exerciseId, index) => {
+      const resolvedName = exerciseById.get(exerciseId)?.name;
+      return {
+        id: `${exerciseId}-${index}`,
+        name: resolvedName ?? exerciseId.replace(/-/g, ' '),
+      };
+    });
+  }, [assignedWorkout, exerciseById]);
 
   useEffect(() => {
     if (!savedHydrated || !scheduleHydrated) return;
     cleanupInvalidAssignments(savedWorkouts.map(workout => workout.id));
   }, [savedHydrated, scheduleHydrated, savedWorkouts, cleanupInvalidAssignments]);
+
+  useEffect(() => {
+    setCheckedExercises({});
+  }, [assignedWorkoutId]);
 
   const closeWorkoutSelector = () => setWorkoutSelectorVisible(false);
 
@@ -484,7 +531,15 @@ export default function AddScreen() {
 
   const handleClearToday = () => {
     clearDateAssignment(todayDateKey);
+    setDateCompleted(todayDateKey, false);
     closeWorkoutSelector();
+  };
+
+  const handleToggleExercise = (exerciseRowId: string) => {
+    setCheckedExercises(prev => ({
+      ...prev,
+      [exerciseRowId]: !prev[exerciseRowId],
+    }));
   };
 
   if (!savedHydrated || !scheduleHydrated) {
@@ -493,27 +548,55 @@ export default function AddScreen() {
 
   return (
     <View style={styles.todayContainer}>
-      <View style={styles.todayHeaderRow}>
-        <Text style={styles.todayHeader}>{weekdayTitle}</Text>
+      <View style={[styles.todayCard, isCompletedToday && styles.todayCardCompleted]}>
+        <View style={styles.todayHeaderRow}>
+          <Text style={styles.todayHeader}>{weekdayTitle}</Text>
+          {assignedWorkout ? (
+            <TouchableOpacity style={styles.changeButton} onPress={() => setWorkoutSelectorVisible(true)}>
+              <Text style={styles.changeButtonText}>Change</Text>
+            </TouchableOpacity>
+          ) : null}
+        </View>
 
         {assignedWorkout ? (
-          <TouchableOpacity style={styles.changeButton} onPress={() => setWorkoutSelectorVisible(true)}>
-            <Text style={styles.changeButtonText}>Change</Text>
+          <>
+            <Text style={styles.todayWorkoutTitle}>{assignedWorkout.name}</Text>
+
+            <ScrollView style={styles.todayExercisesList} contentContainerStyle={styles.todayExercisesListContent}>
+              {todayExercises.map(exercise => {
+                const checked = Boolean(checkedExercises[exercise.id]);
+
+                return (
+                  <TouchableOpacity
+                    key={exercise.id}
+                    style={styles.todayExerciseRow}
+                    onPress={() => handleToggleExercise(exercise.id)}>
+                    <View style={[styles.sessionCheckbox, checked && styles.sessionCheckboxChecked]}>
+                      {checked ? <Text style={styles.sessionCheckboxCheck}>✓</Text> : null}
+                    </View>
+                    <Text style={styles.todayExerciseName}>{exercise.name}</Text>
+                  </TouchableOpacity>
+                );
+              })}
+            </ScrollView>
+          </>
+        ) : (
+          <View style={styles.emptyTodayWrap}>
+            <TouchableOpacity style={styles.addTodayButton} onPress={() => setWorkoutSelectorVisible(true)}>
+              <Text style={styles.addTodayButtonText}>Add workout for today</Text>
+            </TouchableOpacity>
+          </View>
+        )}
+
+        {assignedWorkout ? (
+          <TouchableOpacity
+            style={[styles.completeButton, isCompletedToday && styles.completeButtonCompleted]}
+            onPress={() => toggleDateCompleted(todayDateKey)}>
+            <Text style={[styles.completeButtonText, isCompletedToday && styles.completeButtonTextCompleted]}>
+              {isCompletedToday ? 'Completed ✓' : 'Workout Completed'}
+            </Text>
           </TouchableOpacity>
         ) : null}
-      </View>
-
-      <View style={styles.todayContent}>
-        {assignedWorkout ? (
-          <View style={styles.assignedTodayCard}>
-            <Text style={styles.assignedTodayLabel}>Today&apos;s Workout</Text>
-            <Text style={styles.assignedTodayWorkoutName}>{assignedWorkout.name}</Text>
-          </View>
-        ) : (
-          <TouchableOpacity style={styles.addTodayButton} onPress={() => setWorkoutSelectorVisible(true)}>
-            <Text style={styles.addTodayButtonText}>Add workout for today</Text>
-          </TouchableOpacity>
-        )}
       </View>
 
       <Modal
@@ -569,25 +652,48 @@ const styles = StyleSheet.create({
   todayContainer: {
     flex: 1,
     backgroundColor: '#000',
-    paddingTop: 60,
+    paddingTop: 56,
+    paddingHorizontal: 14,
+    paddingBottom: 18,
+  },
+  todayCard: {
+    flex: 1,
+    borderWidth: 2,
+    borderColor: '#fff',
+    borderRadius: 28,
+    backgroundColor: '#0d0d0d',
+    paddingHorizontal: 18,
+    paddingTop: 20,
+    paddingBottom: 16,
+  },
+  todayCardCompleted: {
+    borderColor: '#2CD66F',
   },
   todayHeaderRow: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    paddingHorizontal: 16,
-    marginBottom: 24,
+    minHeight: 36,
+    marginBottom: 8,
     position: 'relative',
   },
   todayHeader: {
     color: '#fff',
-    fontSize: 32,
+    fontSize: 30,
     fontWeight: '700',
     textAlign: 'center',
   },
+  todayWorkoutTitle: {
+    color: '#fff',
+    fontSize: 24,
+    fontWeight: '700',
+    textAlign: 'center',
+    marginBottom: 14,
+    paddingHorizontal: 44,
+  },
   changeButton: {
     position: 'absolute',
-    right: 16,
+    right: 0,
     backgroundColor: '#111',
     borderWidth: 1,
     borderColor: '#333',
@@ -600,37 +706,47 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: '600',
   },
-  todayContent: {
+  todayExercisesList: {
+    flex: 1,
+  },
+  todayExercisesListContent: {
+    paddingBottom: 12,
+  },
+  todayExerciseRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 12,
+  },
+  sessionCheckbox: {
+    width: 20,
+    height: 20,
+    borderRadius: 4,
+    borderWidth: 1,
+    borderColor: '#fff',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: 12,
+    backgroundColor: 'transparent',
+  },
+  sessionCheckboxChecked: {
+    backgroundColor: '#fff',
+  },
+  sessionCheckboxCheck: {
+    color: '#000',
+    fontSize: 13,
+    fontWeight: '700',
+    lineHeight: 14,
+  },
+  todayExerciseName: {
+    color: '#fff',
+    fontSize: 18,
+    fontWeight: '500',
+    flex: 1,
+  },
+  emptyTodayWrap: {
     flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
-    paddingHorizontal: 24,
-    paddingBottom: 50,
-  },
-  assignedTodayCard: {
-    width: '100%',
-    maxWidth: 360,
-    borderWidth: 1,
-    borderColor: '#333',
-    borderRadius: 14,
-    backgroundColor: '#111',
-    paddingVertical: 24,
-    paddingHorizontal: 20,
-    alignItems: 'center',
-  },
-  assignedTodayLabel: {
-    color: '#aaa',
-    fontSize: 14,
-    fontWeight: '600',
-    marginBottom: 10,
-    textTransform: 'uppercase',
-    letterSpacing: 0.8,
-  },
-  assignedTodayWorkoutName: {
-    color: '#fff',
-    fontSize: 28,
-    fontWeight: '700',
-    textAlign: 'center',
   },
   addTodayButton: {
     borderWidth: 1,
@@ -647,6 +763,27 @@ const styles = StyleSheet.create({
     fontSize: 18,
     fontWeight: '600',
     textAlign: 'center',
+  },
+  completeButton: {
+    marginTop: 8,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: '#fff',
+    backgroundColor: '#fff',
+    paddingVertical: 14,
+    alignItems: 'center',
+  },
+  completeButtonCompleted: {
+    borderColor: '#2CD66F',
+    backgroundColor: '#2CD66F',
+  },
+  completeButtonText: {
+    color: '#000',
+    fontSize: 17,
+    fontWeight: '700',
+  },
+  completeButtonTextCompleted: {
+    color: '#062b12',
   },
   centeredView: {
     flex: 1,

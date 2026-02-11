@@ -51,6 +51,7 @@ export default function SearchScreen() {
   const { savedWorkouts, savedExercises, customExercises, hasHydrated: savedHydrated } = useSavedWorkoutsStore();
   const {
     schedule,
+    completedDates,
     assignWorkoutToDate,
     clearDateAssignment,
     cleanupInvalidAssignments,
@@ -229,6 +230,7 @@ export default function SearchScreen() {
         {weekDates.map(({ day, date: calendarDate, dateKey }) => {
           const assignedWorkoutId = schedule[dateKey];
           const assignedWorkout = assignedWorkoutId ? workoutById.get(assignedWorkoutId) : null;
+          const isCompleted = Boolean(completedDates[dateKey]);
           const assignedExerciseNames = assignedWorkout
             ? assignedWorkout.exercises
                 .map(exerciseId => exerciseById.get(exerciseId)?.name ?? exerciseId.replace(/-/g, ' '))
@@ -239,7 +241,7 @@ export default function SearchScreen() {
           const dayLabel = `${day} — ${formatShortDate(calendarDate)}`;
 
           return (
-            <View key={dateKey} style={styles.dayRow}>
+            <View key={dateKey} style={[styles.dayRow, isCompleted && styles.dayRowCompleted]}>
               <Text style={styles.dayTitle}>{dayLabel}</Text>
 
               {assignedWorkout ? (
@@ -574,6 +576,9 @@ const styles = StyleSheet.create({
     paddingBottom: 2,
     marginBottom: 12,
     position: 'relative',
+  },
+  dayRowCompleted: {
+    borderColor: '#2CD66F',
   },
   dayTitle: {
     color: '#fff',
