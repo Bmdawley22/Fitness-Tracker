@@ -366,8 +366,8 @@ const styles = StyleSheet.create({
   },
   editButtonInline: {
     marginLeft: 6,
-    height: 28,
-    width: 28,
+    height: 22,
+    width: 22,
     borderRadius: 8,
     borderWidth: 1,
     borderColor: '#fff',
@@ -377,7 +377,7 @@ const styles = StyleSheet.create({
   },
   editButtonText: {
     color: '#fff',
-    fontSize: 14,
+    fontSize: 11,
     fontWeight: '700',
   },
   exerciseListBox: {
