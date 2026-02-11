@@ -1,6 +1,5 @@
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Modal, TextInput, Alert, PanResponder, FlatList } from 'react-native';
-import React, { useState, useEffect } from 'react';
-import * as Haptics from 'expo-haptics';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Modal, TextInput, Alert, FlatList } from 'react-native';
+import React, { useState, useEffect, useMemo } from 'react';
 import { useSavedWorkoutsStore, SavedWorkout } from '@/store/savedWorkouts';
 import { exercises as allExercises } from '@/data/exercises';
 import { workouts } from '@/data/workouts';
@@ -13,12 +12,13 @@ type SavedFilter = 'workouts' | 'exercises';
 export default function SavedScreen() {
   const { 
     savedWorkouts, 
-    savedExercises, 
+    savedExercises,
+    customExercises,
+    hasHydrated,
     removeWorkout, 
     updateWorkout,
     updateAndRegenerateId,
     removeExerciseFromWorkout,
-    reorderWorkouts,
     addWorkout,
     addExerciseToWorkout,
     removeExercise,
@@ -26,6 +26,10 @@ export default function SavedScreen() {
   const { workoutToEditId, pendingWorkoutToAddId, pendingWorkoutToAddName, clearWorkoutEditState } = useUIStore();
 
   const [selectedFilter, setSelectedFilter] = useState<SavedFilter>('workouts');
+  const [isEditMode, setIsEditMode] = useState(false);
+  const [selectedWorkoutIds, setSelectedWorkoutIds] = useState<string[]>([]);
+  const [selectedExerciseIds, setSelectedExerciseIds] = useState<string[]>([]);
+  const [showBulkRemoveConfirmModal, setShowBulkRemoveConfirmModal] = useState(false);
   const [detailWorkout, setDetailWorkout] = useState<SavedWorkout | null>(null);
   const [detailExercise, setDetailExercise] = useState<{ id: string; name: string; description: string; originalId: string } | null>(null);
   const [menuWorkout, setMenuWorkout] = useState<SavedWorkout | null>(null);
@@ -307,45 +311,77 @@ export default function SavedScreen() {
     }
   };
 
-  const handleMoveUp = (index: number) => {
-    if (index === 0) return;
-    const newOrder = [...savedWorkouts];
-    [newOrder[index - 1], newOrder[index]] = [newOrder[index], newOrder[index - 1]];
-    reorderWorkouts(newOrder);
-  };
+  const exerciseNameById = useMemo(() => {
+    const names = new Map<string, string>();
 
-  const handleMoveDown = (index: number) => {
-    if (index === savedWorkouts.length - 1) return;
-    const newOrder = [...savedWorkouts];
-    [newOrder[index], newOrder[index + 1]] = [newOrder[index + 1], newOrder[index]];
-    reorderWorkouts(newOrder);
-  };
+    // 1) Built-in exercises by id
+    allExercises.forEach(exercise => {
+      names.set(exercise.id, exercise.name);
+    });
+
+    // 2) Custom exercises by id
+    customExercises.forEach(exercise => {
+      if (!names.has(exercise.id)) {
+        names.set(exercise.id, exercise.name);
+      }
+    });
+
+    // 3) Saved exercises by originalId (fallback mapping path)
+    savedExercises.forEach(exercise => {
+      if (exercise.originalId && !names.has(exercise.originalId)) {
+        names.set(exercise.originalId, exercise.name);
+      }
+    });
+
+    return names;
+  }, [customExercises, savedExercises]);
 
   const getExerciseName = (exerciseId: string) => {
-    return allExercises.find(e => e.id === exerciseId)?.name || exerciseId;
+    if (!hasHydrated) return exerciseId;
+    return exerciseNameById.get(exerciseId) || exerciseId;
   };
 
-  const createPanResponder = (index: number, sortedWorkouts: SavedWorkout[]) => {
-    const DRAG_THRESHOLD = 40;
-    
-    return PanResponder.create({
-      onStartShouldSetPanResponder: () => true,
-      onMoveShouldSetPanResponder: () => true,
-      onPanResponderRelease: (evt, gestureState) => {
-        const { dy } = gestureState;
-        
-        // Drag up - move up in list
-        if (dy < -DRAG_THRESHOLD && index > 0) {
-          Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-          handleMoveUp(index);
-        }
-        // Drag down - move down in list
-        else if (dy > DRAG_THRESHOLD && index < sortedWorkouts.length - 1) {
-          Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-          handleMoveDown(index);
-        }
-      },
-    });
+  const handleFilterChange = (filter: SavedFilter) => {
+    setSelectedFilter(filter);
+    setSelectedWorkoutIds([]);
+    setSelectedExerciseIds([]);
+  };
+
+  const handleToggleEditMode = () => {
+    const turningOff = isEditMode;
+    setIsEditMode(!isEditMode);
+    if (turningOff) {
+      setSelectedWorkoutIds([]);
+      setSelectedExerciseIds([]);
+    }
+    setMenuWorkout(null);
+    setMenuExercise(null);
+  };
+
+  const toggleWorkoutSelection = (workoutId: string) => {
+    setSelectedWorkoutIds(prev =>
+      prev.includes(workoutId) ? prev.filter(id => id !== workoutId) : [...prev, workoutId]
+    );
+  };
+
+  const toggleExerciseSelection = (exerciseId: string) => {
+    setSelectedExerciseIds(prev =>
+      prev.includes(exerciseId) ? prev.filter(id => id !== exerciseId) : [...prev, exerciseId]
+    );
+  };
+
+  const selectedCount = selectedFilter === 'workouts' ? selectedWorkoutIds.length : selectedExerciseIds.length;
+
+  const handleConfirmBulkRemove = () => {
+    if (selectedFilter === 'workouts') {
+      selectedWorkoutIds.forEach(workoutId => removeWorkout(workoutId));
+      setSelectedWorkoutIds([]);
+    } else {
+      selectedExerciseIds.forEach(exerciseId => removeExercise(exerciseId));
+      setSelectedExerciseIds([]);
+    }
+
+    setShowBulkRemoveConfirmModal(false);
   };
 
   // Sort workouts by order
@@ -357,21 +393,37 @@ export default function SavedScreen() {
       
       {/* Filter Buttons */}
       <View style={styles.filterContainer}>
-        <TouchableOpacity 
-          style={[styles.filterButton, selectedFilter === 'workouts' && styles.filterButtonActive]}
-          onPress={() => setSelectedFilter('workouts')}>
-          <Text style={[styles.filterText, selectedFilter === 'workouts' && styles.filterTextActive]}>
-            Workouts
-          </Text>
-        </TouchableOpacity>
-        <TouchableOpacity 
-          style={[styles.filterButton, selectedFilter === 'exercises' && styles.filterButtonActive]}
-          onPress={() => setSelectedFilter('exercises')}>
-          <Text style={[styles.filterText, selectedFilter === 'exercises' && styles.filterTextActive]}>
-            Exercises
+        <View style={styles.filterButtonsGroup}>
+          <TouchableOpacity
+            style={[styles.filterButton, selectedFilter === 'workouts' && styles.filterButtonActive]}
+            onPress={() => handleFilterChange('workouts')}>
+            <Text style={[styles.filterText, selectedFilter === 'workouts' && styles.filterTextActive]}>
+              Workouts
+            </Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={[styles.filterButton, selectedFilter === 'exercises' && styles.filterButtonActive]}
+            onPress={() => handleFilterChange('exercises')}>
+            <Text style={[styles.filterText, selectedFilter === 'exercises' && styles.filterTextActive]}>
+              Exercises
+            </Text>
+          </TouchableOpacity>
+        </View>
+
+        <TouchableOpacity
+          style={[styles.editModeButton, isEditMode && styles.editModeButtonActive]}
+          onPress={handleToggleEditMode}>
+          <Text style={[styles.editModeButtonText, isEditMode && styles.editModeButtonTextActive]}>
+            Edit List
           </Text>
         </TouchableOpacity>
       </View>
+
+      {isEditMode && selectedCount > 0 && (
+        <TouchableOpacity style={styles.bulkRemoveButton} onPress={() => setShowBulkRemoveConfirmModal(true)}>
+          <Text style={styles.bulkRemoveButtonText}>Remove ({selectedCount})</Text>
+        </TouchableOpacity>
+      )}
 
       {/* List */}
       <ScrollView style={styles.listContainer}>
@@ -382,28 +434,8 @@ export default function SavedScreen() {
         )}
 
         {selectedFilter === 'workouts' && sortedWorkouts.map((workout, index) => {
-          const panResponder = createPanResponder(index, sortedWorkouts);
           return (
           <View key={workout.id} style={styles.listItem}>
-            {/* Drag Handle */}
-            <View 
-              style={styles.dragHandleContainer}
-              {...panResponder.panHandlers}>
-              <TouchableOpacity 
-                style={styles.moveButton}
-                onPress={() => handleMoveUp(index)}
-                disabled={index === 0}>
-                <Text style={[styles.moveButtonText, index === 0 && styles.moveButtonDisabled]}>▲</Text>
-              </TouchableOpacity>
-              <Text style={styles.dragHandle}>☰</Text>
-              <TouchableOpacity 
-                style={styles.moveButton}
-                onPress={() => handleMoveDown(index)}
-                disabled={index === sortedWorkouts.length - 1}>
-                <Text style={[styles.moveButtonText, index === sortedWorkouts.length - 1 && styles.moveButtonDisabled]}>▼</Text>
-              </TouchableOpacity>
-            </View>
-            
             <TouchableOpacity 
               style={styles.workoutContent}
               onPress={() => setDetailWorkout(workout)}>
@@ -411,12 +443,29 @@ export default function SavedScreen() {
               <Text style={styles.listItemDescription}>{workout.description}</Text>
             </TouchableOpacity>
             
-            {/* 3-dot menu button */}
-            <TouchableOpacity 
-              style={styles.menuButton}
-              onPress={() => handleOpenMenu(workout)}>
-              <Text style={styles.menuButtonText}>⋯</Text>
-            </TouchableOpacity>
+            {isEditMode ? (
+              <TouchableOpacity
+                style={[
+                  styles.selectionControl,
+                  selectedWorkoutIds.includes(workout.id) && styles.selectionControlSelected,
+                ]}
+                onPress={() => toggleWorkoutSelection(workout.id)}>
+                <Text
+                  style={[
+                    styles.selectionControlMinus,
+                    selectedWorkoutIds.includes(workout.id) && styles.selectionControlMinusSelected,
+                  ]}>
+                  -
+                </Text>
+              </TouchableOpacity>
+            ) : (
+              /* 3-dot menu button */
+              <TouchableOpacity
+                style={styles.menuButton}
+                onPress={() => handleOpenMenu(workout)}>
+                <Text style={styles.menuButtonText}>⋯</Text>
+              </TouchableOpacity>
+            )}
           </View>
           );
         })}
@@ -434,11 +483,28 @@ export default function SavedScreen() {
               onPress={() => setDetailExercise({ id: exercise.id, name: exercise.name, description: exercise.description ?? '', originalId: exercise.originalId })}>
               <Text style={styles.listItemText}>{exercise.name}</Text>
             </TouchableOpacity>
-            <TouchableOpacity 
-              style={styles.menuButton}
-              onPress={() => handleOpenExerciseMenu({ id: exercise.id, name: exercise.name, originalId: exercise.originalId })}>
-              <Text style={styles.menuButtonText}>⋯</Text>
-            </TouchableOpacity>
+            {isEditMode ? (
+              <TouchableOpacity
+                style={[
+                  styles.selectionControl,
+                  selectedExerciseIds.includes(exercise.id) && styles.selectionControlSelected,
+                ]}
+                onPress={() => toggleExerciseSelection(exercise.id)}>
+                <Text
+                  style={[
+                    styles.selectionControlMinus,
+                    selectedExerciseIds.includes(exercise.id) && styles.selectionControlMinusSelected,
+                  ]}>
+                  -
+                </Text>
+              </TouchableOpacity>
+            ) : (
+              <TouchableOpacity
+                style={styles.menuButton}
+                onPress={() => handleOpenExerciseMenu({ id: exercise.id, name: exercise.name, originalId: exercise.originalId })}>
+                <Text style={styles.menuButtonText}>⋯</Text>
+              </TouchableOpacity>
+            )}
           </View>
         ))}
       </ScrollView>
@@ -495,6 +561,29 @@ export default function SavedScreen() {
                 promptRemoveSavedExercise(menuExercise, { closeMenu: true });
               }}>
               <Text style={styles.menuOptionDangerText}>Remove</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
+
+      <Modal
+        visible={showBulkRemoveConfirmModal}
+        transparent={true}
+        animationType="fade"
+        onRequestClose={() => setShowBulkRemoveConfirmModal(false)}>
+        <View style={styles.modalOverlay}>
+          <View style={styles.menuModalContent}>
+            <Text style={styles.menuModalTitle}>Confirm removal</Text>
+            <Text style={styles.modalDescription}>Are you sure you want to remove {selectedCount} saved {selectedFilter === 'workouts' ? 'workout' : 'exercise'}{selectedCount === 1 ? '' : 's'}?</Text>
+
+            <TouchableOpacity style={styles.menuOptionDanger} onPress={handleConfirmBulkRemove}>
+              <Text style={styles.menuOptionDangerText}>Remove ({selectedCount})</Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={styles.menuOption}
+              onPress={() => setShowBulkRemoveConfirmModal(false)}>
+              <Text style={styles.menuOptionText}>Cancel</Text>
             </TouchableOpacity>
           </View>
         </View>
@@ -835,8 +924,13 @@ const styles = StyleSheet.create({
   filterContainer: {
     flexDirection: 'row',
     paddingHorizontal: 16,
+    marginBottom: 12,
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  filterButtonsGroup: {
+    flexDirection: 'row',
     gap: 8,
-    marginBottom: 16,
   },
   filterButton: {
     paddingVertical: 8,
@@ -854,6 +948,43 @@ const styles = StyleSheet.create({
   },
   filterTextActive: {
     color: '#000',
+  },
+  editModeButton: {
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: '#fff',
+    backgroundColor: '#fff',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    minHeight: 32,
+  },
+  editModeButtonActive: {
+    backgroundColor: '#d32f2f',
+    borderColor: '#d32f2f',
+  },
+  editModeButtonText: {
+    color: '#000',
+    fontSize: 13,
+    fontWeight: '600',
+  },
+  editModeButtonTextActive: {
+    color: '#fff',
+  },
+  bulkRemoveButton: {
+    marginHorizontal: 16,
+    marginBottom: 8,
+    borderRadius: 8,
+    backgroundColor: '#d32f2f',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 10,
+  },
+  bulkRemoveButtonText: {
+    color: '#fff',
+    fontSize: 15,
+    fontWeight: '600',
   },
   listContainer: {
     flex: 1,
@@ -875,24 +1006,6 @@ const styles = StyleSheet.create({
     paddingVertical: 12,
     borderBottomWidth: 1,
     borderBottomColor: '#222',
-  },
-  dragHandleContainer: {
-    alignItems: 'center',
-    marginRight: 12,
-  },
-  dragHandle: {
-    color: '#666',
-    fontSize: 16,
-  },
-  moveButton: {
-    padding: 4,
-  },
-  moveButtonText: {
-    color: '#888',
-    fontSize: 10,
-  },
-  moveButtonDisabled: {
-    color: '#333',
   },
   workoutContent: {
     flex: 1,
@@ -918,6 +1031,28 @@ const styles = StyleSheet.create({
     color: '#fff',
     fontSize: 20,
     fontWeight: '600',
+  },
+  selectionControl: {
+    width: 26,
+    height: 26,
+    borderRadius: 13,
+    borderWidth: 1,
+    borderColor: '#d32f2f',
+    backgroundColor: 'rgba(211, 47, 47, 0.2)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  selectionControlSelected: {
+    backgroundColor: '#d32f2f',
+  },
+  selectionControlMinus: {
+    color: '#d32f2f',
+    fontSize: 16,
+    lineHeight: 16,
+    fontWeight: '700',
+  },
+  selectionControlMinusSelected: {
+    color: '#b0b0b0',
   },
   modalOverlay: {
     flex: 1,
