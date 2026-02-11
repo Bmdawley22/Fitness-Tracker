@@ -121,7 +121,7 @@ export default function SearchScreen() {
     weekRange.start.getFullYear() === todayWeekRange.start.getFullYear() &&
     weekRange.start.getMonth() === todayWeekRange.start.getMonth() &&
     weekRange.start.getDate() === todayWeekRange.start.getDate();
-  const weekTitleLine = `${isCurrentWeek ? 'Current Week' : 'Week'}: ${weekRangeLabel}`;
+  const weekTitleLine = isCurrentWeek ? 'Current Week' : 'Week';
   const calendarMonthLabel = `${MONTH_NAMES[viewingMonth.getMonth()]} ${viewingMonth.getFullYear()}`;
   const daysInMonth = new Date(viewingMonth.getFullYear(), viewingMonth.getMonth() + 1, 0).getDate();
   const firstDayOfMonth = new Date(viewingMonth.getFullYear(), viewingMonth.getMonth(), 1).getDay();
@@ -209,7 +209,10 @@ export default function SearchScreen() {
             <Ionicons name="chevron-back" size={18} color="#fff" />
           </TouchableOpacity>
 
-          <Text style={styles.weekTitle}>{weekTitleLine}</Text>
+          <View style={styles.weekTitleContainer}>
+            <Text style={styles.weekTitle}>{weekTitleLine}</Text>
+            <Text style={styles.weekRangeText}>{weekRangeLabel}</Text>
+          </View>
 
           <TouchableOpacity
             style={styles.weekNavButton}
@@ -537,14 +540,23 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     backgroundColor: '#111',
   },
+  weekTitleContainer: {
+    flex: 1,
+    marginHorizontal: 12,
+    alignItems: 'center',
+  },
   weekTitle: {
     color: '#fff',
     fontSize: 20,
     fontWeight: '800',
     textAlign: 'center',
     marginBottom: 2,
-    flex: 1,
-    marginHorizontal: 12,
+  },
+  weekRangeText: {
+    color: '#fff',
+    fontSize: 15,
+    fontWeight: '600',
+    textAlign: 'center',
   },
   listContainer: {
     flex: 1,
