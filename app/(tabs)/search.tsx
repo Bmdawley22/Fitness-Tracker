@@ -181,7 +181,7 @@ export default function SearchScreen() {
       </View>
 
       <ScrollView style={styles.listContainer} contentContainerStyle={styles.listContent}>
-        {WEEK_DAYS.map(day => {
+        {WEEK_DAYS.map((day, index) => {
           const assignedWorkoutId = schedule[day];
           const assignedWorkout = assignedWorkoutId ? workoutById.get(assignedWorkoutId) : null;
           const assignedExerciseNames = assignedWorkout
@@ -191,10 +191,16 @@ export default function SearchScreen() {
           const firstColumnExercises = assignedExerciseNames.slice(0, 4);
           const secondColumnExercises = assignedExerciseNames.slice(4, 8);
           const thirdColumnExercises = assignedExerciseNames.slice(8, 12);
+          const calendarDate = new Date(
+            weekRange.start.getFullYear(),
+            weekRange.start.getMonth(),
+            weekRange.start.getDate() + index,
+          );
+          const dayLabel = `${day} — ${formatShortDate(calendarDate)}`;
 
           return (
             <View key={day} style={styles.dayRow}>
-              <Text style={styles.dayTitle}>{day}</Text>
+              <Text style={styles.dayTitle}>{dayLabel}</Text>
 
               {assignedWorkout ? (
                 <View style={styles.assignedWorkoutContainer}>
