@@ -123,8 +123,9 @@ export default function SearchScreen() {
             ? assignedWorkout.exercises
                 .map(exerciseId => exerciseById.get(exerciseId)?.name ?? exerciseId.replace(/-/g, ' '))
             : [];
-          const firstColumnExercises = assignedExerciseNames.slice(0, 6);
-          const secondColumnExercises = assignedExerciseNames.slice(6, 12);
+          const firstColumnExercises = assignedExerciseNames.slice(0, 4);
+          const secondColumnExercises = assignedExerciseNames.slice(4, 8);
+          const thirdColumnExercises = assignedExerciseNames.slice(8, 12);
 
           return (
             <View key={day} style={styles.dayRow}>
@@ -164,6 +165,16 @@ export default function SearchScreen() {
                       </View>
                       <View style={styles.exerciseColumn}>
                         {secondColumnExercises.map((exerciseName, index) => (
+                          <View key={`mid-${index}-${exerciseName}`} style={styles.exerciseBulletRow}>
+                            <Text style={styles.exerciseBullet}>•</Text>
+                            <Text style={styles.exerciseBulletText} numberOfLines={1} ellipsizeMode="tail">
+                              {exerciseName}
+                            </Text>
+                          </View>
+                        ))}
+                      </View>
+                      <View style={styles.exerciseColumn}>
+                        {thirdColumnExercises.map((exerciseName, index) => (
                           <View key={`right-${index}-${exerciseName}`} style={styles.exerciseBulletRow}>
                             <Text style={styles.exerciseBullet}>•</Text>
                             <Text style={styles.exerciseBulletText} numberOfLines={1} ellipsizeMode="tail">
@@ -313,6 +324,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     marginBottom: 4,
+    paddingHorizontal: '10%',
   },
   assignedTitleContainer: {
     height: '100%',
@@ -321,6 +333,7 @@ const styles = StyleSheet.create({
     borderBottomColor: '#fff',
     paddingHorizontal: 8,
     maxWidth: '70%',
+    marginRight: '10%',
   },
   assignButtonLabel: {
     color: '#fff',
@@ -330,8 +343,9 @@ const styles = StyleSheet.create({
   },
   assignButtonLabelCentered: {
     textAlign: 'center',
-    fontSize: 12,
-    lineHeight: 14,
+    fontSize: 14,
+    lineHeight: 16,
+    fontWeight: '600',
   },
   editButtonInline: {
     marginLeft: 6,
@@ -363,7 +377,7 @@ const styles = StyleSheet.create({
   },
   exerciseListColumns: {
     flexDirection: 'row',
-    gap: 4,
+    gap: 3,
   },
   exerciseColumn: {
     flex: 1,
@@ -375,14 +389,14 @@ const styles = StyleSheet.create({
   },
   exerciseBullet: {
     color: '#fff',
-    fontSize: 7,
+    fontSize: 8,
     marginRight: 2,
-    lineHeight: 9,
+    lineHeight: 10,
   },
   exerciseBulletText: {
     color: '#fff',
-    fontSize: 7,
-    lineHeight: 9,
+    fontSize: 8,
+    lineHeight: 10,
     flex: 1,
   },
   modalOverlay: {
