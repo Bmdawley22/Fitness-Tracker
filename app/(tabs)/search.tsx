@@ -297,7 +297,7 @@ const styles = StyleSheet.create({
     borderRadius: 10,
     paddingHorizontal: 12,
     paddingTop: 0,
-    paddingBottom: 12,
+    paddingBottom: 2,
     marginBottom: 12,
     position: 'relative',
   },
@@ -314,7 +314,7 @@ const styles = StyleSheet.create({
     paddingVertical: 6,
     borderTopLeftRadius: 8,
     borderTopRightRadius: 8,
-    marginBottom: 10,
+    marginBottom: 5,
   },
   assignButton: {
     minHeight: 88,
@@ -328,7 +328,7 @@ const styles = StyleSheet.create({
   },
   assignedWorkoutContainer: {
     minHeight: 88,
-    justifyContent: 'space-between',
+    justifyContent: 'flex-start',
   },
   assignedHeaderRow: {
     height: 28,
@@ -352,8 +352,8 @@ const styles = StyleSheet.create({
   },
   assignButtonLabelLeft: {
     textAlign: 'left',
-    fontSize: 14,
-    lineHeight: 16,
+    fontSize: 15,
+    lineHeight: 18,
     fontWeight: '600',
   },
   headerDivider: {
@@ -361,8 +361,8 @@ const styles = StyleSheet.create({
     alignSelf: 'center',
     borderBottomWidth: 1,
     borderBottomColor: '#fff',
-    marginTop: 2,
-    marginBottom: 4,
+    marginTop: 1,
+    marginBottom: 3,
   },
   editButtonInline: {
     marginLeft: 6,
@@ -384,6 +384,7 @@ const styles = StyleSheet.create({
     flex: 1,
     width: '80%',
     alignSelf: 'center',
+    marginBottom: 0,
     borderWidth: 1,
     borderColor: '#111',
     borderRadius: 6,
@@ -406,14 +407,14 @@ const styles = StyleSheet.create({
   },
   exerciseBullet: {
     color: '#fff',
-    fontSize: 8,
+    fontSize: 9,
     marginRight: 2,
-    lineHeight: 10,
+    lineHeight: 11,
   },
   exerciseBulletText: {
     color: '#fff',
-    fontSize: 8,
-    lineHeight: 10,
+    fontSize: 9,
+    lineHeight: 11,
     flex: 1,
   },
   modalOverlay: {
@@ -440,7 +441,7 @@ const styles = StyleSheet.create({
   },
   workoutModalHeader: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
+    justifyContent: 'flex-start',
     alignItems: 'flex-start',
     marginBottom: 16,
   },
@@ -474,7 +475,7 @@ const styles = StyleSheet.create({
   },
   modalSubtitle: {
     color: '#aaa',
-    fontSize: 14,
+    fontSize: 15,
     marginTop: 4,
     marginBottom: 12,
   },
@@ -501,7 +502,7 @@ const styles = StyleSheet.create({
   },
   exerciseListText: {
     color: '#ccc',
-    fontSize: 14,
+    fontSize: 15,
   },
   workoutList: {
     maxHeight: 280,
