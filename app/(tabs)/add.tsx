@@ -682,6 +682,8 @@ const styles = StyleSheet.create({
     fontSize: 30,
     fontWeight: '700',
     textAlign: 'center',
+    textDecorationLine: 'underline',
+    textDecorationColor: '#fff',
   },
   todayWorkoutTitle: {
     color: '#fff',
@@ -710,6 +712,8 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   todayExercisesListContent: {
+    flexGrow: 1,
+    justifyContent: 'center',
     paddingBottom: 12,
   },
   todayExerciseRow: {
