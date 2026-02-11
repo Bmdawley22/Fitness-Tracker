@@ -51,6 +51,7 @@ export default function SearchScreen() {
   const { savedWorkouts, savedExercises, customExercises, hasHydrated: savedHydrated } = useSavedWorkoutsStore();
   const {
     schedule,
+    completedDates,
     assignWorkoutToDate,
     clearDateAssignment,
     cleanupInvalidAssignments,
@@ -229,6 +230,7 @@ export default function SearchScreen() {
         {weekDates.map(({ day, date: calendarDate, dateKey }) => {
           const assignedWorkoutId = schedule[dateKey];
           const assignedWorkout = assignedWorkoutId ? workoutById.get(assignedWorkoutId) : null;
+          const isCompleted = Boolean(completedDates[dateKey]);
           const assignedExerciseNames = assignedWorkout
             ? assignedWorkout.exercises
                 .map(exerciseId => exerciseById.get(exerciseId)?.name ?? exerciseId.replace(/-/g, ' '))
@@ -239,8 +241,11 @@ export default function SearchScreen() {
           const dayLabel = `${day} — ${formatShortDate(calendarDate)}`;
 
           return (
-            <View key={dateKey} style={styles.dayRow}>
-              <Text style={styles.dayTitle}>{dayLabel}</Text>
+            <View key={dateKey} style={[styles.dayRow, isCompleted && styles.dayRowCompleted]}>
+              <View style={styles.dayTitleRow}>
+                <Text style={styles.dayTitle}>{dayLabel}</Text>
+                {isCompleted ? <Text style={styles.completedDayLabel}>Completed</Text> : null}
+              </View>
 
               {assignedWorkout ? (
                 <View style={styles.assignedWorkoutContainer}>
@@ -575,13 +580,12 @@ const styles = StyleSheet.create({
     marginBottom: 12,
     position: 'relative',
   },
-  dayTitle: {
-    color: '#fff',
-    fontSize: 16,
-    fontWeight: '700',
-    textAlign: 'center',
+  dayRowCompleted: {
+    borderColor: '#2CD66F',
+    borderWidth: 3,
+  },
+  dayTitleRow: {
     backgroundColor: '#6a6a6a',
-    alignSelf: 'stretch',
     marginHorizontal: -12,
     marginTop: 0,
     paddingHorizontal: 12,
@@ -589,6 +593,22 @@ const styles = StyleSheet.create({
     borderTopLeftRadius: 8,
     borderTopRightRadius: 8,
     marginBottom: 5,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  dayTitle: {
+    color: '#fff',
+    fontSize: 16,
+    fontWeight: '700',
+    textAlign: 'left',
+    flex: 1,
+  },
+  completedDayLabel: {
+    color: '#2CD66F',
+    fontSize: 12,
+    fontWeight: '700',
+    marginLeft: 8,
   },
   assignButton: {
     minHeight: 88,
