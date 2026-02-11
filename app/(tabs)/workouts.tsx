@@ -4,7 +4,6 @@ import { useSavedWorkoutsStore, SavedWorkout } from '@/store/savedWorkouts';
 import { exercises as allExercises } from '@/data/exercises';
 import { workouts } from '@/data/workouts';
 import { useUIStore } from '@/store/uiState';
-import { Ionicons } from '@expo/vector-icons';
 
 const MAX_EXERCISES = 12;
 
@@ -414,7 +413,9 @@ export default function SavedScreen() {
         <TouchableOpacity
           style={[styles.editModeButton, isEditMode && styles.editModeButtonActive]}
           onPress={handleToggleEditMode}>
-          <Ionicons name="pencil-outline" size={14} color={isEditMode ? '#fff' : '#000'} />
+          <Text style={[styles.editModeButtonText, isEditMode && styles.editModeButtonTextActive]}>
+            Edit List
+          </Text>
         </TouchableOpacity>
       </View>
 
@@ -949,18 +950,27 @@ const styles = StyleSheet.create({
     color: '#000',
   },
   editModeButton: {
-    width: 30,
-    height: 30,
-    borderRadius: 15,
+    borderRadius: 16,
     borderWidth: 1,
     borderColor: '#fff',
     backgroundColor: '#fff',
     alignItems: 'center',
     justifyContent: 'center',
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    minHeight: 32,
   },
   editModeButtonActive: {
     backgroundColor: '#d32f2f',
     borderColor: '#d32f2f',
+  },
+  editModeButtonText: {
+    color: '#000',
+    fontSize: 13,
+    fontWeight: '600',
+  },
+  editModeButtonTextActive: {
+    color: '#fff',
   },
   bulkRemoveButton: {
     marginHorizontal: 16,
