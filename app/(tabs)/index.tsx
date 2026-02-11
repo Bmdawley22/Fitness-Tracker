@@ -1,10 +1,11 @@
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Modal, Alert, TextInput } from 'react-native';
-import React, { useState, useEffect, useMemo } from 'react';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Modal, Alert, TextInput, Pressable } from 'react-native';
+import React, { useRef, useState, useEffect, useMemo } from 'react';
 import { useNavigation } from '@react-navigation/native';
 import { exercises } from '@/data/exercises';
 import { workouts } from '@/data/workouts';
 import { useSavedWorkoutsStore } from '@/store/savedWorkouts';
 import { useUIStore } from '@/store/uiState';
+import { CreateFlowHandle, CreateFlowModals } from './add';
 
 type FilterType = 'all' | 'workouts' | 'exercises';
 
@@ -39,6 +40,8 @@ export default function HomeScreen() {
   const [pendingWorkoutToAdd, setPendingWorkoutToAdd] = useState<string | null>(null);
   const [showConfirmAddAfterRename, setShowConfirmAddAfterRename] = useState(false);
   const [showNameStillMatches, setShowNameStillMatches] = useState(false);
+  const [showQuickCreateModal, setShowQuickCreateModal] = useState(false);
+  const createFlowRef = useRef<CreateFlowHandle>(null);
 
   const homeExercises = useMemo(() => [...exercises, ...customExercises], [customExercises]);
 
@@ -332,32 +335,52 @@ export default function HomeScreen() {
     return exerciseIds.map(id => homeExercises.find(e => e.id === id)).filter(Boolean);
   };
 
+  const openWorkoutCreateFlow = () => {
+    setShowQuickCreateModal(false);
+    createFlowRef.current?.openCreateWorkout();
+  };
+
+  const openExerciseCreateFlow = () => {
+    setShowQuickCreateModal(false);
+    createFlowRef.current?.openCreateExercise();
+  };
+
   return (
     <View style={styles.container}>
       <Text style={styles.header}>Home</Text>
       
       {/* Filter Buttons */}
       <View style={styles.filterContainer}>
-        <TouchableOpacity 
-          style={[styles.filterButton, selectedFilter === 'all' && styles.filterButtonActive]}
-          onPress={() => setSelectedFilter('all')}>
-          <Text style={[styles.filterText, selectedFilter === 'all' && styles.filterTextActive]}>
-            All
-          </Text>
-        </TouchableOpacity>
-        <TouchableOpacity 
-          style={[styles.filterButton, selectedFilter === 'workouts' && styles.filterButtonActive]}
-          onPress={() => setSelectedFilter('workouts')}>
-          <Text style={[styles.filterText, selectedFilter === 'workouts' && styles.filterTextActive]}>
-            Workouts
-          </Text>
-        </TouchableOpacity>
-        <TouchableOpacity 
-          style={[styles.filterButton, selectedFilter === 'exercises' && styles.filterButtonActive]}
-          onPress={() => setSelectedFilter('exercises')}>
-          <Text style={[styles.filterText, selectedFilter === 'exercises' && styles.filterTextActive]}>
-            Exercises
-          </Text>
+        <View style={styles.filterButtonsRow}>
+          <TouchableOpacity
+            style={[styles.filterButton, selectedFilter === 'all' && styles.filterButtonActive]}
+            onPress={() => setSelectedFilter('all')}>
+            <Text style={[styles.filterText, selectedFilter === 'all' && styles.filterTextActive]}>
+              All
+            </Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={[styles.filterButton, selectedFilter === 'workouts' && styles.filterButtonActive]}
+            onPress={() => setSelectedFilter('workouts')}>
+            <Text style={[styles.filterText, selectedFilter === 'workouts' && styles.filterTextActive]}>
+              Workouts
+            </Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={[styles.filterButton, selectedFilter === 'exercises' && styles.filterButtonActive]}
+            onPress={() => setSelectedFilter('exercises')}>
+            <Text style={[styles.filterText, selectedFilter === 'exercises' && styles.filterTextActive]}>
+              Exercises
+            </Text>
+          </TouchableOpacity>
+        </View>
+
+        <TouchableOpacity
+          style={styles.quickCreateButton}
+          onPress={() => setShowQuickCreateModal(true)}
+          accessibilityRole="button"
+          accessibilityLabel="Open quick create menu">
+          <Text style={styles.quickCreateButtonText}>+</Text>
         </TouchableOpacity>
       </View>
 
@@ -465,6 +488,26 @@ export default function HomeScreen() {
           <Text style={styles.toastText}>{toastMessage}</Text>
         </View>
       )}
+
+      <Modal
+        visible={showQuickCreateModal}
+        transparent={true}
+        animationType="fade"
+        onRequestClose={() => setShowQuickCreateModal(false)}>
+        <Pressable style={styles.modalOverlay} onPress={() => setShowQuickCreateModal(false)}>
+          <Pressable style={styles.quickCreateModalCard} onPress={() => {}}>
+            <Text style={styles.modalTitle}>Create New:</Text>
+            <TouchableOpacity style={styles.optionButton} onPress={openWorkoutCreateFlow}>
+              <Text style={styles.optionButtonText}>Workout</Text>
+            </TouchableOpacity>
+            <TouchableOpacity style={styles.optionButton} onPress={openExerciseCreateFlow}>
+              <Text style={styles.optionButtonText}>Exercise</Text>
+            </TouchableOpacity>
+          </Pressable>
+        </Pressable>
+      </Modal>
+
+      <CreateFlowModals ref={createFlowRef} />
 
       {/* Exercise Detail Modal */}
       <Modal
@@ -813,9 +856,31 @@ const styles = StyleSheet.create({
   },
   filterContainer: {
     flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
     paddingHorizontal: 16,
-    gap: 8,
     marginBottom: 16,
+  },
+  filterButtonsRow: {
+    flexDirection: 'row',
+    gap: 8,
+    flex: 1,
+  },
+  quickCreateButton: {
+    width: 34,
+    height: 34,
+    borderRadius: 17,
+    borderWidth: 2,
+    borderColor: '#fff',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginLeft: 12,
+  },
+  quickCreateButtonText: {
+    color: '#fff',
+    fontSize: 22,
+    fontWeight: '700',
+    lineHeight: 24,
   },
   categoryFilterContainer: {
     paddingHorizontal: 16,
@@ -931,6 +996,13 @@ const styles = StyleSheet.create({
     width: '85%',
     maxHeight: '70%',
     position: 'relative',
+  },
+  quickCreateModalCard: {
+    backgroundColor: '#1a1a1a',
+    borderRadius: 12,
+    padding: 24,
+    width: '85%',
+    maxHeight: '55%',
   },
   workoutModalContent: {
     backgroundColor: '#1a1a1a',

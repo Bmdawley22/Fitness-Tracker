@@ -1,5 +1,6 @@
 import { Tabs } from 'expo-router';
 import React from 'react';
+import { Ionicons } from '@expo/vector-icons';
 
 import { HapticTab } from '@/components/haptic-tab';
 import { IconSymbol } from '@/components/ui/icon-symbol';
@@ -41,13 +42,6 @@ export default function TabLayout() {
         }}
       />
       <Tabs.Screen
-        name="search"
-        options={{
-          title: 'Schedule',
-          tabBarIcon: ({ color }) => <IconSymbol size={32} name="calendar" color={color} />,
-        }}
-      />
-      <Tabs.Screen
         name="workouts"
         options={{
           title: 'Saved',
@@ -55,10 +49,17 @@ export default function TabLayout() {
         }}
       />
       <Tabs.Screen
+        name="search"
+        options={{
+          title: 'Schedule',
+          tabBarIcon: ({ color }) => <IconSymbol size={32} name="calendar" color={color} />,
+        }}
+      />
+      <Tabs.Screen
         name="add"
         options={{
-          title: '',
-          tabBarIcon: ({ color }) => <IconSymbol size={32} name="plus" color={color} />,
+          title: "Today's Workout",
+          tabBarIcon: ({ color }) => <Ionicons name="walk-outline" size={24} color={color} />,
         }}
       />
     </Tabs>
