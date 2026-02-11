@@ -525,6 +525,30 @@ export default function AddScreen() {
   const closeWorkoutSelector = () => setWorkoutSelectorVisible(false);
 
   const handleAssignWorkout = (workoutId: string) => {
+    const currentWorkoutId = schedule[todayDateKey];
+    const isCompleted = Boolean(completedDates[todayDateKey]);
+    const isChangingCompletedDay = isCompleted && Boolean(currentWorkoutId) && currentWorkoutId !== workoutId;
+
+    if (isChangingCompletedDay) {
+      Alert.alert(
+        'Change completed workout?',
+        'This day is marked completed. Changing the workout will remove completed status for this day.',
+        [
+          { text: 'Cancel', style: 'cancel' },
+          {
+            text: 'Change Workout',
+            style: 'destructive',
+            onPress: () => {
+              assignWorkoutToDate(todayDateKey, workoutId);
+              setDateCompleted(todayDateKey, false);
+              closeWorkoutSelector();
+            },
+          },
+        ],
+      );
+      return;
+    }
+
     assignWorkoutToDate(todayDateKey, workoutId);
     closeWorkoutSelector();
   };

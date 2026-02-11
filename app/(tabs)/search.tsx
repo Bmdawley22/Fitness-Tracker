@@ -1,4 +1,4 @@
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Modal } from 'react-native';
+import { Alert, View, Text, StyleSheet, ScrollView, TouchableOpacity, Modal } from 'react-native';
 import React, { useEffect, useMemo, useState } from 'react';
 import { exercises } from '@/data/exercises';
 import { useSavedWorkoutsStore } from '@/store/savedWorkouts';
@@ -54,6 +54,7 @@ export default function SearchScreen() {
     completedDates,
     assignWorkoutToDate,
     clearDateAssignment,
+    setDateCompleted,
     cleanupInvalidAssignments,
     hasHydrated: scheduleHydrated,
   } = useScheduleStore();
@@ -163,6 +164,31 @@ export default function SearchScreen() {
 
   const handleAssignWorkout = (workoutId: string) => {
     if (!assignmentDateKey) return;
+
+    const currentWorkoutId = schedule[assignmentDateKey];
+    const isCompleted = Boolean(completedDates[assignmentDateKey]);
+    const isChangingCompletedDay = isCompleted && Boolean(currentWorkoutId) && currentWorkoutId !== workoutId;
+
+    if (isChangingCompletedDay) {
+      Alert.alert(
+        'Change completed workout?',
+        'This day is marked completed. Changing the workout will remove completed status for this day.',
+        [
+          { text: 'Cancel', style: 'cancel' },
+          {
+            text: 'Change Workout',
+            style: 'destructive',
+            onPress: () => {
+              assignWorkoutToDate(assignmentDateKey, workoutId);
+              setDateCompleted(assignmentDateKey, false);
+              setAssignmentDateKey(null);
+              setAssignmentDateLabel(null);
+            },
+          },
+        ],
+      );
+      return;
+    }
 
     assignWorkoutToDate(assignmentDateKey, workoutId);
     setAssignmentDateKey(null);
