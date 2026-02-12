@@ -21,7 +21,7 @@ import { useUIStore } from '@/store/uiState';
 
 const MAX_EXERCISES = 12;
 const REVEAL_WIDTH = 84;
-const SNAP_BACK_THRESHOLD_RATIO = 0.25;
+const SNAP_BACK_THRESHOLD_RATIO = 0.15;
 const AUTO_DELETE_THRESHOLD_RATIO = 0.6;
 
 type SavedFilter = 'workouts' | 'exercises';
