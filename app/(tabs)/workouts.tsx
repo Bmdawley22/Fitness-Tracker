@@ -353,12 +353,23 @@ export default function SavedScreen() {
     );
   };
 
+  const openWorkoutEditor = (workout: SavedWorkout) => {
+    setEditingWorkout(workout);
+    setEditName(workout.name);
+    setEditDescription(workout.description);
+  };
+
   const handleEdit = () => {
     if (menuWorkout) {
-      setEditingWorkout(menuWorkout);
-      setEditName(menuWorkout.name);
-      setEditDescription(menuWorkout.description);
+      openWorkoutEditor(menuWorkout);
       setMenuWorkout(null);
+    }
+  };
+
+  const handleDetailEditPress = () => {
+    if (detailWorkout) {
+      openWorkoutEditor(detailWorkout);
+      setDetailWorkout(null);
     }
   };
 
@@ -1206,7 +1217,12 @@ export default function SavedScreen() {
               <Text style={styles.closeXText}>✕</Text>
             </TouchableOpacity>
             
-            <Text style={styles.modalTitle}>{detailWorkout?.name}</Text>
+            <View style={styles.workoutDetailHeaderRow}>
+              <Text style={[styles.modalTitle, styles.workoutDetailTitle]}>{detailWorkout?.name}</Text>
+              <TouchableOpacity style={styles.workoutDetailEditButton} onPress={handleDetailEditPress}>
+                <Text style={styles.workoutDetailEditButtonText}>Edit</Text>
+              </TouchableOpacity>
+            </View>
             <Text style={styles.modalDescription}>{detailWorkout?.description}</Text>
             
             <Text style={styles.exercisesHeader}>Exercises</Text>
@@ -1696,6 +1712,28 @@ const styles = StyleSheet.create({
     color: '#888',
     fontSize: 14,
     marginBottom: 20,
+  },
+  workoutDetailHeaderRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 12,
+    paddingRight: 30,
+    gap: 12,
+  },
+  workoutDetailTitle: {
+    flex: 1,
+    marginBottom: 0,
+    paddingRight: 0,
+  },
+  workoutDetailEditButton: {
+    paddingVertical: 4,
+    paddingHorizontal: 8,
+  },
+  workoutDetailEditButtonText: {
+    color: '#5ca9ff',
+    fontSize: 15,
+    fontWeight: '600',
   },
   exerciseSectionTitle: {
     color: '#fff',
