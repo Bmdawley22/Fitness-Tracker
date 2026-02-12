@@ -20,8 +20,9 @@ import { workouts } from '@/data/workouts';
 import { useUIStore } from '@/store/uiState';
 
 const MAX_EXERCISES = 12;
-const PARTIAL_REVEAL_RATIO = 0.25;
-const AUTO_TRIGGER_RATIO = 0.8;
+const REVEAL_WIDTH = 84;
+const SNAP_BACK_THRESHOLD_RATIO = 0.15;
+const AUTO_DELETE_THRESHOLD_RATIO = 0.6;
 
 type SavedFilter = 'workouts' | 'exercises';
 type PendingSwipeDelete = { id: string; name: string; type: 'workout' | 'exercise' };
@@ -33,15 +34,21 @@ type SwipeToDeleteRowProps = {
   onRequestDelete: () => void;
   onLongPress?: () => void;
   disabled?: boolean;
+  resetToken?: number;
 };
 
-function SwipeToDeleteRow({ title, subtitle, onPress, onRequestDelete, onLongPress, disabled }: SwipeToDeleteRowProps) {
+function SwipeToDeleteRow({ title, subtitle, onPress, onRequestDelete, onLongPress, disabled, resetToken }: SwipeToDeleteRowProps) {
   const translateX = useRef(new Animated.Value(0)).current;
   const rowWidthRef = useRef(0);
-  const deletingTriggeredRef = useRef(false);
+  const [rowWidth, setRowWidth] = useState(0);
+  const [isFullDeleteVisual, setIsFullDeleteVisual] = useState(false);
+  const confirmTriggeredRef = useRef(false);
+  const currentTranslateRef = useRef(0);
+
+  const revealWidth = Math.min(REVEAL_WIDTH, rowWidth || REVEAL_WIDTH);
 
   const animateTo = useCallback(
-    (value: number) => {
+    (value: number, onDone?: () => void) => {
       Animated.spring(translateX, {
         toValue: value,
         useNativeDriver: true,
@@ -49,17 +56,54 @@ function SwipeToDeleteRow({ title, subtitle, onPress, onRequestDelete, onLongPre
         stiffness: 260,
         mass: 0.8,
         overshootClamping: true,
-      }).start();
+      }).start(() => onDone?.());
     },
     [translateX],
   );
 
-  const handleDeleteRequest = useCallback(() => {
-    if (deletingTriggeredRef.current) return;
-    deletingTriggeredRef.current = true;
-    animateTo(0);
+  const requestDeleteOnce = useCallback(() => {
+    if (confirmTriggeredRef.current) return;
+    confirmTriggeredRef.current = true;
     onRequestDelete();
-  }, [animateTo, onRequestDelete]);
+  }, [onRequestDelete]);
+
+  useEffect(() => {
+    confirmTriggeredRef.current = false;
+    setIsFullDeleteVisual(false);
+    animateTo(0);
+  }, [animateTo, resetToken]);
+
+  useEffect(() => {
+    const id = translateX.addListener(({ value }) => {
+      currentTranslateRef.current = value;
+    });
+
+    return () => {
+      translateX.removeListener(id);
+    };
+  }, [translateX]);
+
+  const handleGestureRelease = useCallback(() => {
+    const width = rowWidthRef.current;
+    if (width <= 0) return;
+
+    const drag = Math.max(0, -currentTranslateRef.current);
+
+    if (drag < width * SNAP_BACK_THRESHOLD_RATIO) {
+      setIsFullDeleteVisual(false);
+      animateTo(0);
+      return;
+    }
+
+    if (drag >= width * AUTO_DELETE_THRESHOLD_RATIO) {
+      setIsFullDeleteVisual(true);
+      animateTo(-width, requestDeleteOnce);
+      return;
+    }
+
+    setIsFullDeleteVisual(false);
+    animateTo(-revealWidth);
+  }, [animateTo, requestDeleteOnce, revealWidth]);
 
   const panResponder = useMemo(
     () =>
@@ -69,47 +113,38 @@ function SwipeToDeleteRow({ title, subtitle, onPress, onRequestDelete, onLongPre
           return Math.abs(gestureState.dx) > 6 && Math.abs(gestureState.dx) > Math.abs(gestureState.dy);
         },
         onPanResponderGrant: () => {
-          deletingTriggeredRef.current = false;
+          confirmTriggeredRef.current = false;
+          setIsFullDeleteVisual(false);
         },
         onPanResponderMove: (_, gestureState) => {
           const width = rowWidthRef.current;
-          if (width <= 0) return;
+          if (width <= 0 || confirmTriggeredRef.current) return;
           const next = Math.min(0, Math.max(-width, gestureState.dx));
           translateX.setValue(next);
         },
-        onPanResponderRelease: (_, gestureState) => {
-          const width = rowWidthRef.current;
-          if (width <= 0) return;
-
-          const drag = Math.max(0, -gestureState.dx);
-
-          if (drag >= width * AUTO_TRIGGER_RATIO) {
-            handleDeleteRequest();
-            return;
-          }
-
-          if (drag >= width * PARTIAL_REVEAL_RATIO) {
-            animateTo(-width * PARTIAL_REVEAL_RATIO);
-            return;
-          }
-
-          animateTo(0);
+        onPanResponderRelease: () => {
+          handleGestureRelease();
+        },
+        onPanResponderTerminate: () => {
+          handleGestureRelease();
         },
       }),
-    [animateTo, disabled, handleDeleteRequest, translateX],
+    [disabled, handleGestureRelease, translateX],
   );
 
   const onLayoutRow = (event: LayoutChangeEvent) => {
-    rowWidthRef.current = event.nativeEvent.layout.width;
+    const width = event.nativeEvent.layout.width;
+    rowWidthRef.current = width;
+    setRowWidth(width);
   };
 
-  const actionWidth = Math.max(0, rowWidthRef.current * PARTIAL_REVEAL_RATIO);
+  const actionWidth = isFullDeleteVisual ? '100%' : revealWidth;
 
   return (
     <View style={styles.swipeRowContainer} onLayout={onLayoutRow}>
       <TouchableOpacity
-        style={[styles.deleteActionArea, { width: actionWidth || '25%' }]}
-        onPress={handleDeleteRequest}
+        style={[styles.deleteActionArea, { width: actionWidth }]}
+        onPress={requestDeleteOnce}
         activeOpacity={0.85}
         disabled={disabled}>
         <Ionicons name="trash-outline" size={22} color="#fff" />
@@ -168,6 +203,7 @@ export default function SavedScreen() {
   const [pendingWorkoutInfo, setPendingWorkoutInfo] = useState<{ id: string; name: string } | null>(null);
   const [pendingSwipeDelete, setPendingSwipeDelete] = useState<PendingSwipeDelete | null>(null);
   const [isDeletingFromSwipe, setIsDeletingFromSwipe] = useState(false);
+  const [swipeResetToken, setSwipeResetToken] = useState(0);
 
   // Check for pending workout edit and open edit modal
   useEffect(() => {
@@ -463,6 +499,7 @@ export default function SavedScreen() {
     setSelectedFilter(filter);
     setSelectedWorkoutIds([]);
     setSelectedExerciseIds([]);
+    setSwipeResetToken(prev => prev + 1);
   };
 
   const handleToggleEditMode = () => {
@@ -472,6 +509,7 @@ export default function SavedScreen() {
       setSelectedWorkoutIds([]);
       setSelectedExerciseIds([]);
     }
+    setSwipeResetToken(prev => prev + 1);
     setMenuWorkout(null);
     setMenuExercise(null);
   };
@@ -532,11 +570,13 @@ export default function SavedScreen() {
 
     setPendingSwipeDelete(null);
     setIsDeletingFromSwipe(false);
+    setSwipeResetToken(prev => prev + 1);
   };
 
   const handleCancelSwipeDelete = () => {
     if (isDeletingFromSwipe) return;
     setPendingSwipeDelete(null);
+    setSwipeResetToken(prev => prev + 1);
   };
 
   // Sort workouts by order
@@ -622,6 +662,7 @@ export default function SavedScreen() {
               onPress={() => setDetailWorkout(workout)}
               onLongPress={() => handleOpenMenu(workout)}
               onRequestDelete={() => requestSwipeDelete({ id: workout.id, name: workout.name, type: 'workout' })}
+              resetToken={swipeResetToken}
             />
           );
         })}
@@ -670,6 +711,7 @@ export default function SavedScreen() {
               }
               onLongPress={() => handleOpenExerciseMenu({ id: exercise.id, name: exercise.name, originalId: exercise.originalId })}
               onRequestDelete={() => requestSwipeDelete({ id: exercise.id, name: exercise.name, type: 'exercise' })}
+              resetToken={swipeResetToken}
             />
           );
         })}
