@@ -942,8 +942,7 @@ export default function SavedScreen() {
                   styles.listItem,
                   styles.editModeListItem,
                   selectedWorkoutIds.includes(workout.id) && styles.editModeListItemSelected,
-                ]}
-                onPress={() => setDetailWorkout(workout)}>
+                ]}>
                 <View style={styles.workoutContent}>
                   <Text style={styles.listItemText}>{workout.name}</Text>
                   <Text style={styles.listItemDescription}>{workout.description}</Text>
@@ -1004,19 +1003,7 @@ export default function SavedScreen() {
                   styles.listItem,
                   styles.editModeListItem,
                   selectedExerciseIds.includes(exercise.id) && styles.editModeListItemSelected,
-                ]}
-                onPress={() =>
-                  setDetailExercise({
-                    id: exercise.id,
-                    name: exercise.name,
-                    description: exercise.description ?? '',
-                    originalId: exercise.originalId,
-                    primaryMuscles: exercise.primaryMuscles,
-                    secondaryMuscles: exercise.secondaryMuscles,
-                    instructions: exercise.instructions,
-                    image: exercise.image,
-                  })
-                }>
+                ]}>
                 <View style={styles.workoutContent}>
                   <Text style={styles.listItemText}>{exercise.name}</Text>
                 </View>
