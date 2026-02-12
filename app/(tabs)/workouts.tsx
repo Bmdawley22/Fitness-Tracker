@@ -1851,12 +1851,14 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   exerciseFilterChip: {
-    paddingVertical: 10,
+    paddingVertical: 12,
     paddingHorizontal: 14,
     borderRadius: 20,
     backgroundColor: '#1a1a1a',
     borderWidth: 1,
     borderColor: '#333',
+    minHeight: 42,
+    justifyContent: 'center',
   },
   exerciseFilterChipActive: {
     backgroundColor: '#fff',
@@ -1866,7 +1868,7 @@ const styles = StyleSheet.create({
     color: '#fff',
     fontSize: 14,
     fontWeight: '600',
-    lineHeight: 18,
+    lineHeight: 20,
   },
   exerciseFilterChipTextActive: {
     color: '#000',
