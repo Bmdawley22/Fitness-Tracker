@@ -1,5 +1,5 @@
 import { Alert, Dimensions, Modal, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
-import React, { forwardRef, useEffect, useImperativeHandle, useMemo, useState } from 'react';
+import React, { forwardRef, useEffect, useImperativeHandle, useMemo, useRef, useState } from 'react';
 import { useExerciseCatalogStore } from '@/store/exerciseCatalog';
 import { useSavedWorkoutsStore, CustomExercise } from '@/store/savedWorkouts';
 import { ExerciseLogEntry, toLocalDateKey, useScheduleStore, WEEK_DAYS } from '@/store/schedule';
@@ -39,7 +39,11 @@ export type CreateFlowHandle = {
   openCreateExercise: () => void;
 };
 
-export const CreateFlowModals = forwardRef<CreateFlowHandle>(function CreateFlowModals(_, ref) {
+type CreateFlowModalsProps = {
+  onWorkoutCreated?: (workoutId: string) => void;
+};
+
+export const CreateFlowModals = forwardRef<CreateFlowHandle, CreateFlowModalsProps>(function CreateFlowModals({ onWorkoutCreated }, ref) {
   const [createModalVisible, setCreateModalVisible] = useState(false);
   const [workoutName, setWorkoutName] = useState('');
   const [workoutDescription, setWorkoutDescription] = useState('');
@@ -57,7 +61,7 @@ export const CreateFlowModals = forwardRef<CreateFlowHandle>(function CreateFlow
     savedExercises,
     savedWorkouts,
     customExercises,
-    addWorkout,
+    addWorkoutWithId,
     addCustomExercise,
     addExercise,
     addExerciseToWorkout,
@@ -274,18 +278,21 @@ export const CreateFlowModals = forwardRef<CreateFlowHandle>(function CreateFlow
       return;
     }
 
-    const success = addWorkout({
+    const createdWorkoutId = addWorkoutWithId({
       originalId: `custom-${Date.now()}`,
       name: toTitleCase(trimmedName),
       description: workoutDescription.trim(),
       exercises: selectedExercises,
     });
 
-    if (success) {
+    if (createdWorkoutId) {
       Alert.alert('Workout created', 'Your new workout has been saved.', [
         {
           text: 'OK',
-          onPress: closeAddFlow,
+          onPress: () => {
+            onWorkoutCreated?.(createdWorkoutId);
+            closeAddFlow();
+          },
         },
       ]);
     } else {
@@ -525,6 +532,7 @@ export default function AddScreen() {
   const [activePickerField, setActivePickerField] = useState<'reps' | 'weight' | null>(null);
   const [activePickerRowIndex, setActivePickerRowIndex] = useState<number | null>(null);
   const [selectedSetIndexToRemove, setSelectedSetIndexToRemove] = useState<number | null>(null);
+  const createFlowRef = useRef<CreateFlowHandle>(null);
   const {
     savedWorkouts,
     savedExercises,
@@ -556,7 +564,7 @@ export default function AddScreen() {
 
   const today = new Date();
   const todayDateKey = toLocalDateKey(today);
-  const weekdayTitle = WEEK_DAYS[today.getDay()].replace(/\.+$/, '');
+  const weekdayTitle = WEEK_DAYS[today.getDay()].replace(/[.\uFF0E\u2024]+$/, '');
   const assignedWorkoutId = schedule[todayDateKey] ?? null;
   const assignedWorkout = useMemo(
     () => savedWorkouts.find(workout => workout.id === assignedWorkoutId) ?? null,
@@ -809,6 +817,11 @@ export default function AddScreen() {
     closeWorkoutSelector();
   };
 
+  const handleAddNewWorkoutFromAssign = () => {
+    closeWorkoutSelector();
+    createFlowRef.current?.openCreateWorkout();
+  };
+
   const handleToggleExercise = (exerciseRowId: string) => {
     setCheckedExercises(prev => ({
       ...prev,
@@ -905,9 +918,13 @@ export default function AddScreen() {
               )}
             </ScrollView>
 
+            <TouchableOpacity style={styles.addNewWorkoutButton} onPress={handleAddNewWorkoutFromAssign}>
+              <Text style={styles.addNewWorkoutButtonText}>Add New Workout</Text>
+            </TouchableOpacity>
+
             {assignedWorkout ? (
               <TouchableOpacity style={styles.clearButton} onPress={handleClearToday}>
-                <Text style={styles.clearButtonText}>Clear Day</Text>
+                <Text style={styles.clearButtonText}>Clear Today&apos;s Workout</Text>
               </TouchableOpacity>
             ) : null}
 
@@ -917,6 +934,14 @@ export default function AddScreen() {
           </View>
         </View>
       </Modal>
+
+      <CreateFlowModals
+        ref={createFlowRef}
+        onWorkoutCreated={(workoutId) => {
+          assignWorkoutToDate(todayDateKey, workoutId);
+          setDateCompleted(todayDateKey, false);
+        }}
+      />
 
       <Modal visible={exerciseLogVisible} transparent animationType="fade" onRequestClose={closeExerciseLog}>
         <View style={styles.modalOverlay}>
@@ -1122,16 +1147,16 @@ const styles = StyleSheet.create({
   },
   changeTodayButton: {
     alignSelf: 'center',
-    backgroundColor: '#111',
+    backgroundColor: '#fff',
     borderWidth: 1,
-    borderColor: '#333',
+    borderColor: '#fff',
     borderRadius: 10,
     paddingHorizontal: 14,
     paddingVertical: 8,
     marginBottom: 12,
   },
   changeTodayButtonText: {
-    color: '#fff',
+    color: '#000',
     fontSize: 14,
     fontWeight: '600',
   },
@@ -1188,18 +1213,18 @@ const styles = StyleSheet.create({
   },
   addTodayButton: {
     borderWidth: 1,
-    borderColor: '#fff',
+    borderColor: '#2CD66F',
     borderRadius: 12,
-    backgroundColor: '#111',
-    paddingVertical: 16,
-    paddingHorizontal: 22,
-    minWidth: 240,
+    backgroundColor: '#2CD66F',
+    paddingVertical: 18,
+    paddingHorizontal: 26,
+    minWidth: 270,
     alignItems: 'center',
   },
   addTodayButtonText: {
     color: '#fff',
-    fontSize: 18,
-    fontWeight: '600',
+    fontSize: 20,
+    fontWeight: '700',
     textAlign: 'center',
   },
   completeButton: {
@@ -1480,6 +1505,18 @@ const styles = StyleSheet.create({
     color: '#888',
     textAlign: 'center',
     paddingVertical: 16,
+  },
+  addNewWorkoutButton: {
+    backgroundColor: '#2CD66F',
+    borderRadius: 8,
+    padding: 12,
+    alignItems: 'center',
+    marginBottom: 8,
+  },
+  addNewWorkoutButtonText: {
+    color: '#062b12',
+    fontSize: 16,
+    fontWeight: '700',
   },
   clearButton: {
     backgroundColor: '#333',
