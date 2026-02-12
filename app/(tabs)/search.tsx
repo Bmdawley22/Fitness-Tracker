@@ -1,7 +1,7 @@
 import { Alert, View, Text, StyleSheet, ScrollView, TouchableOpacity, Modal } from 'react-native';
 import React, { useEffect, useMemo, useState } from 'react';
-import { exercises } from '@/data/exercises';
 import { useSavedWorkoutsStore } from '@/store/savedWorkouts';
+import { useExerciseCatalogStore } from '@/store/exerciseCatalog';
 import { toLocalDateKey, useScheduleStore, WEEK_DAYS } from '@/store/schedule';
 import { Ionicons } from '@expo/vector-icons';
 
@@ -49,6 +49,7 @@ const formatShortDate = (date: Date): string => {
 
 export default function SearchScreen() {
   const { savedWorkouts, savedExercises, customExercises, hasHydrated: savedHydrated } = useSavedWorkoutsStore();
+  const { seededExercises, hasHydrated: catalogHydrated, runSeedIfNeeded } = useExerciseCatalogStore();
   const {
     schedule,
     completedDates,
@@ -58,6 +59,14 @@ export default function SearchScreen() {
     cleanupInvalidAssignments,
     hasHydrated: scheduleHydrated,
   } = useScheduleStore();
+
+  useEffect(() => {
+    if (catalogHydrated) {
+      runSeedIfNeeded();
+    }
+  }, [catalogHydrated, runSeedIfNeeded]);
+
+  const availableSeededExercises = useMemo(() => (catalogHydrated ? seededExercises : []), [catalogHydrated, seededExercises]);
 
   const [assignmentDateKey, setAssignmentDateKey] = useState<string | null>(null);
   const [assignmentDateLabel, setAssignmentDateLabel] = useState<string | null>(null);
@@ -89,7 +98,7 @@ export default function SearchScreen() {
   const exerciseById = useMemo(() => {
     const map = new Map<string, { id: string; name: string }>();
 
-    exercises.forEach(exercise => {
+    availableSeededExercises.forEach(exercise => {
       map.set(exercise.id, exercise);
     });
 
@@ -105,7 +114,7 @@ export default function SearchScreen() {
     });
 
     return map;
-  }, [savedExercises, customExercises]);
+  }, [availableSeededExercises, savedExercises, customExercises]);
 
   const detailWorkout = detailWorkoutId ? workoutById.get(detailWorkoutId) : null;
   const weekRange = useMemo(() => getWeekRange(selectedDate), [selectedDate]);
@@ -152,9 +161,9 @@ export default function SearchScreen() {
   }, [detailWorkout, exerciseById]);
 
   useEffect(() => {
-    if (!savedHydrated || !scheduleHydrated) return;
+    if (!savedHydrated || !scheduleHydrated || !catalogHydrated) return;
     cleanupInvalidAssignments(savedWorkouts.map(workout => workout.id));
-  }, [savedHydrated, scheduleHydrated, savedWorkouts, cleanupInvalidAssignments]);
+  }, [savedHydrated, scheduleHydrated, catalogHydrated, savedWorkouts, cleanupInvalidAssignments]);
 
   const shiftSelectedWeek = (days: number) => {
     setSelectedDate(prev =>
@@ -203,7 +212,7 @@ export default function SearchScreen() {
     setAssignmentDateLabel(null);
   };
 
-  if (!savedHydrated || !scheduleHydrated) {
+  if (!savedHydrated || !scheduleHydrated || !catalogHydrated) {
     return (
       <View style={styles.container}>
         <View style={styles.headerRow}>

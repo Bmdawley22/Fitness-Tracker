@@ -20,7 +20,12 @@ export interface SavedExercise {
   originalId: string;
   name: string;
   description: string;
-  category: string;
+  category?: string;
+  primaryMuscles?: string[];
+  secondaryMuscles?: string[];
+  equipment?: string;
+  instructions?: string;
+  image?: string;
   createdAt: number;
 }
 
@@ -29,6 +34,11 @@ export interface CustomExercise {
   name: string;
   description: string;
   category: string;
+  primaryMuscles?: string[];
+  secondaryMuscles?: string[];
+  equipment?: string;
+  instructions?: string;
+  image?: string;
   createdAt: number;
 }
 

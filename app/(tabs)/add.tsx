@@ -1,6 +1,6 @@
 import { Alert, Dimensions, Modal, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import React, { forwardRef, useEffect, useImperativeHandle, useMemo, useState } from 'react';
-import { exercises as allExercises } from '@/data/exercises';
+import { useExerciseCatalogStore } from '@/store/exerciseCatalog';
 import { useSavedWorkoutsStore, CustomExercise } from '@/store/savedWorkouts';
 import { ExerciseLogEntry, toLocalDateKey, useScheduleStore, WEEK_DAYS } from '@/store/schedule';
 
@@ -14,7 +14,25 @@ const WEIGHT_OPTIONS = Array.from({ length: 100 }, (_, index) => (index + 1) * 5
 
 type ExerciseSetDraft = { reps: string; weight: string };
 
-export type SelectableExercise = (typeof allExercises)[number] | CustomExercise;
+type ExerciseLike = {
+  id: string;
+  name: string;
+  description?: string;
+  category?: string;
+  primaryMuscles?: string[];
+  secondaryMuscles?: string[];
+  equipment?: string;
+  instructions?: string;
+};
+
+const resolveMuscleGroups = (exercise: ExerciseLike): string[] => {
+  const primary = Array.isArray(exercise.primaryMuscles) ? exercise.primaryMuscles.filter(Boolean) : [];
+  if (primary.length > 0) return primary;
+  if (exercise.category) return [exercise.category];
+  return ['Other'];
+};
+
+export type SelectableExercise = ExerciseLike | CustomExercise;
 
 export type CreateFlowHandle = {
   openCreateWorkout: () => void;
@@ -44,16 +62,39 @@ export const CreateFlowModals = forwardRef<CreateFlowHandle>(function CreateFlow
     addExercise,
     addExerciseToWorkout,
   } = useSavedWorkoutsStore();
+  const { seededExercises, hasHydrated: catalogHydrated, runSeedIfNeeded } = useExerciseCatalogStore();
+
+  useEffect(() => {
+    if (catalogHydrated) {
+      runSeedIfNeeded();
+    }
+  }, [catalogHydrated, runSeedIfNeeded]);
+
+  const availableSeededExercises = useMemo(() => (catalogHydrated ? seededExercises : []), [catalogHydrated, seededExercises]);
 
   const MAX_EXERCISES = 12;
-  const categoryOptions = ['Core', 'Chest', 'Shoulders', 'Biceps', 'Triceps', 'Back', 'Legs', 'Abs'];
+  const categoryOptions = useMemo(() => {
+    const unique = new Set<string>();
+    availableSeededExercises.forEach(exercise => {
+      resolveMuscleGroups(exercise).forEach(group => unique.add(group));
+    });
+    customExercises.forEach(exercise => {
+      resolveMuscleGroups(exercise).forEach(group => unique.add(group));
+    });
+    const groups = Array.from(unique);
+    groups.sort((a, b) => a.localeCompare(b));
+    return groups.length ? groups : ['Other'];
+  }, [availableSeededExercises, customExercises]);
 
   const savedExerciseIds = useMemo(
     () => new Set(savedExercises.map(exercise => exercise.originalId)),
     [savedExercises],
   );
 
-  const allSelectableExercises = useMemo(() => [...allExercises, ...customExercises], [customExercises]);
+  const allSelectableExercises = useMemo(
+    () => [...availableSeededExercises, ...customExercises],
+    [availableSeededExercises, customExercises],
+  );
 
   const allExercisesWithoutSaved = useMemo(
     () => allSelectableExercises.filter(exercise => !savedExerciseIds.has(exercise.id)),
@@ -75,13 +116,19 @@ export const CreateFlowModals = forwardRef<CreateFlowHandle>(function CreateFlow
   const filteredSavedExercises = useMemo(() => {
     const base = savedExercises.filter(exercise => !selectedExerciseSet.has(exercise.originalId));
     if (!normalizedSearch) return base;
-    return base.filter(exercise => `${exercise.name} ${exercise.category}`.toLowerCase().includes(normalizedSearch));
+    return base.filter(exercise => {
+      const muscles = resolveMuscleGroups(exercise).join(' ');
+      return `${exercise.name} ${muscles}`.toLowerCase().includes(normalizedSearch);
+    });
   }, [savedExercises, selectedExerciseSet, normalizedSearch]);
 
   const filteredAllExercises = useMemo(() => {
     const base = allExercisesWithoutSaved.filter(exercise => !selectedExerciseSet.has(exercise.id));
     if (!normalizedSearch) return base;
-    return base.filter(exercise => `${exercise.name} ${exercise.category}`.toLowerCase().includes(normalizedSearch));
+    return base.filter(exercise => {
+      const muscles = resolveMuscleGroups(exercise).join(' ');
+      return `${exercise.name} ${muscles}`.toLowerCase().includes(normalizedSearch);
+    });
   }, [allExercisesWithoutSaved, selectedExerciseSet, normalizedSearch]);
 
   const toTitleCase = (value: string) =>
@@ -140,7 +187,7 @@ export const CreateFlowModals = forwardRef<CreateFlowHandle>(function CreateFlow
     }
 
     if (!exerciseCategory) {
-      Alert.alert('Category required', 'Select a category for the exercise.');
+      Alert.alert('Muscle group required', 'Select a primary muscle group for the exercise.');
       return;
     }
 
@@ -148,6 +195,8 @@ export const CreateFlowModals = forwardRef<CreateFlowHandle>(function CreateFlow
       name: exerciseName.trim(),
       description: exerciseDescription.trim(),
       category: exerciseCategory,
+      primaryMuscles: exerciseCategory ? [exerciseCategory] : [],
+      secondaryMuscles: [],
     });
 
     const savedAdded = addToSavedExercises
@@ -156,6 +205,11 @@ export const CreateFlowModals = forwardRef<CreateFlowHandle>(function CreateFlow
           name: newExercise.name,
           description: newExercise.description,
           category: newExercise.category,
+          primaryMuscles: newExercise.primaryMuscles,
+          secondaryMuscles: newExercise.secondaryMuscles,
+          equipment: newExercise.equipment,
+          instructions: newExercise.instructions,
+          image: newExercise.image,
         })
       : false;
 
@@ -276,7 +330,7 @@ export const CreateFlowModals = forwardRef<CreateFlowHandle>(function CreateFlow
               />
               <TextInput
                 style={[styles.input, styles.searchInput]}
-                placeholder="Search exercises by name or category"
+                placeholder="Search exercises by name or muscle group"
                 placeholderTextColor="#888"
                 value={searchText}
                 onChangeText={setSearchText}
@@ -374,8 +428,8 @@ export const CreateFlowModals = forwardRef<CreateFlowHandle>(function CreateFlow
                 onChangeText={setExerciseDescription}
                 multiline
               />
-              <Text style={styles.sectionLabel}>Category</Text>
-              <View style={[styles.dropdownContainer, categoryDropdownVisible && { zIndex: 20 }]}> 
+              <Text style={styles.sectionLabel}>Primary Muscle Group</Text>
+              <View style={[styles.dropdownContainer, categoryDropdownVisible && { zIndex: 20 }]}>
                 <TouchableOpacity
                   style={styles.dropdownToggle}
                   onPress={() => {
@@ -383,7 +437,7 @@ export const CreateFlowModals = forwardRef<CreateFlowHandle>(function CreateFlow
                     setWorkoutDropdownVisible(false);
                   }}>
                   <Text style={[styles.dropdownText, !exerciseCategory && styles.dropdownPlaceholder]}>
-                    {exerciseCategory || 'Select a category'}
+                    {exerciseCategory || 'Select a muscle group'}
                   </Text>
                 </TouchableOpacity>
                 {categoryDropdownVisible && (
@@ -405,7 +459,7 @@ export const CreateFlowModals = forwardRef<CreateFlowHandle>(function CreateFlow
                 )}
               </View>
               <Text style={[styles.sectionLabel, { marginTop: 12 }]}>Add to Existing Workout</Text>
-              <View style={[styles.dropdownContainer, workoutDropdownVisible && { zIndex: 20 }]}> 
+              <View style={[styles.dropdownContainer, workoutDropdownVisible && { zIndex: 20 }]}>
                 <TouchableOpacity
                   style={styles.dropdownToggle}
                   onPress={() => {
@@ -490,6 +544,15 @@ export default function AddScreen() {
     cleanupInvalidAssignments,
     hasHydrated: scheduleHydrated,
   } = useScheduleStore();
+  const { seededExercises: catalogExercises, hasHydrated: catalogHydrated, runSeedIfNeeded } = useExerciseCatalogStore();
+
+  useEffect(() => {
+    if (catalogHydrated) {
+      runSeedIfNeeded();
+    }
+  }, [catalogHydrated, runSeedIfNeeded]);
+
+  const availableSeededExercisesInScreen = useMemo(() => (catalogHydrated ? catalogExercises : []), [catalogHydrated, catalogExercises]);
 
   const today = new Date();
   const todayDateKey = toLocalDateKey(today);
@@ -504,7 +567,7 @@ export default function AddScreen() {
   const exerciseById = useMemo(() => {
     const map = new Map<string, { id: string; name: string; description?: string }>();
 
-    allExercises.forEach(exercise => {
+    availableSeededExercisesInScreen.forEach(exercise => {
       map.set(exercise.id, exercise);
     });
 
@@ -520,7 +583,7 @@ export default function AddScreen() {
     });
 
     return map;
-  }, [savedExercises, customExercises]);
+  }, [availableSeededExercisesInScreen, savedExercises, customExercises]);
 
   const todayExercises = useMemo(() => {
     if (!assignedWorkout) return [];
@@ -869,7 +932,7 @@ export default function AddScreen() {
                     <TouchableOpacity
                       style={[styles.setCountButton, draftSetCount <= MIN_SET_COUNT && styles.setCountButtonDisabled]}
                       onPress={handleSetCountDecrease}>
-                      <Text style={styles.setCountButtonText}>−</Text>
+                      <Text style={styles.setCountButtonText}>-</Text>
                     </TouchableOpacity>
                     <Text style={styles.setCountValue}>{draftSetCount}</Text>
                     <TouchableOpacity
