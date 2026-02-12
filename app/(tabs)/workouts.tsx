@@ -1842,14 +1842,16 @@ const styles = StyleSheet.create({
   },
   exerciseFilterChipScroll: {
     paddingHorizontal: 16,
+    paddingVertical: 6,
     marginBottom: 8,
   },
   exerciseFilterChipRow: {
     flexDirection: 'row',
     gap: 8,
+    alignItems: 'center',
   },
   exerciseFilterChip: {
-    paddingVertical: 8,
+    paddingVertical: 10,
     paddingHorizontal: 14,
     borderRadius: 20,
     backgroundColor: '#1a1a1a',
@@ -1864,6 +1866,7 @@ const styles = StyleSheet.create({
     color: '#fff',
     fontSize: 14,
     fontWeight: '600',
+    lineHeight: 18,
   },
   exerciseFilterChipTextActive: {
     color: '#000',
