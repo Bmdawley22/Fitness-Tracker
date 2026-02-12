@@ -1596,6 +1596,9 @@ const styles = StyleSheet.create({
   swipeRowContainer: {
     position: 'relative',
     overflow: 'hidden',
+    borderRadius: 8,
+    marginHorizontal: 8,
+    marginBottom: 6,
   },
   deleteActionArea: {
     position: 'absolute',
@@ -1616,13 +1619,13 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: '#222',
     borderRadius: 8,
-    marginHorizontal: 8,
-    marginBottom: 6,
     backgroundColor: '#000',
   },
   editModeListItem: {
     borderWidth: 1,
     borderColor: '#333',
+    marginHorizontal: 8,
+    marginBottom: 6,
   },
   editModeListItemSelected: {
     borderColor: '#d32f2f',
