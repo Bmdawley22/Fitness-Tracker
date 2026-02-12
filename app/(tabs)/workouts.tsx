@@ -1217,12 +1217,7 @@ export default function SavedScreen() {
               <Text style={styles.closeXText}>✕</Text>
             </TouchableOpacity>
             
-            <View style={styles.workoutDetailHeaderRow}>
-              <Text style={[styles.modalTitle, styles.workoutDetailTitle]}>{detailWorkout?.name}</Text>
-              <TouchableOpacity style={styles.workoutDetailEditButton} onPress={handleDetailEditPress}>
-                <Text style={styles.workoutDetailEditButtonText}>Edit</Text>
-              </TouchableOpacity>
-            </View>
+            <Text style={styles.modalTitle}>{detailWorkout?.name}</Text>
             <Text style={styles.modalDescription}>{detailWorkout?.description}</Text>
             
             <Text style={styles.exercisesHeader}>Exercises</Text>
@@ -1233,6 +1228,10 @@ export default function SavedScreen() {
                 </View>
               ))}
             </ScrollView>
+
+            <TouchableOpacity style={styles.workoutDetailEditButton} onPress={handleDetailEditPress}>
+              <Text style={styles.workoutDetailEditButtonText}>Edit</Text>
+            </TouchableOpacity>
           </View>
         </View>
       </Modal>
@@ -1713,24 +1712,13 @@ const styles = StyleSheet.create({
     fontSize: 14,
     marginBottom: 20,
   },
-  workoutDetailHeaderRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'flex-start',
-    marginBottom: 12,
-    paddingRight: 30,
-  },
-  workoutDetailTitle: {
-    marginBottom: 0,
-    paddingRight: 0,
-    flexShrink: 1,
-  },
   workoutDetailEditButton: {
-    marginLeft: 8,
+    alignSelf: 'flex-end',
+    marginTop: 14,
     backgroundColor: '#fff',
     borderRadius: 8,
-    paddingVertical: 4,
-    paddingHorizontal: 10,
+    paddingVertical: 6,
+    paddingHorizontal: 12,
   },
   workoutDetailEditButtonText: {
     color: '#000',
