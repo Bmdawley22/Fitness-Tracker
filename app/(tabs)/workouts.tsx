@@ -12,6 +12,7 @@ import {
   PanResponder,
   LayoutChangeEvent,
   Linking,
+  Pressable,
 } from 'react-native';
 import React, { useState, useEffect, useMemo, useRef, useCallback } from 'react';
 import { Ionicons } from '@expo/vector-icons';
@@ -36,6 +37,18 @@ type DetailExercise = {
   image?: string;
 };
 
+type ExerciseLike = {
+  id: string;
+  name: string;
+  description?: string;
+  category?: string;
+  primaryMuscles?: string[];
+  secondaryMuscles?: string[];
+  equipment?: string;
+  instructions?: string;
+  image?: string;
+};
+
 type SwipeToDeleteRowProps = {
   title: string;
   subtitle?: string;
@@ -45,6 +58,13 @@ type SwipeToDeleteRowProps = {
   onPressMenu?: () => void;
   disabled?: boolean;
   resetToken?: number;
+};
+
+const resolveMuscleGroups = (exercise: ExerciseLike): string[] => {
+  const primary = Array.isArray(exercise.primaryMuscles) ? exercise.primaryMuscles.filter(Boolean) : [];
+  if (primary.length > 0) return primary;
+  if (exercise.category) return [exercise.category];
+  return ['Other'];
 };
 
 function SwipeToDeleteRow({ title, subtitle, onPress, onRequestDelete, onLongPress, onPressMenu, disabled, resetToken }: SwipeToDeleteRowProps) {
@@ -161,17 +181,23 @@ function SwipeToDeleteRow({ title, subtitle, onPress, onRequestDelete, onLongPre
       </TouchableOpacity>
 
       <Animated.View style={[styles.listItem, { transform: [{ translateX }] }]} {...panResponder.panHandlers}>
-        <View style={styles.rowInner}>
-          <TouchableOpacity style={styles.workoutContent} onPress={onPress} onLongPress={onLongPress} activeOpacity={0.8}>
+        <Pressable style={styles.rowInner} onPress={onPress} onLongPress={onLongPress} android_ripple={{ color: 'transparent' }}>
+          <View style={styles.workoutContent}>
             <Text style={styles.listItemText}>{title}</Text>
             {subtitle ? <Text style={styles.listItemDescription}>{subtitle}</Text> : null}
-          </TouchableOpacity>
+          </View>
           {onPressMenu ? (
-            <TouchableOpacity style={styles.menuButton} onPress={onPressMenu} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+            <Pressable
+              style={styles.menuButton}
+              onPress={event => {
+                event?.stopPropagation?.();
+                onPressMenu();
+              }}
+              hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
               <Ionicons name="ellipsis-vertical" size={18} color="#fff" />
-            </TouchableOpacity>
+            </Pressable>
           ) : null}
-        </View>
+        </Pressable>
       </Animated.View>
     </View>
   );
@@ -223,6 +249,7 @@ export default function SavedScreen() {
   // Exercise selection from edit modal states
   const [showExerciseSelectionModal, setShowExerciseSelectionModal] = useState(false);
   const [exerciseSearchText, setExerciseSearchText] = useState('');
+  const [exerciseMuscleFilter, setExerciseMuscleFilter] = useState('All');
   
   // Swipe delete states
   const [pendingSwipeDelete, setPendingSwipeDelete] = useState<PendingSwipeDelete | null>(null);
@@ -371,6 +398,7 @@ export default function SavedScreen() {
   const handleAddExerciseFromEditPage = () => {
     setShowExerciseSelectionModal(true);
     setExerciseSearchText('');
+    setExerciseMuscleFilter('All');
   };
 
   const handleSelectExerciseFromList = (exerciseId: string, exerciseName: string) => {
@@ -402,6 +430,7 @@ export default function SavedScreen() {
     // Close the modal
     setShowExerciseSelectionModal(false);
     setExerciseSearchText('');
+    setExerciseMuscleFilter('All');
   };
 
   const promptRemoveSavedExercise = (exercise: { id: string; name: string }, options?: { closeMenu?: boolean; closeDetail?: boolean }) => {
@@ -476,6 +505,63 @@ export default function SavedScreen() {
     if (!hasHydrated) return exerciseId;
     return exerciseNameById.get(exerciseId) || exerciseId;
   };
+
+  const savedExerciseOriginalIds = useMemo(() => savedExercises.map(exercise => exercise.originalId), [savedExercises]);
+
+  const exerciseCategoryOptions = useMemo(() => {
+    const unique = new Set<string>();
+    availableSeededExercises.forEach(exercise => {
+      resolveMuscleGroups(exercise).forEach(group => unique.add(group));
+    });
+    const groups = Array.from(unique);
+    groups.sort((a, b) => a.localeCompare(b));
+    return ['All', ...groups];
+  }, [availableSeededExercises]);
+
+  const filteredExercisesForSelection = useMemo(() => {
+    let list = availableSeededExercises;
+
+    if (exerciseMuscleFilter !== 'All') {
+      list = list.filter(exercise => resolveMuscleGroups(exercise).includes(exerciseMuscleFilter));
+    }
+
+    if (exerciseSearchText.trim()) {
+      const term = exerciseSearchText.trim().toLowerCase();
+      list = list.filter(exercise => {
+        const haystack = `${exercise.name} ${exercise.description ?? ''} ${resolveMuscleGroups(exercise).join(' ')}`.toLowerCase();
+        return haystack.includes(term);
+      });
+    }
+
+    return list;
+  }, [availableSeededExercises, exerciseMuscleFilter, exerciseSearchText]);
+
+  const exerciseSelectionSections = useMemo(() => {
+    type ExerciseListEntry =
+      | { type: 'header'; title: string; data: never[] }
+      | { type: 'item'; exerciseId: string; exerciseName: string; isSaved: boolean };
+
+    const sections: ExerciseListEntry[] = [];
+
+    const savedInList = filteredExercisesForSelection.filter(e => savedExerciseOriginalIds.includes(e.id));
+    const allInList = filteredExercisesForSelection.filter(e => !savedExerciseOriginalIds.includes(e.id));
+
+    if (savedInList.length > 0) {
+      sections.push({ type: 'header', title: 'Saved', data: [] });
+      savedInList.forEach(e => {
+        sections.push({ type: 'item', exerciseId: e.id, exerciseName: e.name, isSaved: true });
+      });
+    }
+
+    if (allInList.length > 0) {
+      sections.push({ type: 'header', title: 'All Exercises', data: [] });
+      allInList.forEach(e => {
+        sections.push({ type: 'item', exerciseId: e.id, exerciseName: e.name, isSaved: false });
+      });
+    }
+
+    return sections;
+  }, [filteredExercisesForSelection, savedExerciseOriginalIds]);
 
   const handleFilterChange = (filter: SavedFilter) => {
     setSelectedFilter(filter);
@@ -698,23 +784,29 @@ export default function SavedScreen() {
         {selectedFilter === 'workouts' && sortedWorkouts.map(workout => {
           if (isWorkoutEditMode) {
             return (
-              <View key={workout.id} style={styles.listItem}>
-                <TouchableOpacity style={styles.workoutContent} onPress={() => setDetailWorkout(workout)}>
+              <Pressable key={workout.id} style={styles.listItem} onPress={() => setDetailWorkout(workout)}>
+                <View style={styles.workoutContent}>
                   <Text style={styles.listItemText}>{workout.name}</Text>
                   <Text style={styles.listItemDescription}>{workout.description}</Text>
-                </TouchableOpacity>
-                <TouchableOpacity
+                </View>
+                <Pressable
                   style={styles.menuButton}
-                  onPress={() => handleOpenMenu(workout)}
+                  onPress={event => {
+                    event?.stopPropagation?.();
+                    handleOpenMenu(workout);
+                  }}
                   hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
                   <Ionicons name="ellipsis-vertical" size={18} color="#fff" />
-                </TouchableOpacity>
-                <TouchableOpacity
+                </Pressable>
+                <Pressable
                   style={[
                     styles.selectionControl,
                     selectedWorkoutIds.includes(workout.id) && styles.selectionControlSelected,
                   ]}
-                  onPress={() => toggleWorkoutSelection(workout.id)}>
+                  onPress={event => {
+                    event?.stopPropagation?.();
+                    toggleWorkoutSelection(workout.id);
+                  }}>
                   <Text
                     style={[
                       styles.selectionControlMinus,
@@ -722,8 +814,8 @@ export default function SavedScreen() {
                     ]}>
                     -
                   </Text>
-                </TouchableOpacity>
-              </View>
+                </Pressable>
+              </Pressable>
             );
           }
 
@@ -750,35 +842,42 @@ export default function SavedScreen() {
         {selectedFilter === 'exercises' && savedExercises.map(exercise => {
           if (isExerciseEditMode) {
             return (
-              <View key={exercise.id} style={styles.listItem}>
-                <TouchableOpacity
-                  style={styles.workoutContent}
-                  onPress={() =>
-                    setDetailExercise({
-                      id: exercise.id,
-                      name: exercise.name,
-                      description: exercise.description ?? '',
-                      originalId: exercise.originalId,
-                      primaryMuscles: exercise.primaryMuscles,
-                      secondaryMuscles: exercise.secondaryMuscles,
-                      instructions: exercise.instructions,
-                      image: exercise.image,
-                    })
-                  }>
+              <Pressable
+                key={exercise.id}
+                style={styles.listItem}
+                onPress={() =>
+                  setDetailExercise({
+                    id: exercise.id,
+                    name: exercise.name,
+                    description: exercise.description ?? '',
+                    originalId: exercise.originalId,
+                    primaryMuscles: exercise.primaryMuscles,
+                    secondaryMuscles: exercise.secondaryMuscles,
+                    instructions: exercise.instructions,
+                    image: exercise.image,
+                  })
+                }>
+                <View style={styles.workoutContent}>
                   <Text style={styles.listItemText}>{exercise.name}</Text>
-                </TouchableOpacity>
-                <TouchableOpacity
+                </View>
+                <Pressable
                   style={styles.menuButton}
-                  onPress={() => handleOpenExerciseMenu({ id: exercise.id, name: exercise.name, originalId: exercise.originalId })}
+                  onPress={event => {
+                    event?.stopPropagation?.();
+                    handleOpenExerciseMenu({ id: exercise.id, name: exercise.name, originalId: exercise.originalId });
+                  }}
                   hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
                   <Ionicons name="ellipsis-vertical" size={18} color="#fff" />
-                </TouchableOpacity>
-                <TouchableOpacity
+                </Pressable>
+                <Pressable
                   style={[
                     styles.selectionControl,
                     selectedExerciseIds.includes(exercise.id) && styles.selectionControlSelected,
                   ]}
-                  onPress={() => toggleExerciseSelection(exercise.id)}>
+                  onPress={event => {
+                    event?.stopPropagation?.();
+                    toggleExerciseSelection(exercise.id);
+                  }}>
                   <Text
                     style={[
                       styles.selectionControlMinus,
@@ -786,8 +885,8 @@ export default function SavedScreen() {
                     ]}>
                     -
                   </Text>
-                </TouchableOpacity>
-              </View>
+                </Pressable>
+              </Pressable>
             );
           }
 
@@ -1056,12 +1155,14 @@ export default function SavedScreen() {
             onRequestClose={() => {
               setShowExerciseSelectionModal(false);
               setExerciseSearchText('');
+              setExerciseMuscleFilter('All');
             }}>
             <View style={styles.editContainer}>
               <View style={styles.editHeader}>
                 <TouchableOpacity onPress={() => {
                   setShowExerciseSelectionModal(false);
                   setExerciseSearchText('');
+                  setExerciseMuscleFilter('All');
                 }}>
                   <Text style={styles.editCancelText}>Cancel</Text>
                 </TouchableOpacity>
@@ -1077,46 +1178,33 @@ export default function SavedScreen() {
                 onChangeText={setExerciseSearchText}
               />
 
+              <ScrollView
+                horizontal
+                showsHorizontalScrollIndicator={false}
+                contentContainerStyle={styles.exerciseFilterChipRow}
+                style={styles.exerciseFilterChipScroll}
+              >
+                {exerciseCategoryOptions.map(option => (
+                  <Pressable
+                    key={option}
+                    style={[
+                      styles.exerciseFilterChip,
+                      exerciseMuscleFilter === option && styles.exerciseFilterChipActive,
+                    ]}
+                    onPress={() => setExerciseMuscleFilter(option)}>
+                    <Text
+                      style={[
+                        styles.exerciseFilterChipText,
+                        exerciseMuscleFilter === option && styles.exerciseFilterChipTextActive,
+                      ]}>
+                      {option}
+                    </Text>
+                  </Pressable>
+                ))}
+              </ScrollView>
+
               <FlatList
-                data={(() => {
-                  // Filter exercises based on search text
-                  const filteredAllExercises = availableSeededExercises.filter(e =>
-                    e.name.toLowerCase().includes(exerciseSearchText.toLowerCase())
-                  );
-
-                  // Get saved exercises
-                  const savedExerciseIds = savedExercises.map(se => se.originalId);
-
-                  // Split into saved and all
-                  const savedInList = filteredAllExercises.filter(e =>
-                    savedExerciseIds.includes(e.id)
-                  );
-                  const allInList = filteredAllExercises.filter(e =>
-                    !savedExerciseIds.includes(e.id)
-                  );
-
-                  // Create sections
-                  type ExerciseListEntry =
-                    | { type: 'header'; title: string; data: never[] }
-                    | { type: 'item'; exerciseId: string; exerciseName: string; isSaved: boolean };
-                  const sections: ExerciseListEntry[] = [];
-
-                  if (savedInList.length > 0) {
-                    sections.push({ type: 'header', title: 'Saved', data: [] });
-                    savedInList.forEach(e => {
-                      sections.push({ type: 'item', exerciseId: e.id, exerciseName: e.name, isSaved: true });
-                    });
-                  }
-
-                  if (allInList.length > 0) {
-                    sections.push({ type: 'header', title: 'All Exercises', data: [] });
-                    allInList.forEach(e => {
-                      sections.push({ type: 'item', exerciseId: e.id, exerciseName: e.name, isSaved: false });
-                    });
-                  }
-
-                  return sections;
-                })()}
+                data={exerciseSelectionSections}
                 keyExtractor={(item, index) => {
                   if (item.type === 'header') {
                     return `header-${item.title}-${index}`;
@@ -1132,14 +1220,14 @@ export default function SavedScreen() {
                     );
                   }
                   return (
-                    <TouchableOpacity
+                    <Pressable
                       style={styles.exerciseSelectionItem}
                       onPress={() => handleSelectExerciseFromList(item.exerciseId, item.exerciseName)}>
                       <Text style={styles.exerciseSelectionText}>{item.exerciseName}</Text>
                       {item.isSaved && (
                         <Text style={styles.savedBadge}>★</Text>
                       )}
-                    </TouchableOpacity>
+                    </Pressable>
                   );
                 }}
                 ListEmptyComponent={
@@ -1730,6 +1818,34 @@ const styles = StyleSheet.create({
     fontSize: 16,
     margin: 16,
     marginBottom: 8,
+  },
+  exerciseFilterChipScroll: {
+    paddingHorizontal: 16,
+    marginBottom: 8,
+  },
+  exerciseFilterChipRow: {
+    flexDirection: 'row',
+    gap: 8,
+  },
+  exerciseFilterChip: {
+    paddingVertical: 8,
+    paddingHorizontal: 14,
+    borderRadius: 20,
+    backgroundColor: '#1a1a1a',
+    borderWidth: 1,
+    borderColor: '#333',
+  },
+  exerciseFilterChipActive: {
+    backgroundColor: '#fff',
+    borderColor: '#fff',
+  },
+  exerciseFilterChipText: {
+    color: '#fff',
+    fontSize: 14,
+    fontWeight: '600',
+  },
+  exerciseFilterChipTextActive: {
+    color: '#000',
   },
   sectionHeaderContainer: {
     alignItems: 'center',
