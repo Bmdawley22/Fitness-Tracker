@@ -39,7 +39,11 @@ export type CreateFlowHandle = {
   openCreateExercise: () => void;
 };
 
-export const CreateFlowModals = forwardRef<CreateFlowHandle>(function CreateFlowModals(_, ref) {
+type CreateFlowModalsProps = {
+  onWorkoutCreated?: (workoutId: string) => void;
+};
+
+export const CreateFlowModals = forwardRef<CreateFlowHandle, CreateFlowModalsProps>(function CreateFlowModals({ onWorkoutCreated }, ref) {
   const [createModalVisible, setCreateModalVisible] = useState(false);
   const [workoutName, setWorkoutName] = useState('');
   const [workoutDescription, setWorkoutDescription] = useState('');
@@ -57,7 +61,7 @@ export const CreateFlowModals = forwardRef<CreateFlowHandle>(function CreateFlow
     savedExercises,
     savedWorkouts,
     customExercises,
-    addWorkout,
+    addWorkoutWithId,
     addCustomExercise,
     addExercise,
     addExerciseToWorkout,
@@ -274,18 +278,21 @@ export const CreateFlowModals = forwardRef<CreateFlowHandle>(function CreateFlow
       return;
     }
 
-    const success = addWorkout({
+    const createdWorkoutId = addWorkoutWithId({
       originalId: `custom-${Date.now()}`,
       name: toTitleCase(trimmedName),
       description: workoutDescription.trim(),
       exercises: selectedExercises,
     });
 
-    if (success) {
+    if (createdWorkoutId) {
       Alert.alert('Workout created', 'Your new workout has been saved.', [
         {
           text: 'OK',
-          onPress: closeAddFlow,
+          onPress: () => {
+            onWorkoutCreated?.(createdWorkoutId);
+            closeAddFlow();
+          },
         },
       ]);
     } else {
@@ -928,7 +935,13 @@ export default function AddScreen() {
         </View>
       </Modal>
 
-      <CreateFlowModals ref={createFlowRef} />
+      <CreateFlowModals
+        ref={createFlowRef}
+        onWorkoutCreated={(workoutId) => {
+          assignWorkoutToDate(todayDateKey, workoutId);
+          setDateCompleted(todayDateKey, false);
+        }}
+      />
 
       <Modal visible={exerciseLogVisible} transparent animationType="fade" onRequestClose={closeExerciseLog}>
         <View style={styles.modalOverlay}>

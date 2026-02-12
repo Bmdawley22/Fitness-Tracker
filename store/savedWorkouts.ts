@@ -53,6 +53,7 @@ interface SavedWorkoutsState {
   
   // Workout actions
   addWorkout: (workout: Omit<SavedWorkout, 'id' | 'order' | 'createdAt'>) => boolean;
+  addWorkoutWithId: (workout: Omit<SavedWorkout, 'id' | 'order' | 'createdAt'>) => string | null;
   removeWorkout: (id: string) => void;
   updateWorkout: (id: string, updates: Partial<SavedWorkout>) => void;
   updateAndRegenerateId: (id: string, updates: Partial<SavedWorkout>) => void;
@@ -98,6 +99,27 @@ export const useSavedWorkoutsStore = create<SavedWorkoutsState>()(
         
         set({ savedWorkouts: [...state.savedWorkouts, newWorkout] });
         return true;
+      },
+
+      addWorkoutWithId: (workout) => {
+        const state = get();
+        if (state.savedWorkouts.some(w => w.originalId === workout.originalId)) {
+          return null;
+        }
+
+        if (workout.exercises.length > MAX_EXERCISES) {
+          return null;
+        }
+
+        const newWorkout: SavedWorkout = {
+          ...workout,
+          id: `saved-${Date.now()}`,
+          order: state.savedWorkouts.length,
+          createdAt: Date.now(),
+        };
+
+        set({ savedWorkouts: [...state.savedWorkouts, newWorkout] });
+        return newWorkout.id;
       },
       
       removeWorkout: (id) => {
