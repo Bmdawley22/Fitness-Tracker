@@ -442,8 +442,9 @@ export default function HomeScreen() {
               <Text style={styles.closeXText}>✕</Text>
             </TouchableOpacity>
 
+            {selectedExerciseData?.name ? <Text style={styles.exerciseInfoHeaderTitle}>{selectedExerciseData.name}</Text> : null}
+
             <ScrollView style={styles.exerciseInfoScroll} contentContainerStyle={styles.exerciseInfoScrollContent}>
-              {selectedExerciseData?.name ? <Text style={styles.modalTitle}>{selectedExerciseData.name}</Text> : null}
 
               {selectedExerciseData?.description ? (
                 <>
@@ -485,9 +486,12 @@ export default function HomeScreen() {
               ) : null}
 
               {selectedExerciseData?.image ? (
-                <TouchableOpacity onPress={() => selectedExerciseData.image && handleOpenExternalLink(selectedExerciseData.image)}>
-                  <Text style={styles.exerciseLinkText}>{selectedExerciseData.image}</Text>
-                </TouchableOpacity>
+                <>
+                  <Text style={styles.exerciseSectionTitle}>Exercise image</Text>
+                  <TouchableOpacity onPress={() => selectedExerciseData.image && handleOpenExternalLink(selectedExerciseData.image)}>
+                    <Text style={styles.exerciseLinkText}>{selectedExerciseData.image}</Text>
+                  </TouchableOpacity>
+                </>
               ) : null}
             </ScrollView>
 
@@ -795,11 +799,20 @@ const styles = StyleSheet.create({
     maxHeight: '85%',
     position: 'relative',
   },
+  exerciseInfoHeaderTitle: {
+    color: '#fff',
+    fontSize: 24,
+    fontWeight: '800',
+    marginBottom: 14,
+    marginTop: 8,
+    paddingRight: 36,
+  },
   exerciseInfoScroll: {
-    maxHeight: '72%',
+    maxHeight: '70%',
   },
   exerciseInfoScrollContent: {
     paddingBottom: 8,
+    paddingRight: 14,
   },
   workoutModalHeader: {
     flexDirection: 'row',
@@ -857,11 +870,15 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
+    paddingRight: 14,
   },
   instructionsChevron: {
     color: '#fff',
-    fontSize: 14,
+    fontSize: 24,
+    fontWeight: '800',
     marginLeft: 10,
+    marginRight: 8,
+    lineHeight: 24,
   },
   exerciseLinkText: {
     color: '#5ca9ff',

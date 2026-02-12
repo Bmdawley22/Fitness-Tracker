@@ -23,11 +23,12 @@ type RawFedbExercise = {
   secondaryMuscles?: string[];
 };
 
-export const FEDB_SEED_VERSION = 'fedb-v1-200';
+export const FEDB_SEED_VERSION = 'fedb-v1-201';
 export const FEDB_SEED_SOURCE = 'free-exercise-db';
 
 const SEED_ID_PREFIX = 'seed-fedb-';
 const FALLBACK_VALUE = 'Other';
+const FEDB_IMAGE_BASE_URL = 'https://raw.githubusercontent.com/yuhonas/free-exercise-db/main/exercises/';
 
 const toTitleCase = (value: string): string =>
   value
@@ -58,6 +59,14 @@ const normalizeSingleValue = (value?: string): string => {
   return normalized || FALLBACK_VALUE;
 };
 
+const normalizeImageUrl = (value?: string): string => {
+  if (!value) return '';
+  const trimmed = value.trim();
+  if (!trimmed) return '';
+  if (/^https?:\/\//i.test(trimmed)) return trimmed;
+  return `${FEDB_IMAGE_BASE_URL}${trimmed.replace(/^\/+/, '')}`;
+};
+
 const normalizeName = (value?: string): string => value?.trim() ?? '';
 
 const buildStableKey = (name: string): string => {
@@ -86,7 +95,7 @@ const computeFedbSeededExercises = (): SeededExercise[] => {
       const description = (raw.description ?? '').trim() || instructions.split('\n')[0] || '';
       const primaryMuscles = normalizeArray(raw.primaryMuscles);
       const secondaryMuscles = normalizeArray(raw.secondaryMuscles);
-      const image = Array.isArray(raw.images) && raw.images[0] ? raw.images[0] : '';
+      const image = normalizeImageUrl(Array.isArray(raw.images) && raw.images[0] ? raw.images[0] : '');
       const equipment = normalizeSingleValue(raw.equipment);
       const category = normalizeSingleValue(raw.category);
 
