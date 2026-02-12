@@ -823,13 +823,15 @@ export default function AddScreen() {
   return (
     <View style={styles.todayContainer}>
       <View style={[styles.todayCard, isCompletedToday && styles.todayCardCompleted]}>
-        <View style={styles.todayHeaderRow}>
+        <View style={[styles.todayHeaderRow, isCompletedToday && styles.todayHeaderRowCompleted]}>
           <Text style={styles.todayHeader}>{weekdayTitle}</Text>
         </View>
 
         {assignedWorkout ? (
           <>
-            <Text style={styles.todayWorkoutTitle}>{assignedWorkout.name}</Text>
+            <View style={[styles.todayWorkoutTitleContainer, isCompletedToday && styles.todayWorkoutTitleContainerCompleted]}>
+              <Text style={styles.todayWorkoutTitle}>{assignedWorkout.name}</Text>
+            </View>
             <TouchableOpacity style={styles.changeTodayButton} onPress={() => setWorkoutSelectorVisible(true)}>
               <Text style={styles.changeTodayButtonText}>Change Today&apos;s Workout</Text>
             </TouchableOpacity>
@@ -1078,8 +1080,18 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     minHeight: 36,
-    marginBottom: 8,
+    marginBottom: 0,
     position: 'relative',
+    borderTopLeftRadius: 26,
+    borderTopRightRadius: 26,
+    marginHorizontal: -18,
+    marginTop: -20,
+    paddingHorizontal: 18,
+    paddingTop: 10,
+    paddingBottom: 6,
+  },
+  todayHeaderRowCompleted: {
+    backgroundColor: '#2CD66F',
   },
   todayHeader: {
     color: '#fff',
@@ -1089,13 +1101,24 @@ const styles = StyleSheet.create({
     textDecorationLine: 'underline',
     textDecorationColor: '#fff',
   },
+  todayWorkoutTitleContainer: {
+    marginHorizontal: -18,
+    paddingHorizontal: 18,
+    marginBottom: 14,
+    marginTop: 0,
+    borderRadius: 0,
+    paddingBottom: 8,
+  },
+  todayWorkoutTitleContainerCompleted: {
+    backgroundColor: '#2CD66F',
+  },
   todayWorkoutTitle: {
     color: '#fff',
     fontSize: 24,
     fontWeight: '700',
     textAlign: 'center',
-    marginBottom: 14,
     paddingHorizontal: 44,
+    paddingVertical: 6,
   },
   changeTodayButton: {
     alignSelf: 'center',
