@@ -43,6 +43,7 @@ function SwipeToDeleteRow({ title, subtitle, onPress, onRequestDelete, onLongPre
   const [rowWidth, setRowWidth] = useState(0);
   const [isFullDeleteVisual, setIsFullDeleteVisual] = useState(false);
   const confirmTriggeredRef = useRef(false);
+  const currentTranslateRef = useRef(0);
 
   const revealWidth = Math.min(REVEAL_WIDTH, rowWidth || REVEAL_WIDTH);
 
@@ -72,6 +73,38 @@ function SwipeToDeleteRow({ title, subtitle, onPress, onRequestDelete, onLongPre
     animateTo(0);
   }, [animateTo, resetToken]);
 
+  useEffect(() => {
+    const id = translateX.addListener(({ value }) => {
+      currentTranslateRef.current = value;
+    });
+
+    return () => {
+      translateX.removeListener(id);
+    };
+  }, [translateX]);
+
+  const handleGestureRelease = useCallback(() => {
+    const width = rowWidthRef.current;
+    if (width <= 0) return;
+
+    const drag = Math.max(0, -currentTranslateRef.current);
+
+    if (drag < width * SNAP_BACK_THRESHOLD_RATIO) {
+      setIsFullDeleteVisual(false);
+      animateTo(0);
+      return;
+    }
+
+    if (drag >= width * AUTO_DELETE_THRESHOLD_RATIO) {
+      setIsFullDeleteVisual(true);
+      animateTo(-width, requestDeleteOnce);
+      return;
+    }
+
+    setIsFullDeleteVisual(false);
+    animateTo(-revealWidth);
+  }, [animateTo, requestDeleteOnce, revealWidth]);
+
   const panResponder = useMemo(
     () =>
       PanResponder.create({
@@ -89,29 +122,14 @@ function SwipeToDeleteRow({ title, subtitle, onPress, onRequestDelete, onLongPre
           const next = Math.min(0, Math.max(-width, gestureState.dx));
           translateX.setValue(next);
         },
-        onPanResponderRelease: (_, gestureState) => {
-          const width = rowWidthRef.current;
-          if (width <= 0) return;
-
-          const drag = Math.max(0, -gestureState.dx);
-
-          if (drag < width * SNAP_BACK_THRESHOLD_RATIO) {
-            setIsFullDeleteVisual(false);
-            animateTo(0);
-            return;
-          }
-
-          if (drag >= width * AUTO_DELETE_THRESHOLD_RATIO) {
-            setIsFullDeleteVisual(true);
-            animateTo(-width, requestDeleteOnce);
-            return;
-          }
-
-          setIsFullDeleteVisual(false);
-          animateTo(-revealWidth);
+        onPanResponderRelease: () => {
+          handleGestureRelease();
+        },
+        onPanResponderTerminate: () => {
+          handleGestureRelease();
         },
       }),
-    [animateTo, disabled, requestDeleteOnce, revealWidth, translateX],
+    [disabled, handleGestureRelease, translateX],
   );
 
   const onLayoutRow = (event: LayoutChangeEvent) => {
