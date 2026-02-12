@@ -826,13 +826,13 @@ export default function SavedScreen() {
       </View>
 
       {showRemoveAllWorkouts && (
-        <TouchableOpacity style={styles.removeAllButton} onPress={handleRemoveAllWorkouts}>
+        <TouchableOpacity style={[styles.removeAllButton, styles.removeAllButtonDanger]} onPress={handleRemoveAllWorkouts}>
           <Text style={styles.removeAllButtonText}>Remove all saved workouts</Text>
         </TouchableOpacity>
       )}
 
       {showRemoveAllExercises && (
-        <TouchableOpacity style={styles.removeAllButton} onPress={handleRemoveAllExercises}>
+        <TouchableOpacity style={[styles.removeAllButton, styles.removeAllButtonDanger]} onPress={handleRemoveAllExercises}>
           <Text style={styles.removeAllButtonText}>Remove all saved exercises</Text>
         </TouchableOpacity>
       )}
@@ -1554,14 +1554,15 @@ const styles = StyleSheet.create({
   },
   removeAllButton: {
     marginHorizontal: 16,
-    marginBottom: 8,
+    marginTop: 8,
+    marginBottom: 12,
     borderRadius: 8,
-    backgroundColor: '#111',
-    borderWidth: 1,
-    borderColor: '#fff',
     alignItems: 'center',
     justifyContent: 'center',
     paddingVertical: 10,
+  },
+  removeAllButtonDanger: {
+    backgroundColor: '#d32f2f',
   },
   removeAllButtonText: {
     color: '#fff',
