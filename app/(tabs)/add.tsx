@@ -823,13 +823,15 @@ export default function AddScreen() {
   return (
     <View style={styles.todayContainer}>
       <View style={[styles.todayCard, isCompletedToday && styles.todayCardCompleted]}>
-        <View style={styles.todayHeaderRow}>
+        <View style={[styles.todayHeaderRow, isCompletedToday && styles.todayHeaderRowCompleted]}>
           <Text style={styles.todayHeader}>{weekdayTitle}</Text>
         </View>
 
         {assignedWorkout ? (
           <>
-            <Text style={styles.todayWorkoutTitle}>{assignedWorkout.name}</Text>
+            <View style={[styles.todayWorkoutTitleContainer, isCompletedToday && styles.todayWorkoutTitleContainerCompleted]}>
+              <Text style={styles.todayWorkoutTitle}>{assignedWorkout.name}</Text>
+            </View>
             <TouchableOpacity style={styles.changeTodayButton} onPress={() => setWorkoutSelectorVisible(true)}>
               <Text style={styles.changeTodayButtonText}>Change Today&apos;s Workout</Text>
             </TouchableOpacity>
@@ -1080,6 +1082,11 @@ const styles = StyleSheet.create({
     minHeight: 36,
     marginBottom: 8,
     position: 'relative',
+    borderRadius: 10,
+    paddingHorizontal: 12,
+  },
+  todayHeaderRowCompleted: {
+    backgroundColor: '#2CD66F',
   },
   todayHeader: {
     color: '#fff',
@@ -1089,13 +1096,21 @@ const styles = StyleSheet.create({
     textDecorationLine: 'underline',
     textDecorationColor: '#fff',
   },
+  todayWorkoutTitleContainer: {
+    borderRadius: 10,
+    paddingHorizontal: 10,
+    marginBottom: 14,
+  },
+  todayWorkoutTitleContainerCompleted: {
+    backgroundColor: '#2CD66F',
+  },
   todayWorkoutTitle: {
     color: '#fff',
     fontSize: 24,
     fontWeight: '700',
     textAlign: 'center',
-    marginBottom: 14,
     paddingHorizontal: 44,
+    paddingVertical: 6,
   },
   changeTodayButton: {
     alignSelf: 'center',
