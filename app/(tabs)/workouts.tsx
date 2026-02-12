@@ -11,6 +11,7 @@ import {
   Animated,
   PanResponder,
   LayoutChangeEvent,
+  Linking,
 } from 'react-native';
 import React, { useState, useEffect, useMemo, useRef, useCallback } from 'react';
 import { Ionicons } from '@expo/vector-icons';
@@ -24,6 +25,16 @@ const AUTO_DELETE_THRESHOLD_RATIO = 0.6;
 
 type SavedFilter = 'workouts' | 'exercises';
 type PendingSwipeDelete = { id: string; name: string; type: 'workout' | 'exercise' };
+type DetailExercise = {
+  id: string;
+  name: string;
+  description: string;
+  originalId: string;
+  primaryMuscles?: string[];
+  secondaryMuscles?: string[];
+  instructions?: string;
+  image?: string;
+};
 
 type SwipeToDeleteRowProps = {
   title: string;
@@ -196,7 +207,8 @@ export default function SavedScreen() {
   const [selectedExerciseIds, setSelectedExerciseIds] = useState<string[]>([]);
   const [showBulkRemoveConfirmModal, setShowBulkRemoveConfirmModal] = useState(false);
   const [detailWorkout, setDetailWorkout] = useState<SavedWorkout | null>(null);
-  const [detailExercise, setDetailExercise] = useState<{ id: string; name: string; description: string; originalId: string } | null>(null);
+  const [detailExercise, setDetailExercise] = useState<DetailExercise | null>(null);
+  const [isDetailInstructionsExpanded, setIsDetailInstructionsExpanded] = useState(false);
   const [menuWorkout, setMenuWorkout] = useState<SavedWorkout | null>(null);
   const [menuExercise, setMenuExercise] = useState<{ id: string; name: string; originalId: string } | null>(null);
   const [editingWorkout, setEditingWorkout] = useState<SavedWorkout | null>(null);
@@ -223,6 +235,20 @@ export default function SavedScreen() {
 
   const handleOpenExerciseMenu = (exercise: { id: string; name: string; originalId: string }) => {
     setMenuExercise(exercise);
+  };
+
+  useEffect(() => {
+    setIsDetailInstructionsExpanded(false);
+  }, [detailExercise?.id]);
+
+  const handleOpenExternalLink = async (url: string) => {
+    try {
+      const supported = await Linking.canOpenURL(url);
+      if (!supported) return;
+      await Linking.openURL(url);
+    } catch {
+      // no-op
+    }
   };
 
   const handleOpenAddToWorkout = (exercise: { originalId: string; name: string }, options?: { closeMenu?: boolean; closeDetail?: boolean }) => {
@@ -728,7 +754,16 @@ export default function SavedScreen() {
                 <TouchableOpacity
                   style={styles.workoutContent}
                   onPress={() =>
-                    setDetailExercise({ id: exercise.id, name: exercise.name, description: exercise.description ?? '', originalId: exercise.originalId })
+                    setDetailExercise({
+                      id: exercise.id,
+                      name: exercise.name,
+                      description: exercise.description ?? '',
+                      originalId: exercise.originalId,
+                      primaryMuscles: exercise.primaryMuscles,
+                      secondaryMuscles: exercise.secondaryMuscles,
+                      instructions: exercise.instructions,
+                      image: exercise.image,
+                    })
                   }>
                   <Text style={styles.listItemText}>{exercise.name}</Text>
                 </TouchableOpacity>
@@ -761,7 +796,16 @@ export default function SavedScreen() {
               key={exercise.id}
               title={exercise.name}
               onPress={() =>
-                setDetailExercise({ id: exercise.id, name: exercise.name, description: exercise.description ?? '', originalId: exercise.originalId })
+                setDetailExercise({
+                  id: exercise.id,
+                  name: exercise.name,
+                  description: exercise.description ?? '',
+                  originalId: exercise.originalId,
+                  primaryMuscles: exercise.primaryMuscles,
+                  secondaryMuscles: exercise.secondaryMuscles,
+                  instructions: exercise.instructions,
+                  image: exercise.image,
+                })
               }
               onLongPress={() => handleOpenExerciseMenu({ id: exercise.id, name: exercise.name, originalId: exercise.originalId })}
               onPressMenu={() => handleOpenExerciseMenu({ id: exercise.id, name: exercise.name, originalId: exercise.originalId })}
@@ -1117,16 +1161,62 @@ export default function SavedScreen() {
         animationType="fade"
         onRequestClose={() => setDetailExercise(null)}>
         <View style={styles.modalOverlay}>
-          <View style={styles.modalContent}>
+          <View style={styles.exerciseInfoModalContent}>
             <TouchableOpacity
               style={styles.closeX}
               onPress={() => setDetailExercise(null)}>
               <Text style={styles.closeXText}>✕</Text>
             </TouchableOpacity>
-            <Text style={styles.modalTitle}>{detailExercise?.name}</Text>
-            <Text style={styles.modalDescription}>
-              {detailExercise?.description || 'No description provided.'}
-            </Text>
+
+            <ScrollView style={styles.exerciseInfoScroll} contentContainerStyle={styles.exerciseInfoScrollContent}>
+              {detailExercise?.name ? <Text style={styles.modalTitle}>{detailExercise.name}</Text> : null}
+
+              {detailExercise?.description ? (
+                <>
+                  <Text style={styles.exerciseSectionTitle}>Description</Text>
+                  <Text style={styles.modalDescription}>{detailExercise.description}</Text>
+                </>
+              ) : null}
+
+              {detailExercise?.instructions ? (
+                <TouchableOpacity
+                  style={styles.instructionsSection}
+                  activeOpacity={0.85}
+                  onPress={() => setIsDetailInstructionsExpanded(prev => !prev)}>
+                  <View style={styles.instructionsHeaderRow}>
+                    <Text style={styles.exerciseSectionTitle}>Instructions</Text>
+                    <Text style={styles.instructionsChevron}>{isDetailInstructionsExpanded ? '▴' : '▾'}</Text>
+                  </View>
+                  <Text
+                    style={styles.modalDescription}
+                    numberOfLines={isDetailInstructionsExpanded ? undefined : 1}
+                    ellipsizeMode="tail">
+                    {detailExercise.instructions}
+                  </Text>
+                </TouchableOpacity>
+              ) : null}
+
+              {Array.isArray(detailExercise?.primaryMuscles) && detailExercise.primaryMuscles.filter(Boolean).length > 0 ? (
+                <>
+                  <Text style={styles.exerciseSectionTitle}>Primary muscle groups</Text>
+                  <Text style={styles.modalDescription}>{detailExercise.primaryMuscles.filter(Boolean).join(', ')}</Text>
+                </>
+              ) : null}
+
+              {Array.isArray(detailExercise?.secondaryMuscles) && detailExercise.secondaryMuscles.filter(Boolean).length > 0 ? (
+                <>
+                  <Text style={styles.exerciseSectionTitle}>Secondary muscle groups</Text>
+                  <Text style={styles.modalDescription}>{detailExercise.secondaryMuscles.filter(Boolean).join(', ')}</Text>
+                </>
+              ) : null}
+
+              {detailExercise?.image ? (
+                <TouchableOpacity onPress={() => handleOpenExternalLink(detailExercise.image!)}>
+                  <Text style={styles.exerciseLinkText}>{detailExercise.image}</Text>
+                </TouchableOpacity>
+              ) : null}
+            </ScrollView>
+
             <TouchableOpacity
               style={styles.addToExistingWorkoutButton}
               onPress={() => {
@@ -1371,6 +1461,33 @@ const styles = StyleSheet.create({
     fontSize: 14,
     marginBottom: 20,
   },
+  exerciseSectionTitle: {
+    color: '#fff',
+    fontSize: 13,
+    fontWeight: '700',
+    marginBottom: 6,
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+  },
+  instructionsSection: {
+    marginBottom: 4,
+  },
+  instructionsHeaderRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  instructionsChevron: {
+    color: '#fff',
+    fontSize: 14,
+    marginLeft: 10,
+  },
+  exerciseLinkText: {
+    color: '#5ca9ff',
+    fontSize: 14,
+    textDecorationLine: 'underline',
+    marginBottom: 14,
+  },
   exercisesHeader: {
     color: '#888',
     fontSize: 12,
@@ -1534,6 +1651,20 @@ const styles = StyleSheet.create({
     width: '85%',
     maxHeight: '70%',
     position: 'relative',
+  },
+  exerciseInfoModalContent: {
+    backgroundColor: '#1a1a1a',
+    borderRadius: 12,
+    padding: 24,
+    width: '90%',
+    maxHeight: '85%',
+    position: 'relative',
+  },
+  exerciseInfoScroll: {
+    maxHeight: '72%',
+  },
+  exerciseInfoScrollContent: {
+    paddingBottom: 8,
   },
   optionButton: {
     backgroundColor: '#fff',

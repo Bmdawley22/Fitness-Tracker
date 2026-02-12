@@ -1,4 +1,4 @@
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Modal, Alert, TextInput, Pressable } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Modal, Alert, TextInput, Pressable, Linking } from 'react-native';
 import React, { useRef, useState, useEffect, useMemo } from 'react';
 import { useSavedWorkoutsStore } from '@/store/savedWorkouts';
 import { useExerciseCatalogStore } from '@/store/exerciseCatalog';
@@ -41,6 +41,7 @@ export default function HomeScreen() {
   const [selectedExerciseGroup, setSelectedExerciseGroup] = useState('All');
   const [exerciseSearchText, setExerciseSearchText] = useState('');
   const [selectedWorkout, setSelectedWorkout] = useState<string | null>(null);
+  const [isExerciseInstructionsExpanded, setIsExerciseInstructionsExpanded] = useState(false);
   const [showAddExerciseModal, setShowAddExerciseModal] = useState(false);
   const [exerciseToAdd, setExerciseToAdd] = useState<string | null>(null);
   const [showWorkoutSelectionModal, setShowWorkoutSelectionModal] = useState(false);
@@ -243,6 +244,20 @@ export default function HomeScreen() {
     ? exerciseLookup.get(exerciseToAdd)
     : null;
 
+  useEffect(() => {
+    setIsExerciseInstructionsExpanded(false);
+  }, [selectedExercise]);
+
+  const handleOpenExternalLink = async (url: string) => {
+    try {
+      const supported = await Linking.canOpenURL(url);
+      if (!supported) return;
+      await Linking.openURL(url);
+    } catch {
+      // no-op
+    }
+  };
+
   const getWorkoutExercises = (exerciseIds: string[]) => {
     return exerciseIds
       .map(id => exerciseLookup.get(id))
@@ -420,20 +435,68 @@ export default function HomeScreen() {
         animationType="fade"
         onRequestClose={() => setSelectedExercise(null)}>
         <View style={styles.modalOverlay}>
-          <View style={styles.modalContent}>
-            <TouchableOpacity 
+          <View style={styles.exerciseInfoModalContent}>
+            <TouchableOpacity
               style={styles.closeX}
               onPress={() => setSelectedExercise(null)}>
               <Text style={styles.closeXText}>✕</Text>
             </TouchableOpacity>
-            <Text style={styles.modalTitle}>{selectedExerciseData?.name}</Text>
-            <Text style={styles.modalDescription}>{selectedExerciseData?.description}</Text>
-            <TouchableOpacity 
+
+            <ScrollView style={styles.exerciseInfoScroll} contentContainerStyle={styles.exerciseInfoScrollContent}>
+              {selectedExerciseData?.name ? <Text style={styles.modalTitle}>{selectedExerciseData.name}</Text> : null}
+
+              {selectedExerciseData?.description ? (
+                <>
+                  <Text style={styles.exerciseSectionTitle}>Description</Text>
+                  <Text style={styles.modalDescription}>{selectedExerciseData.description}</Text>
+                </>
+              ) : null}
+
+              {selectedExerciseData?.instructions ? (
+                <TouchableOpacity
+                  style={styles.instructionsSection}
+                  activeOpacity={0.85}
+                  onPress={() => setIsExerciseInstructionsExpanded(prev => !prev)}>
+                  <View style={styles.instructionsHeaderRow}>
+                    <Text style={styles.exerciseSectionTitle}>Instructions</Text>
+                    <Text style={styles.instructionsChevron}>{isExerciseInstructionsExpanded ? '▴' : '▾'}</Text>
+                  </View>
+                  <Text
+                    style={styles.modalDescription}
+                    numberOfLines={isExerciseInstructionsExpanded ? undefined : 1}
+                    ellipsizeMode="tail">
+                    {selectedExerciseData.instructions}
+                  </Text>
+                </TouchableOpacity>
+              ) : null}
+
+              {Array.isArray(selectedExerciseData?.primaryMuscles) && selectedExerciseData.primaryMuscles.filter(Boolean).length > 0 ? (
+                <>
+                  <Text style={styles.exerciseSectionTitle}>Primary muscle groups</Text>
+                  <Text style={styles.modalDescription}>{selectedExerciseData.primaryMuscles.filter(Boolean).join(', ')}</Text>
+                </>
+              ) : null}
+
+              {Array.isArray(selectedExerciseData?.secondaryMuscles) && selectedExerciseData.secondaryMuscles.filter(Boolean).length > 0 ? (
+                <>
+                  <Text style={styles.exerciseSectionTitle}>Secondary muscle groups</Text>
+                  <Text style={styles.modalDescription}>{selectedExerciseData.secondaryMuscles.filter(Boolean).join(', ')}</Text>
+                </>
+              ) : null}
+
+              {selectedExerciseData?.image ? (
+                <TouchableOpacity onPress={() => selectedExerciseData.image && handleOpenExternalLink(selectedExerciseData.image)}>
+                  <Text style={styles.exerciseLinkText}>{selectedExerciseData.image}</Text>
+                </TouchableOpacity>
+              ) : null}
+            </ScrollView>
+
+            <TouchableOpacity
               style={styles.optionButton}
               onPress={handleAddExerciseToExistingFromDetailModal}>
               <Text style={styles.optionButtonText}>Add to Existing Workout</Text>
             </TouchableOpacity>
-            <TouchableOpacity 
+            <TouchableOpacity
               style={styles.optionButton}
               onPress={handleAddExerciseToSavedFromDetailModal}>
               <Text style={styles.optionButtonText}>Add to Saved Exercises</Text>
@@ -724,6 +787,20 @@ const styles = StyleSheet.create({
     maxHeight: '80%',
     position: 'relative',
   },
+  exerciseInfoModalContent: {
+    backgroundColor: '#1a1a1a',
+    borderRadius: 12,
+    padding: 24,
+    width: '90%',
+    maxHeight: '85%',
+    position: 'relative',
+  },
+  exerciseInfoScroll: {
+    maxHeight: '72%',
+  },
+  exerciseInfoScrollContent: {
+    paddingBottom: 8,
+  },
   workoutModalHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
@@ -764,6 +841,33 @@ const styles = StyleSheet.create({
     fontSize: 16,
     lineHeight: 24,
     marginBottom: 16,
+  },
+  exerciseSectionTitle: {
+    color: '#fff',
+    fontSize: 14,
+    fontWeight: '700',
+    marginBottom: 6,
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+  },
+  instructionsSection: {
+    marginBottom: 4,
+  },
+  instructionsHeaderRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  instructionsChevron: {
+    color: '#fff',
+    fontSize: 14,
+    marginLeft: 10,
+  },
+  exerciseLinkText: {
+    color: '#5ca9ff',
+    fontSize: 14,
+    textDecorationLine: 'underline',
+    marginBottom: 14,
   },
   exercisesHeader: {
     color: '#fff',
