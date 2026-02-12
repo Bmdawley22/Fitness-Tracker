@@ -42,6 +42,7 @@ export type CreateFlowHandle = {
 export const CreateFlowModals = forwardRef<CreateFlowHandle>(function CreateFlowModals(_, ref) {
   const [createModalVisible, setCreateModalVisible] = useState(false);
   const [workoutName, setWorkoutName] = useState('');
+  const [workoutNameError, setWorkoutNameError] = useState('');
   const [workoutDescription, setWorkoutDescription] = useState('');
   const [selectedExercises, setSelectedExercises] = useState<string[]>([]);
   const [searchText, setSearchText] = useState('');
@@ -138,11 +139,21 @@ export const CreateFlowModals = forwardRef<CreateFlowHandle>(function CreateFlow
       .filter(Boolean)
       .join(' ');
 
+  const normalizeWorkoutName = (value: string) => value.trim().toLowerCase();
+
+  const hasDuplicateWorkoutName = (name: string) => {
+    const normalizedCandidate = normalizeWorkoutName(name);
+    if (!normalizedCandidate) return false;
+
+    return savedWorkouts.some(workout => normalizeWorkoutName(workout.name) === normalizedCandidate);
+  };
+
   const resetForm = () => {
     setWorkoutName('');
     setWorkoutDescription('');
     setSelectedExercises([]);
     setSearchText('');
+    setWorkoutNameError('');
   };
 
   const openCreateWorkoutModal = () => {
@@ -269,6 +280,11 @@ export const CreateFlowModals = forwardRef<CreateFlowHandle>(function CreateFlow
       return;
     }
 
+    if (hasDuplicateWorkoutName(trimmedName)) {
+      setWorkoutNameError('A workout with this name already exists. Please choose a different name.');
+      return;
+    }
+
     if (selectedExercises.length === 0) {
       Alert.alert('Add exercises', 'Select at least one exercise to create a workout.');
       return;
@@ -316,8 +332,16 @@ export const CreateFlowModals = forwardRef<CreateFlowHandle>(function CreateFlow
                 placeholder="Workout Name"
                 placeholderTextColor="#888"
                 value={workoutName}
-                onChangeText={setWorkoutName}
+                onChangeText={text => {
+                  setWorkoutName(text);
+                  if (!text.trim()) {
+                    setWorkoutNameError('');
+                    return;
+                  }
+                  setWorkoutNameError(hasDuplicateWorkoutName(text) ? 'A workout with this name already exists. Please choose a different name.' : '');
+                }}
               />
+              {workoutNameError ? <Text style={styles.validationErrorText}>{workoutNameError}</Text> : null}
               <TextInput
                 style={[styles.input, styles.descriptionInput]}
                 placeholder="Description (optional)"

@@ -240,6 +240,7 @@ export default function SavedScreen() {
   const [editingWorkout, setEditingWorkout] = useState<SavedWorkout | null>(null);
   const [editName, setEditName] = useState('');
   const [editDescription, setEditDescription] = useState('');
+  const [editNameError, setEditNameError] = useState('');
   
   // Exercise to workout modal states
   const [showWorkoutSelectionModal, setShowWorkoutSelectionModal] = useState(false);
@@ -266,6 +267,18 @@ export default function SavedScreen() {
 
   const handleOpenExerciseMenu = (exercise: { id: string; name: string; originalId: string }) => {
     setMenuExercise(exercise);
+  };
+
+  const normalizeWorkoutName = (value: string) => value.trim().toLowerCase();
+
+  const hasDuplicateWorkoutName = (name: string, excludeWorkoutId?: string) => {
+    const normalizedCandidate = normalizeWorkoutName(name);
+    if (!normalizedCandidate) return false;
+
+    return savedWorkouts.some(workout => {
+      if (excludeWorkoutId && workout.id === excludeWorkoutId) return false;
+      return normalizeWorkoutName(workout.name) === normalizedCandidate;
+    });
   };
 
   useEffect(() => {
@@ -357,6 +370,7 @@ export default function SavedScreen() {
     setEditingWorkout(workout);
     setEditName(workout.name);
     setEditDescription(workout.description);
+    setEditNameError('');
   };
 
   const handleEdit = () => {
@@ -375,14 +389,20 @@ export default function SavedScreen() {
 
   const handleSaveEdit = () => {
     if (editingWorkout) {
+      if (hasDuplicateWorkoutName(editName, editingWorkout.id)) {
+        setEditNameError('A workout with this name already exists. Please choose a different name.');
+        return;
+      }
+
       // Always regenerate ID on edit to make it a custom entry
       // This clears originalId, allowing the original workout to be added separately
       updateAndRegenerateId(editingWorkout.id, {
         name: editName,
         description: editDescription,
       });
-      
+
       setEditingWorkout(null);
+      setEditNameError('');
     }
   };
 
@@ -1225,7 +1245,10 @@ export default function SavedScreen() {
         onRequestClose={() => setEditingWorkout(null)}>
         <View style={styles.editContainer}>
           <View style={styles.editHeader}>
-            <TouchableOpacity onPress={() => setEditingWorkout(null)}>
+            <TouchableOpacity onPress={() => {
+              setEditingWorkout(null);
+              setEditNameError('');
+            }}>
               <Text style={styles.editCancelText}>Cancel</Text>
             </TouchableOpacity>
             <Text style={styles.editTitle}>Edit Workout</Text>
@@ -1239,9 +1262,21 @@ export default function SavedScreen() {
             <TextInput
               style={styles.editInput}
               value={editName}
-              onChangeText={setEditName}
+              onChangeText={text => {
+                setEditName(text);
+                if (!editingWorkout || !text.trim()) {
+                  setEditNameError('');
+                  return;
+                }
+                setEditNameError(
+                  hasDuplicateWorkoutName(text, editingWorkout.id)
+                    ? 'A workout with this name already exists. Please choose a different name.'
+                    : ''
+                );
+              }}
               placeholderTextColor="#666"
             />
+            {editNameError ? <Text style={styles.validationErrorText}>{editNameError}</Text> : null}
 
             <Text style={styles.editLabel}>Description</Text>
             <TextInput
