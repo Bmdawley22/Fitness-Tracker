@@ -1843,18 +1843,23 @@ const styles = StyleSheet.create({
   exerciseFilterChipScroll: {
     paddingHorizontal: 16,
     marginBottom: 8,
+    minHeight: 52,
   },
   exerciseFilterChipRow: {
     flexDirection: 'row',
     gap: 8,
+    alignItems: 'center',
+    minHeight: 52,
   },
   exerciseFilterChip: {
-    paddingVertical: 8,
+    paddingVertical: 10,
     paddingHorizontal: 14,
     borderRadius: 20,
     backgroundColor: '#1a1a1a',
     borderWidth: 1,
     borderColor: '#333',
+    minHeight: 38,
+    justifyContent: 'center',
   },
   exerciseFilterChipActive: {
     backgroundColor: '#fff',
@@ -1864,6 +1869,7 @@ const styles = StyleSheet.create({
     color: '#fff',
     fontSize: 14,
     fontWeight: '600',
+    lineHeight: 20,
   },
   exerciseFilterChipTextActive: {
     color: '#000',

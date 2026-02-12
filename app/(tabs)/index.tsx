@@ -38,7 +38,7 @@ export default function HomeScreen() {
 
   const [selectedFilter, setSelectedFilter] = useState<FilterType>('exercises');
   const [selectedExercise, setSelectedExercise] = useState<string | null>(null);
-  const [selectedExerciseGroup, setSelectedExerciseGroup] = useState('All');
+  const [selectedExerciseGroups, setSelectedExerciseGroups] = useState<string[]>(['All']);
   const [exerciseSearchText, setExerciseSearchText] = useState('');
   const [selectedWorkout, setSelectedWorkout] = useState<string | null>(null);
   const [isExerciseInstructionsExpanded, setIsExerciseInstructionsExpanded] = useState(false);
@@ -90,15 +90,21 @@ export default function HomeScreen() {
 
   useEffect(() => {
     if (selectedFilter !== 'exercises') {
-      setSelectedExerciseGroup('All');
+      setSelectedExerciseGroups(['All']);
     }
   }, [selectedFilter]);
 
   const filteredExercises = useMemo(() => {
     if (selectedFilter !== 'exercises') return [];
-    let list = selectedExerciseGroup === 'All'
+
+    const isAllSelected = selectedExerciseGroups.includes('All');
+
+    let list = isAllSelected
       ? homeExercises
-      : homeExercises.filter(exercise => resolveMuscleGroups(exercise).includes(selectedExerciseGroup));
+      : homeExercises.filter(exercise => {
+          const groups = resolveMuscleGroups(exercise);
+          return groups.some(group => selectedExerciseGroups.includes(group));
+        });
 
     if (exerciseSearchText.trim()) {
       const term = exerciseSearchText.trim().toLowerCase();
@@ -109,7 +115,7 @@ export default function HomeScreen() {
     }
 
     return list;
-  }, [selectedFilter, selectedExerciseGroup, homeExercises, exerciseSearchText]);
+  }, [selectedFilter, selectedExerciseGroups, homeExercises, exerciseSearchText]);
 
   // Show toast for a few seconds
   useEffect(() => {
@@ -322,23 +328,44 @@ export default function HomeScreen() {
               horizontal
               showsHorizontalScrollIndicator={false}
               contentContainerStyle={styles.categoryFilterScroll}>
-              {exerciseGroups.map(group => (
-                <TouchableOpacity
-                  key={group}
-                  style={[
-                    styles.categoryFilterButton,
-                    selectedExerciseGroup === group && styles.categoryFilterButtonActive,
-                  ]}
-                  onPress={() => setSelectedExerciseGroup(group)}>
-                  <Text
+              {exerciseGroups.map(group => {
+                const isAll = group === 'All';
+                const isActive = isAll
+                  ? selectedExerciseGroups.includes('All')
+                  : selectedExerciseGroups.includes(group);
+
+                return (
+                  <TouchableOpacity
+                    key={group}
                     style={[
-                      styles.categoryFilterText,
-                      selectedExerciseGroup === group && styles.categoryFilterTextActive,
-                    ]}>
-                    {group}
-                  </Text>
-                </TouchableOpacity>
-              ))}
+                      styles.categoryFilterButton,
+                      isActive && styles.categoryFilterButtonActive,
+                    ]}
+                    onPress={() => {
+                      if (isAll) {
+                        setSelectedExerciseGroups(['All']);
+                        return;
+                      }
+
+                      setSelectedExerciseGroups(prev => {
+                        const withoutAll = prev.filter(item => item !== 'All');
+                        const alreadySelected = withoutAll.includes(group);
+                        const next = alreadySelected
+                          ? withoutAll.filter(item => item !== group)
+                          : [...withoutAll, group];
+                        return next.length === 0 ? ['All'] : next;
+                      });
+                    }}>
+                    <Text
+                      style={[
+                        styles.categoryFilterText,
+                        isActive && styles.categoryFilterTextActive,
+                      ]}>
+                      {group}
+                    </Text>
+                  </TouchableOpacity>
+                );
+              })}
             </ScrollView>
           </View>
 
@@ -361,7 +388,9 @@ export default function HomeScreen() {
         {selectedFilter === 'exercises' && (
           filteredExercises.length === 0 ? (
             <Text style={styles.noExercisesText}>No exercises found in {
-              selectedExerciseGroup === 'All' ? 'this list' : selectedExerciseGroup
+              selectedExerciseGroups.includes('All')
+                ? 'this list'
+                : selectedExerciseGroups.join(', ')
             }.</Text>
           ) : (
             filteredExercises.map(exercise => (
