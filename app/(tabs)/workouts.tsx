@@ -1713,12 +1713,14 @@ const styles = StyleSheet.create({
     marginBottom: 20,
   },
   workoutDetailEditButton: {
-    alignSelf: 'flex-end',
+    alignSelf: 'center',
     marginTop: 14,
     backgroundColor: '#fff',
     borderRadius: 8,
-    paddingVertical: 6,
-    paddingHorizontal: 12,
+    minHeight: 46,
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    justifyContent: 'center',
   },
   workoutDetailEditButtonText: {
     color: '#000',
