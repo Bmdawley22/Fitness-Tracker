@@ -922,15 +922,6 @@ export default function SavedScreen() {
                   <Text style={styles.listItemDescription}>{workout.description}</Text>
                 </View>
                 <Pressable
-                  style={styles.menuButton}
-                  onPress={event => {
-                    event?.stopPropagation?.();
-                    handleOpenMenu(workout);
-                  }}
-                  hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
-                  <Ionicons name="ellipsis-vertical" size={18} color="#fff" />
-                </Pressable>
-                <Pressable
                   style={[
                     styles.selectionControl,
                     selectedWorkoutIds.includes(workout.id) && styles.selectionControlSelected,
@@ -998,15 +989,6 @@ export default function SavedScreen() {
                 <View style={styles.workoutContent}>
                   <Text style={styles.listItemText}>{exercise.name}</Text>
                 </View>
-                <Pressable
-                  style={styles.menuButton}
-                  onPress={event => {
-                    event?.stopPropagation?.();
-                    handleOpenExerciseMenu({ id: exercise.id, name: exercise.name, originalId: exercise.originalId });
-                  }}
-                  hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
-                  <Ionicons name="ellipsis-vertical" size={18} color="#fff" />
-                </Pressable>
                 <Pressable
                   style={[
                     styles.selectionControl,
