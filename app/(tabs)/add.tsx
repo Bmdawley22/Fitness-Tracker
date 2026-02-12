@@ -321,8 +321,10 @@ export const CreateFlowModals = forwardRef<CreateFlowHandle>(function CreateFlow
               <View style={styles.titleRow}>
                 <Text style={styles.modalTitle}>Create New Workout</Text>
               </View>
-              <TouchableOpacity style={styles.topSaveButton} onPress={handleCreateWorkout}>
-                <Text style={styles.topSaveText}>Save</Text>
+              <TouchableOpacity
+                style={[styles.topSaveButton, workoutNameError && styles.topSaveButtonInvalid]}
+                onPress={handleCreateWorkout}>
+                <Text style={[styles.topSaveText, workoutNameError && styles.topSaveTextInvalid]}>Save</Text>
               </TouchableOpacity>
             </View>
 
@@ -1371,10 +1373,16 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     borderRadius: 12,
   },
+  topSaveButtonInvalid: {
+    backgroundColor: '#d32f2f',
+  },
   topSaveText: {
     color: '#000',
     fontSize: 14,
     fontWeight: '700',
+  },
+  topSaveTextInvalid: {
+    color: '#fff',
   },
   titleRow: {
     flex: 1,
