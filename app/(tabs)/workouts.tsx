@@ -916,7 +916,14 @@ export default function SavedScreen() {
         {selectedFilter === 'workouts' && sortedWorkouts.map(workout => {
           if (isWorkoutEditMode) {
             return (
-              <Pressable key={workout.id} style={styles.listItem} onPress={() => setDetailWorkout(workout)}>
+              <Pressable
+                key={workout.id}
+                style={[
+                  styles.listItem,
+                  styles.editModeListItem,
+                  selectedWorkoutIds.includes(workout.id) && styles.editModeListItemSelected,
+                ]}
+                onPress={() => setDetailWorkout(workout)}>
                 <View style={styles.workoutContent}>
                   <Text style={styles.listItemText}>{workout.name}</Text>
                   <Text style={styles.listItemDescription}>{workout.description}</Text>
@@ -973,7 +980,11 @@ export default function SavedScreen() {
             return (
               <Pressable
                 key={exercise.id}
-                style={styles.listItem}
+                style={[
+                  styles.listItem,
+                  styles.editModeListItem,
+                  selectedExerciseIds.includes(exercise.id) && styles.editModeListItemSelected,
+                ]}
                 onPress={() =>
                   setDetailExercise({
                     id: exercise.id,
@@ -1605,6 +1616,14 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1,
     borderBottomColor: '#222',
     backgroundColor: '#000',
+  },
+  editModeListItem: {
+    borderWidth: 1,
+    borderColor: '#333',
+  },
+  editModeListItemSelected: {
+    borderColor: '#d32f2f',
+    borderWidth: 2,
   },
   rowInner: {
     flexDirection: 'row',
