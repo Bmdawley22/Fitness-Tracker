@@ -1572,7 +1572,8 @@ const styles = StyleSheet.create({
   },
   removeAllButton: {
     marginHorizontal: 16,
-    marginBottom: 8,
+    marginTop: 8,
+    marginBottom: 12,
     borderRadius: 8,
     backgroundColor: '#111',
     borderWidth: 1,
