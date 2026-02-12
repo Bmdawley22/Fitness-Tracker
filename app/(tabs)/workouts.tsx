@@ -1613,8 +1613,11 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingHorizontal: 16,
     paddingVertical: 12,
-    borderBottomWidth: 1,
-    borderBottomColor: '#222',
+    borderWidth: 1,
+    borderColor: '#222',
+    borderRadius: 8,
+    marginHorizontal: 8,
+    marginBottom: 6,
     backgroundColor: '#000',
   },
   editModeListItem: {
