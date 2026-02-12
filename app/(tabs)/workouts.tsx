@@ -916,7 +916,14 @@ export default function SavedScreen() {
         {selectedFilter === 'workouts' && sortedWorkouts.map(workout => {
           if (isWorkoutEditMode) {
             return (
-              <Pressable key={workout.id} style={styles.listItem} onPress={() => setDetailWorkout(workout)}>
+              <Pressable
+                key={workout.id}
+                style={[
+                  styles.listItem,
+                  styles.editModeListItem,
+                  selectedWorkoutIds.includes(workout.id) && styles.editModeListItemSelected,
+                ]}
+                onPress={() => setDetailWorkout(workout)}>
                 <View style={styles.workoutContent}>
                   <Text style={styles.listItemText}>{workout.name}</Text>
                   <Text style={styles.listItemDescription}>{workout.description}</Text>
@@ -973,7 +980,11 @@ export default function SavedScreen() {
             return (
               <Pressable
                 key={exercise.id}
-                style={styles.listItem}
+                style={[
+                  styles.listItem,
+                  styles.editModeListItem,
+                  selectedExerciseIds.includes(exercise.id) && styles.editModeListItemSelected,
+                ]}
                 onPress={() =>
                   setDetailExercise({
                     id: exercise.id,
@@ -1585,6 +1596,9 @@ const styles = StyleSheet.create({
   swipeRowContainer: {
     position: 'relative',
     overflow: 'hidden',
+    borderRadius: 8,
+    marginHorizontal: 8,
+    marginBottom: 6,
   },
   deleteActionArea: {
     position: 'absolute',
@@ -1602,9 +1616,20 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingHorizontal: 16,
     paddingVertical: 12,
-    borderBottomWidth: 1,
-    borderBottomColor: '#222',
+    borderWidth: 1,
+    borderColor: '#222',
+    borderRadius: 8,
     backgroundColor: '#000',
+  },
+  editModeListItem: {
+    borderWidth: 1,
+    borderColor: '#333',
+    marginHorizontal: 8,
+    marginBottom: 6,
+  },
+  editModeListItemSelected: {
+    borderColor: '#d32f2f',
+    borderWidth: 2,
   },
   rowInner: {
     flexDirection: 'row',
