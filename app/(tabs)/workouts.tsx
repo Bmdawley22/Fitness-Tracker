@@ -1842,13 +1842,14 @@ const styles = StyleSheet.create({
   },
   exerciseFilterChipScroll: {
     paddingHorizontal: 16,
-    paddingVertical: 6,
     marginBottom: 8,
+    minHeight: 52,
   },
   exerciseFilterChipRow: {
     flexDirection: 'row',
     gap: 8,
     alignItems: 'center',
+    minHeight: 52,
   },
   exerciseFilterChip: {
     paddingVertical: 10,
