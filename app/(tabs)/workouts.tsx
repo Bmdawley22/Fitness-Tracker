@@ -27,30 +27,15 @@ type SavedFilter = 'workouts' | 'exercises';
 type PendingSwipeDelete = { id: string; name: string; type: 'workout' | 'exercise' };
 
 type SwipeToDeleteRowProps = {
-  rowKey: string;
   title: string;
   subtitle?: string;
   onPress: () => void;
   onRequestDelete: () => void;
   onLongPress?: () => void;
-  isOpen: boolean;
-  onOpen: (rowKey: string) => void;
-  onClose: () => void;
   disabled?: boolean;
 };
 
-function SwipeToDeleteRow({
-  rowKey,
-  title,
-  subtitle,
-  onPress,
-  onRequestDelete,
-  onLongPress,
-  isOpen,
-  onOpen,
-  onClose,
-  disabled,
-}: SwipeToDeleteRowProps) {
+function SwipeToDeleteRow({ title, subtitle, onPress, onRequestDelete, onLongPress, disabled }: SwipeToDeleteRowProps) {
   const translateX = useRef(new Animated.Value(0)).current;
   const rowWidthRef = useRef(0);
   const deletingTriggeredRef = useRef(false);
@@ -69,30 +54,12 @@ function SwipeToDeleteRow({
     [translateX],
   );
 
-  useEffect(() => {
-    if (disabled) {
-      animateTo(0);
-      return;
-    }
-
-    const width = rowWidthRef.current;
-    if (width <= 0) return;
-
-    if (isOpen) {
-      animateTo(-width * PARTIAL_REVEAL_RATIO);
-    } else {
-      animateTo(0);
-      deletingTriggeredRef.current = false;
-    }
-  }, [animateTo, isOpen, disabled]);
-
   const handleDeleteRequest = useCallback(() => {
     if (deletingTriggeredRef.current) return;
     deletingTriggeredRef.current = true;
     animateTo(0);
-    onClose();
     onRequestDelete();
-  }, [animateTo, onClose, onRequestDelete]);
+  }, [animateTo, onRequestDelete]);
 
   const panResponder = useMemo(
     () =>
@@ -122,23 +89,18 @@ function SwipeToDeleteRow({
           }
 
           if (drag >= width * PARTIAL_REVEAL_RATIO) {
-            onOpen(rowKey);
             animateTo(-width * PARTIAL_REVEAL_RATIO);
             return;
           }
 
-          onClose();
           animateTo(0);
         },
       }),
-    [animateTo, disabled, handleDeleteRequest, onClose, onOpen, rowKey, translateX],
+    [animateTo, disabled, handleDeleteRequest, translateX],
   );
 
   const onLayoutRow = (event: LayoutChangeEvent) => {
     rowWidthRef.current = event.nativeEvent.layout.width;
-    if (isOpen && rowWidthRef.current > 0) {
-      translateX.setValue(-rowWidthRef.current * PARTIAL_REVEAL_RATIO);
-    }
   };
 
   const actionWidth = Math.max(0, rowWidthRef.current * PARTIAL_REVEAL_RATIO);
@@ -204,7 +166,6 @@ export default function SavedScreen() {
   // Rename flow states
   const [showConfirmAddModal, setShowConfirmAddModal] = useState(false);
   const [pendingWorkoutInfo, setPendingWorkoutInfo] = useState<{ id: string; name: string } | null>(null);
-  const [openSwipeRowKey, setOpenSwipeRowKey] = useState<string | null>(null);
   const [pendingSwipeDelete, setPendingSwipeDelete] = useState<PendingSwipeDelete | null>(null);
   const [isDeletingFromSwipe, setIsDeletingFromSwipe] = useState(false);
 
@@ -502,7 +463,6 @@ export default function SavedScreen() {
     setSelectedFilter(filter);
     setSelectedWorkoutIds([]);
     setSelectedExerciseIds([]);
-    setOpenSwipeRowKey(null);
   };
 
   const handleToggleEditMode = () => {
@@ -512,7 +472,6 @@ export default function SavedScreen() {
       setSelectedWorkoutIds([]);
       setSelectedExerciseIds([]);
     }
-    setOpenSwipeRowKey(null);
     setMenuWorkout(null);
     setMenuExercise(null);
   };
@@ -546,7 +505,6 @@ export default function SavedScreen() {
   const requestSwipeDelete = (entry: PendingSwipeDelete) => {
     if (pendingSwipeDelete || isDeletingFromSwipe) return;
     setPendingSwipeDelete(entry);
-    setOpenSwipeRowKey(null);
   };
 
   const handleConfirmSwipeDelete = () => {
@@ -579,7 +537,6 @@ export default function SavedScreen() {
   const handleCancelSwipeDelete = () => {
     if (isDeletingFromSwipe) return;
     setPendingSwipeDelete(null);
-    setOpenSwipeRowKey(null);
   };
 
   // Sort workouts by order
@@ -660,14 +617,10 @@ export default function SavedScreen() {
           return (
             <SwipeToDeleteRow
               key={workout.id}
-              rowKey={`workout-${workout.id}`}
               title={workout.name}
               subtitle={workout.description}
               onPress={() => setDetailWorkout(workout)}
               onLongPress={() => handleOpenMenu(workout)}
-              isOpen={openSwipeRowKey === `workout-${workout.id}`}
-              onOpen={setOpenSwipeRowKey}
-              onClose={() => setOpenSwipeRowKey(current => (current === `workout-${workout.id}` ? null : current))}
               onRequestDelete={() => requestSwipeDelete({ id: workout.id, name: workout.name, type: 'workout' })}
             />
           );
@@ -711,15 +664,11 @@ export default function SavedScreen() {
           return (
             <SwipeToDeleteRow
               key={exercise.id}
-              rowKey={`exercise-${exercise.id}`}
               title={exercise.name}
               onPress={() =>
                 setDetailExercise({ id: exercise.id, name: exercise.name, description: exercise.description ?? '', originalId: exercise.originalId })
               }
               onLongPress={() => handleOpenExerciseMenu({ id: exercise.id, name: exercise.name, originalId: exercise.originalId })}
-              isOpen={openSwipeRowKey === `exercise-${exercise.id}`}
-              onOpen={setOpenSwipeRowKey}
-              onClose={() => setOpenSwipeRowKey(current => (current === `exercise-${exercise.id}` ? null : current))}
               onRequestDelete={() => requestSwipeDelete({ id: exercise.id, name: exercise.name, type: 'exercise' })}
             />
           );
