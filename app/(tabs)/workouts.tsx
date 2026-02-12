@@ -353,12 +353,23 @@ export default function SavedScreen() {
     );
   };
 
+  const openWorkoutEditor = (workout: SavedWorkout) => {
+    setEditingWorkout(workout);
+    setEditName(workout.name);
+    setEditDescription(workout.description);
+  };
+
   const handleEdit = () => {
     if (menuWorkout) {
-      setEditingWorkout(menuWorkout);
-      setEditName(menuWorkout.name);
-      setEditDescription(menuWorkout.description);
+      openWorkoutEditor(menuWorkout);
       setMenuWorkout(null);
+    }
+  };
+
+  const handleDetailEditPress = () => {
+    if (detailWorkout) {
+      openWorkoutEditor(detailWorkout);
+      setDetailWorkout(null);
     }
   };
 
@@ -1217,6 +1228,10 @@ export default function SavedScreen() {
                 </View>
               ))}
             </ScrollView>
+
+            <TouchableOpacity style={styles.workoutDetailEditButton} onPress={handleDetailEditPress}>
+              <Text style={styles.workoutDetailEditButtonText}>Edit</Text>
+            </TouchableOpacity>
           </View>
         </View>
       </Modal>
@@ -1696,6 +1711,21 @@ const styles = StyleSheet.create({
     color: '#888',
     fontSize: 14,
     marginBottom: 20,
+  },
+  workoutDetailEditButton: {
+    alignSelf: 'center',
+    marginTop: 14,
+    backgroundColor: '#fff',
+    borderRadius: 8,
+    minHeight: 46,
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    justifyContent: 'center',
+  },
+  workoutDetailEditButtonText: {
+    color: '#000',
+    fontSize: 15,
+    fontWeight: '600',
   },
   exerciseSectionTitle: {
     color: '#fff',
