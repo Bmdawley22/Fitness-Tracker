@@ -281,7 +281,7 @@ export const CreateFlowModals = forwardRef<CreateFlowHandle>(function CreateFlow
     }
 
     if (hasDuplicateWorkoutName(trimmedName)) {
-      setWorkoutNameError('A workout with this name already exists. Please choose a different name.');
+      setWorkoutNameError('A workout with this name already exists.');
       return;
     }
 
@@ -340,7 +340,7 @@ export const CreateFlowModals = forwardRef<CreateFlowHandle>(function CreateFlow
                     setWorkoutNameError('');
                     return;
                   }
-                  setWorkoutNameError(hasDuplicateWorkoutName(text) ? 'A workout with this name already exists. Please choose a different name.' : '');
+                  setWorkoutNameError(hasDuplicateWorkoutName(text) ? 'A workout with this name already exists.' : '');
                 }}
               />
               {workoutNameError ? <Text style={styles.validationErrorText}>{workoutNameError}</Text> : null}

@@ -390,7 +390,7 @@ export default function SavedScreen() {
   const handleSaveEdit = () => {
     if (editingWorkout) {
       if (hasDuplicateWorkoutName(editName, editingWorkout.id)) {
-        setEditNameError('A workout with this name already exists. Please choose a different name.');
+        setEditNameError('A workout with this name already exists.');
         return;
       }
 
@@ -1270,7 +1270,7 @@ export default function SavedScreen() {
                 }
                 setEditNameError(
                   hasDuplicateWorkoutName(text, editingWorkout.id)
-                    ? 'A workout with this name already exists. Please choose a different name.'
+                    ? 'A workout with this name already exists.'
                     : ''
                 );
               }}
