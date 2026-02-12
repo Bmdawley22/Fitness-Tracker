@@ -46,6 +46,7 @@ type CreateFlowModalsProps = {
 export const CreateFlowModals = forwardRef<CreateFlowHandle, CreateFlowModalsProps>(function CreateFlowModals({ onWorkoutCreated }, ref) {
   const [createModalVisible, setCreateModalVisible] = useState(false);
   const [workoutName, setWorkoutName] = useState('');
+  const [workoutNameError, setWorkoutNameError] = useState('');
   const [workoutDescription, setWorkoutDescription] = useState('');
   const [selectedExercises, setSelectedExercises] = useState<string[]>([]);
   const [searchText, setSearchText] = useState('');
@@ -142,11 +143,21 @@ export const CreateFlowModals = forwardRef<CreateFlowHandle, CreateFlowModalsPro
       .filter(Boolean)
       .join(' ');
 
+  const normalizeWorkoutName = (value: string) => value.trim().toLowerCase();
+
+  const hasDuplicateWorkoutName = (name: string) => {
+    const normalizedCandidate = normalizeWorkoutName(name);
+    if (!normalizedCandidate) return false;
+
+    return savedWorkouts.some(workout => normalizeWorkoutName(workout.name) === normalizedCandidate);
+  };
+
   const resetForm = () => {
     setWorkoutName('');
     setWorkoutDescription('');
     setSelectedExercises([]);
     setSearchText('');
+    setWorkoutNameError('');
   };
 
   const openCreateWorkoutModal = () => {
@@ -273,6 +284,11 @@ export const CreateFlowModals = forwardRef<CreateFlowHandle, CreateFlowModalsPro
       return;
     }
 
+    if (hasDuplicateWorkoutName(trimmedName)) {
+      setWorkoutNameError('A workout with this name already exists.');
+      return;
+    }
+
     if (selectedExercises.length === 0) {
       Alert.alert('Add exercises', 'Select at least one exercise to create a workout.');
       return;
@@ -312,8 +328,10 @@ export const CreateFlowModals = forwardRef<CreateFlowHandle, CreateFlowModalsPro
               <View style={styles.titleRow}>
                 <Text style={styles.modalTitle}>Create New Workout</Text>
               </View>
-              <TouchableOpacity style={styles.topSaveButton} onPress={handleCreateWorkout}>
-                <Text style={styles.topSaveText}>Save</Text>
+              <TouchableOpacity
+                style={[styles.topSaveButton, workoutNameError && styles.topSaveButtonInvalid]}
+                onPress={handleCreateWorkout}>
+                <Text style={[styles.topSaveText, workoutNameError && styles.topSaveTextInvalid]}>Save</Text>
               </TouchableOpacity>
             </View>
 
@@ -323,8 +341,16 @@ export const CreateFlowModals = forwardRef<CreateFlowHandle, CreateFlowModalsPro
                 placeholder="Workout Name"
                 placeholderTextColor="#888"
                 value={workoutName}
-                onChangeText={setWorkoutName}
+                onChangeText={text => {
+                  setWorkoutName(text);
+                  if (!text.trim()) {
+                    setWorkoutNameError('');
+                    return;
+                  }
+                  setWorkoutNameError(hasDuplicateWorkoutName(text) ? 'A workout with this name already exists.' : '');
+                }}
               />
+              {workoutNameError ? <Text style={styles.validationErrorText}>{workoutNameError}</Text> : null}
               <TextInput
                 style={[styles.input, styles.descriptionInput]}
                 placeholder="Description (optional)"
@@ -1284,6 +1310,13 @@ const styles = StyleSheet.create({
     fontSize: 16,
     marginBottom: 12,
   },
+  validationErrorText: {
+    color: '#ff4d4f',
+    fontSize: 14,
+    fontWeight: '600',
+    marginTop: -4,
+    marginBottom: 10,
+  },
   descriptionInput: {
     height: 52,
     maxHeight: 52,
@@ -1365,10 +1398,16 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     borderRadius: 12,
   },
+  topSaveButtonInvalid: {
+    backgroundColor: '#d32f2f',
+  },
   topSaveText: {
     color: '#000',
     fontSize: 14,
     fontWeight: '700',
+  },
+  topSaveTextInvalid: {
+    color: '#fff',
   },
   titleRow: {
     flex: 1,
