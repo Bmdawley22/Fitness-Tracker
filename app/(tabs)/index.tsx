@@ -296,7 +296,7 @@ export default function HomeScreen() {
           onPress={() => setShowQuickCreateModal(true)}
           accessibilityRole="button"
           accessibilityLabel="Open quick create menu">
-          <Text style={styles.quickCreateButtonText}>+</Text>
+          <Text style={styles.quickCreateButtonText}>Create</Text>
         </TouchableOpacity>
       </View>
 
@@ -585,20 +585,21 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   quickCreateButton: {
-    width: 34,
+    minWidth: 72,
     height: 34,
-    borderRadius: 17,
+    borderRadius: 18,
     borderWidth: 2,
     borderColor: '#fff',
     alignItems: 'center',
     justifyContent: 'center',
     marginLeft: 12,
+    paddingHorizontal: 10,
   },
   quickCreateButtonText: {
     color: '#fff',
-    fontSize: 22,
+    fontSize: 14,
     fontWeight: '700',
-    lineHeight: 24,
+    lineHeight: 20,
   },
   categoryFilterContainer: {
     paddingHorizontal: 16,
