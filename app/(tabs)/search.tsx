@@ -299,7 +299,7 @@ export default function SearchScreen() {
                         setAssignmentDateKey(dateKey);
                         setAssignmentDateLabel(dayLabel);
                       }}>
-                      <Ionicons name="pencil-outline" size={12} color="#000" />
+                      <Text style={styles.editButtonInlineText}>Edit</Text>
                     </TouchableOpacity>
                   </View>
 
@@ -698,14 +698,21 @@ const styles = StyleSheet.create({
   },
   editButtonInline: {
     marginLeft: 6,
-    height: 22,
-    width: 22,
     borderRadius: 8,
     borderWidth: 1,
     borderColor: '#000',
     backgroundColor: '#fff',
     justifyContent: 'center',
     alignItems: 'center',
+    paddingHorizontal: 10,
+    paddingVertical: 3,
+    minHeight: 24,
+  },
+  editButtonInlineText: {
+    color: '#000',
+    fontSize: 12,
+    fontWeight: '700',
+    lineHeight: 14,
   },
   exerciseListBox: {
     flex: 1,
