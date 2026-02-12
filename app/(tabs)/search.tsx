@@ -344,7 +344,7 @@ export default function SearchScreen() {
                 </View>
               ) : (
                 <TouchableOpacity
-                  style={styles.assignButton}
+                  style={[styles.assignButton, styles.assignButtonNoHorizontalInset]}
                   onPress={() => {
                     setAssignmentDateKey(dateKey);
                     setAssignmentDateLabel(dayLabel);
@@ -657,6 +657,9 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingHorizontal: 12,
     backgroundColor: '#111',
+  },
+  assignButtonNoHorizontalInset: {
+    marginHorizontal: -12,
   },
   assignedWorkoutContainer: {
     minHeight: 88,
