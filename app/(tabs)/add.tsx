@@ -1283,6 +1283,13 @@ const styles = StyleSheet.create({
     fontSize: 16,
     marginBottom: 12,
   },
+  validationErrorText: {
+    color: '#ff4d4f',
+    fontSize: 14,
+    fontWeight: '600',
+    marginTop: -4,
+    marginBottom: 10,
+  },
   descriptionInput: {
     height: 52,
     maxHeight: 52,
