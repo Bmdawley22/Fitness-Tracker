@@ -250,6 +250,10 @@ export default function SavedScreen() {
   const [showExerciseSelectionModal, setShowExerciseSelectionModal] = useState(false);
   const [exerciseSearchText, setExerciseSearchText] = useState('');
   const [exerciseMuscleFilters, setExerciseMuscleFilters] = useState<string[]>([]);
+  const [savedExerciseGroups, setSavedExerciseGroups] = useState<string[]>(['All']);
+  const [savedExerciseSearchText, setSavedExerciseSearchText] = useState('');
+  const [savedExercisesBaseContentHeight, setSavedExercisesBaseContentHeight] = useState(0);
+  const [savedExercisesViewportHeight, setSavedExercisesViewportHeight] = useState(0);
   
   // Swipe delete states
   const [pendingSwipeDelete, setPendingSwipeDelete] = useState<PendingSwipeDelete | null>(null);
@@ -566,6 +570,46 @@ export default function SavedScreen() {
 
     return sections;
   }, [filteredExercisesForSelection, savedExerciseOriginalIds]);
+
+  const savedExerciseGroupOptions = useMemo(() => {
+    const unique = new Set<string>();
+    savedExercises.forEach(exercise => {
+      resolveMuscleGroups(exercise).forEach(group => unique.add(group));
+    });
+    const groups = Array.from(unique);
+    groups.sort((a, b) => a.localeCompare(b));
+    return ['All', ...groups];
+  }, [savedExercises]);
+
+  useEffect(() => {
+    if (selectedFilter !== 'exercises') {
+      setSavedExerciseGroups(['All']);
+      setSavedExerciseSearchText('');
+    }
+  }, [selectedFilter]);
+
+  const filteredSavedExercises = useMemo(() => {
+    if (selectedFilter !== 'exercises') return [];
+
+    const isAllSelected = savedExerciseGroups.includes('All');
+
+    let list = isAllSelected
+      ? savedExercises
+      : savedExercises.filter(exercise => {
+          const groups = resolveMuscleGroups(exercise);
+          return groups.some(group => savedExerciseGroups.includes(group));
+        });
+
+    if (savedExerciseSearchText.trim()) {
+      const term = savedExerciseSearchText.trim().toLowerCase();
+      list = list.filter(exercise => {
+        const haystack = `${exercise.name} ${exercise.description ?? ''} ${resolveMuscleGroups(exercise).join(' ')}`.toLowerCase();
+        return haystack.includes(term);
+      });
+    }
+
+    return list;
+  }, [selectedFilter, savedExerciseGroups, savedExercises, savedExerciseSearchText]);
 
   const handleFilterChange = (filter: SavedFilter) => {
     setSelectedFilter(filter);
