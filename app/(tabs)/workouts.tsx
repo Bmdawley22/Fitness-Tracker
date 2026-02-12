@@ -1212,9 +1212,12 @@ export default function SavedScreen() {
               ) : null}
 
               {detailExercise?.image ? (
-                <TouchableOpacity onPress={() => handleOpenExternalLink(detailExercise.image!)}>
-                  <Text style={styles.exerciseLinkText}>{detailExercise.image}</Text>
-                </TouchableOpacity>
+                <>
+                  <Text style={styles.exerciseSectionTitle}>Exercise image</Text>
+                  <TouchableOpacity onPress={() => handleOpenExternalLink(detailExercise.image!)}>
+                    <Text style={styles.exerciseLinkText}>{detailExercise.image}</Text>
+                  </TouchableOpacity>
+                </>
               ) : null}
             </ScrollView>
 

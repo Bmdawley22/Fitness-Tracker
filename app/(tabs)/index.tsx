@@ -486,9 +486,12 @@ export default function HomeScreen() {
               ) : null}
 
               {selectedExerciseData?.image ? (
-                <TouchableOpacity onPress={() => selectedExerciseData.image && handleOpenExternalLink(selectedExerciseData.image)}>
-                  <Text style={styles.exerciseLinkText}>{selectedExerciseData.image}</Text>
-                </TouchableOpacity>
+                <>
+                  <Text style={styles.exerciseSectionTitle}>Exercise image</Text>
+                  <TouchableOpacity onPress={() => selectedExerciseData.image && handleOpenExternalLink(selectedExerciseData.image)}>
+                    <Text style={styles.exerciseLinkText}>{selectedExerciseData.image}</Text>
+                  </TouchableOpacity>
+                </>
               ) : null}
             </ScrollView>
 
