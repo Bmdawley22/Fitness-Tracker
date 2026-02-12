@@ -277,7 +277,7 @@ export default function SearchScreen() {
 
           return (
             <View key={dateKey} style={[styles.dayRow, isCompleted && styles.dayRowCompleted]}>
-              <View style={styles.dayTitleRow}>
+              <View style={[styles.dayTitleRow, isCompleted && styles.dayTitleRowCompleted]}>
                 <Text style={styles.dayTitle}>{dayLabel}</Text>
                 {isCompleted ? <Text style={styles.completedDayLabel}>Completed</Text> : null}
               </View>
@@ -632,6 +632,9 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-between',
   },
+  dayTitleRowCompleted: {
+    backgroundColor: '#2CD66F',
+  },
   dayTitle: {
     color: '#fff',
     fontSize: 16,
@@ -640,7 +643,7 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   completedDayLabel: {
-    color: '#2CD66F',
+    color: '#fff',
     fontSize: 12,
     fontWeight: '700',
     marginLeft: 8,
