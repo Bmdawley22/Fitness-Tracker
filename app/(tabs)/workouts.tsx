@@ -249,7 +249,7 @@ export default function SavedScreen() {
   // Exercise selection from edit modal states
   const [showExerciseSelectionModal, setShowExerciseSelectionModal] = useState(false);
   const [exerciseSearchText, setExerciseSearchText] = useState('');
-  const [exerciseMuscleFilter, setExerciseMuscleFilter] = useState('All');
+  const [exerciseMuscleFilters, setExerciseMuscleFilters] = useState<string[]>([]);
   
   // Swipe delete states
   const [pendingSwipeDelete, setPendingSwipeDelete] = useState<PendingSwipeDelete | null>(null);
@@ -398,7 +398,7 @@ export default function SavedScreen() {
   const handleAddExerciseFromEditPage = () => {
     setShowExerciseSelectionModal(true);
     setExerciseSearchText('');
-    setExerciseMuscleFilter('All');
+    setExerciseMuscleFilters([]);
   };
 
   const handleSelectExerciseFromList = (exerciseId: string, exerciseName: string) => {
@@ -430,7 +430,7 @@ export default function SavedScreen() {
     // Close the modal
     setShowExerciseSelectionModal(false);
     setExerciseSearchText('');
-    setExerciseMuscleFilter('All');
+    setExerciseMuscleFilters([]);
   };
 
   const promptRemoveSavedExercise = (exercise: { id: string; name: string }, options?: { closeMenu?: boolean; closeDetail?: boolean }) => {
@@ -521,8 +521,12 @@ export default function SavedScreen() {
   const filteredExercisesForSelection = useMemo(() => {
     let list = availableSeededExercises;
 
-    if (exerciseMuscleFilter !== 'All') {
-      list = list.filter(exercise => resolveMuscleGroups(exercise).includes(exerciseMuscleFilter));
+    const hasMuscleFilters = exerciseMuscleFilters.length > 0;
+    if (hasMuscleFilters) {
+      list = list.filter(exercise => {
+        const groups = resolveMuscleGroups(exercise);
+        return exerciseMuscleFilters.some(filter => groups.includes(filter));
+      });
     }
 
     if (exerciseSearchText.trim()) {
@@ -534,7 +538,7 @@ export default function SavedScreen() {
     }
 
     return list;
-  }, [availableSeededExercises, exerciseMuscleFilter, exerciseSearchText]);
+  }, [availableSeededExercises, exerciseMuscleFilters, exerciseSearchText]);
 
   const exerciseSelectionSections = useMemo(() => {
     type ExerciseListEntry =
@@ -1155,14 +1159,14 @@ export default function SavedScreen() {
             onRequestClose={() => {
               setShowExerciseSelectionModal(false);
               setExerciseSearchText('');
-              setExerciseMuscleFilter('All');
+              setExerciseMuscleFilters([]);
             }}>
             <View style={styles.editContainer}>
               <View style={styles.editHeader}>
                 <TouchableOpacity onPress={() => {
                   setShowExerciseSelectionModal(false);
                   setExerciseSearchText('');
-                  setExerciseMuscleFilter('All');
+                  setExerciseMuscleFilters([]);
                 }}>
                   <Text style={styles.editCancelText}>Cancel</Text>
                 </TouchableOpacity>
@@ -1184,23 +1188,40 @@ export default function SavedScreen() {
                 contentContainerStyle={styles.exerciseFilterChipRow}
                 style={styles.exerciseFilterChipScroll}
               >
-                {exerciseCategoryOptions.map(option => (
-                  <Pressable
-                    key={option}
-                    style={[
-                      styles.exerciseFilterChip,
-                      exerciseMuscleFilter === option && styles.exerciseFilterChipActive,
-                    ]}
-                    onPress={() => setExerciseMuscleFilter(option)}>
-                    <Text
+                {exerciseCategoryOptions.map(option => {
+                  const isAll = option === 'All';
+                  const isActive = isAll ? exerciseMuscleFilters.length === 0 : exerciseMuscleFilters.includes(option);
+                  return (
+                    <Pressable
+                      key={option}
                       style={[
-                        styles.exerciseFilterChipText,
-                        exerciseMuscleFilter === option && styles.exerciseFilterChipTextActive,
-                      ]}>
-                      {option}
-                    </Text>
-                  </Pressable>
-                ))}
+                        styles.exerciseFilterChip,
+                        isActive && styles.exerciseFilterChipActive,
+                      ]}
+                      onPress={() => {
+                        if (isAll) {
+                          setExerciseMuscleFilters([]);
+                          return;
+                        }
+                        setExerciseMuscleFilters(prev => {
+                          const exists = prev.includes(option);
+                          if (exists) {
+                            const next = prev.filter(item => item !== option);
+                            return next;
+                          }
+                          return [...prev, option];
+                        });
+                      }}>
+                      <Text
+                        style={[
+                          styles.exerciseFilterChipText,
+                          isActive && styles.exerciseFilterChipTextActive,
+                        ]}>
+                        {option}
+                      </Text>
+                    </Pressable>
+                  );
+                })}
               </ScrollView>
 
               <FlatList
