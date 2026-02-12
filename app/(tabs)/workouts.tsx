@@ -21,6 +21,7 @@ import { useUIStore } from '@/store/uiState';
 
 const MAX_EXERCISES = 12;
 const REVEAL_WIDTH = 84;
+const SNAP_BACK_THRESHOLD_RATIO = 0.25;
 const AUTO_DELETE_THRESHOLD_RATIO = 0.6;
 
 type SavedFilter = 'workouts' | 'exercises';
@@ -94,20 +95,20 @@ function SwipeToDeleteRow({ title, subtitle, onPress, onRequestDelete, onLongPre
 
           const drag = Math.max(0, -gestureState.dx);
 
+          if (drag < width * SNAP_BACK_THRESHOLD_RATIO) {
+            setIsFullDeleteVisual(false);
+            animateTo(0);
+            return;
+          }
+
           if (drag >= width * AUTO_DELETE_THRESHOLD_RATIO) {
             setIsFullDeleteVisual(true);
             animateTo(-width, requestDeleteOnce);
             return;
           }
 
-          if (drag >= revealWidth) {
-            setIsFullDeleteVisual(false);
-            animateTo(-revealWidth);
-            return;
-          }
-
           setIsFullDeleteVisual(false);
-          animateTo(0);
+          animateTo(-revealWidth);
         },
       }),
     [animateTo, disabled, requestDeleteOnce, revealWidth, translateX],
