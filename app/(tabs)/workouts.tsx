@@ -1626,7 +1626,7 @@ const styles = StyleSheet.create({
     marginTop: 4,
   },
   menuButton: {
-    width: 32,
+    width: 24,
     height: 32,
     borderRadius: 12,
     alignItems: 'center',

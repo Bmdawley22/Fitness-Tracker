@@ -556,7 +556,7 @@ export default function AddScreen() {
 
   const today = new Date();
   const todayDateKey = toLocalDateKey(today);
-  const weekdayTitle = WEEK_DAYS[today.getDay()].replace(/\.$/, '');
+  const weekdayTitle = WEEK_DAYS[today.getDay()].replace(/\.+$/, '');
   const assignedWorkoutId = schedule[todayDateKey] ?? null;
   const assignedWorkout = useMemo(
     () => savedWorkouts.find(workout => workout.id === assignedWorkoutId) ?? null,
