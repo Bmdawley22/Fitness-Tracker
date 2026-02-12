@@ -1,4 +1,4 @@
-import { Alert, Dimensions, Keyboard, Modal, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import { Alert, Dimensions, Modal, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import React, { forwardRef, useEffect, useImperativeHandle, useMemo, useState } from 'react';
 import { exercises as allExercises } from '@/data/exercises';
 import { useSavedWorkoutsStore, CustomExercise } from '@/store/savedWorkouts';
@@ -9,8 +9,8 @@ const DEFAULT_SET_COUNT = 3;
 const MIN_SET_COUNT = 1;
 const MAX_SET_COUNT = 6;
 const DEFAULT_REPS = 6;
-const REP_OPTIONS = Array.from({ length: 30 }, (_, index) => index + 1);
-const WEIGHT_OPTIONS = Array.from({ length: 101 }, (_, index) => index * 5);
+const REP_OPTIONS = Array.from({ length: 15 }, (_, index) => (index + 1) * 2);
+const WEIGHT_OPTIONS = Array.from({ length: 100 }, (_, index) => (index + 1) * 5);
 
 type ExerciseSetDraft = { reps: string; weight: string };
 
@@ -467,12 +467,10 @@ export default function AddScreen() {
   const [activeExerciseDescription, setActiveExerciseDescription] = useState('');
   const [draftSetCount, setDraftSetCount] = useState(DEFAULT_SET_COUNT);
   const [draftSets, setDraftSets] = useState<ExerciseSetDraft[]>([]);
-  const [removeSetPickerVisible, setRemoveSetPickerVisible] = useState(false);
-  const [targetSetCountAfterRemove, setTargetSetCountAfterRemove] = useState<number | null>(null);
-  const [selectedSetIndexesToRemove, setSelectedSetIndexesToRemove] = useState<number[]>([]);
-  const [valuePickerVisible, setValuePickerVisible] = useState(false);
-  const [valuePickerField, setValuePickerField] = useState<'reps' | 'weight' | null>(null);
-  const [valuePickerSetIndex, setValuePickerSetIndex] = useState<number | null>(null);
+  const [logView, setLogView] = useState<'sets' | 'pick-value' | 'pick-remove'>('sets');
+  const [activePickerField, setActivePickerField] = useState<'reps' | 'weight' | null>(null);
+  const [activePickerRowIndex, setActivePickerRowIndex] = useState<number | null>(null);
+  const [selectedSetIndexToRemove, setSelectedSetIndexToRemove] = useState<number | null>(null);
   const {
     savedWorkouts,
     savedExercises,
@@ -554,10 +552,22 @@ export default function AddScreen() {
     return 100;
   };
 
+  const normalizeReps = (value: number): number => {
+    const rounded = Math.round(value);
+    const nearestEven = Math.round(rounded / 2) * 2;
+    return Math.min(30, Math.max(2, nearestEven));
+  };
+
+  const normalizeWeight = (value: number): number => {
+    const rounded = Math.round(value);
+    const nearestFive = Math.round(rounded / 5) * 5;
+    return Math.min(500, Math.max(5, nearestFive));
+  };
+
   const createDefaultSetRows = (count: number, defaultWeight: number): ExerciseSetDraft[] =>
     Array.from({ length: count }, () => ({
       reps: String(DEFAULT_REPS),
-      weight: String(defaultWeight),
+      weight: String(normalizeWeight(defaultWeight)),
     }));
 
   const openExerciseLog = (exerciseRowId: string) => {
@@ -574,9 +584,26 @@ export default function AddScreen() {
     setActiveExerciseDescription(selectedExercise.description);
 
     if (existingLog) {
+      const normalizedSets = existingLog.sets.slice(0, existingLog.setCount).map(setRow => ({
+        reps: normalizeReps(setRow.reps),
+        weight: normalizeWeight(setRow.weight),
+      }));
+
+      const changed = normalizedSets.some(
+        (setRow, index) => setRow.reps !== existingLog.sets[index]?.reps || setRow.weight !== existingLog.sets[index]?.weight,
+      );
+
+      if (changed) {
+        setExerciseLog(todayDateKey, assignedWorkoutId, exerciseRowId, {
+          setCount: existingLog.setCount,
+          sets: normalizedSets,
+          updatedAt: new Date().toISOString(),
+        });
+      }
+
       setDraftSetCount(existingLog.setCount);
       setDraftSets(
-        existingLog.sets.slice(0, existingLog.setCount).map(setRow => ({
+        normalizedSets.map(setRow => ({
           reps: String(setRow.reps),
           weight: String(setRow.weight),
         })),
@@ -591,12 +618,10 @@ export default function AddScreen() {
 
   const closeExerciseLog = () => {
     setExerciseLogVisible(false);
-    setRemoveSetPickerVisible(false);
-    setTargetSetCountAfterRemove(null);
-    setSelectedSetIndexesToRemove([]);
-    setValuePickerVisible(false);
-    setValuePickerField(null);
-    setValuePickerSetIndex(null);
+    setLogView('sets');
+    setActivePickerField(null);
+    setActivePickerRowIndex(null);
+    setSelectedSetIndexToRemove(null);
     setActiveExerciseRowId(null);
     setActiveExerciseName('');
     setActiveExerciseDescription('');
@@ -604,74 +629,49 @@ export default function AddScreen() {
     setDraftSets([]);
   };
 
-  const handleSetCountChange = (nextCount: number) => {
-    if (!exerciseLogVisible) return;
-    const clampedCount = Math.max(MIN_SET_COUNT, Math.min(MAX_SET_COUNT, Math.floor(nextCount)));
-    if (clampedCount === draftSetCount) return;
-
-    if (clampedCount > draftSetCount) {
-      const defaultWeight = inferDefaultWeight(activeExerciseName);
-      const rowsToAdd = createDefaultSetRows(clampedCount - draftSetCount, defaultWeight);
-      setDraftSets(prev => [...prev, ...rowsToAdd]);
-      setDraftSetCount(clampedCount);
-      return;
-    }
-
-    const removeCount = draftSetCount - clampedCount;
-    const defaultSelected = Array.from({ length: removeCount }, (_, idx) => draftSetCount - 1 - idx);
-
-    setTargetSetCountAfterRemove(clampedCount);
-    setSelectedSetIndexesToRemove(defaultSelected);
-    setRemoveSetPickerVisible(true);
+  const handleSetCountDecrease = () => {
+    if (draftSetCount <= MIN_SET_COUNT) return;
+    setSelectedSetIndexToRemove(null);
+    setLogView('pick-remove');
   };
 
-  const toggleSetRemovalSelection = (rowIndex: number) => {
-    setSelectedSetIndexesToRemove(prev =>
-      prev.includes(rowIndex) ? prev.filter(index => index !== rowIndex) : [...prev, rowIndex],
-    );
-  };
-
-  const confirmRemoveSelectedSets = () => {
-    if (targetSetCountAfterRemove === null) return;
-
-    const requiredRemoveCount = draftSetCount - targetSetCountAfterRemove;
-    if (selectedSetIndexesToRemove.length !== requiredRemoveCount) {
-      Alert.alert('Select exact sets', `Please select exactly ${requiredRemoveCount} set${requiredRemoveCount > 1 ? 's' : ''} to remove.`);
-      return;
-    }
-
-    const selected = new Set(selectedSetIndexesToRemove);
-    const retained = draftSets.filter((_, index) => !selected.has(index));
-    setDraftSets(retained);
-    setDraftSetCount(targetSetCountAfterRemove);
-    setRemoveSetPickerVisible(false);
-    setTargetSetCountAfterRemove(null);
-    setSelectedSetIndexesToRemove([]);
+  const handleSetCountIncrease = () => {
+    const nextCount = draftSetCount + 1;
+    if (nextCount > MAX_SET_COUNT) return;
+    const defaultWeight = inferDefaultWeight(activeExerciseName);
+    setDraftSets(prev => [...prev, ...createDefaultSetRows(1, defaultWeight)]);
+    setDraftSetCount(nextCount);
   };
 
   const openValuePicker = (rowIndex: number, field: 'reps' | 'weight') => {
-    Keyboard.dismiss();
-    setValuePickerSetIndex(rowIndex);
-    setValuePickerField(field);
-    setValuePickerVisible(true);
+    setActivePickerRowIndex(rowIndex);
+    setActivePickerField(field);
+    setLogView('pick-value');
   };
 
   const handleSelectPickerValue = (value: number) => {
-    if (valuePickerSetIndex === null || !valuePickerField) return;
-
+    if (activePickerRowIndex === null || !activePickerField) return;
     setDraftSets(prev =>
       prev.map((row, idx) => {
-        if (idx !== valuePickerSetIndex) return row;
-        return {
-          ...row,
-          [valuePickerField]: String(value),
-        };
+        if (idx !== activePickerRowIndex) return row;
+        return { ...row, [activePickerField]: String(value) };
       }),
     );
+    setLogView('sets');
+    setActivePickerField(null);
+    setActivePickerRowIndex(null);
+  };
 
-    setValuePickerVisible(false);
-    setValuePickerField(null);
-    setValuePickerSetIndex(null);
+  const confirmRemoveSet = () => {
+    if (selectedSetIndexToRemove === null) {
+      Alert.alert('Select set', 'Please select one set to remove.');
+      return;
+    }
+    const retained = draftSets.filter((_, index) => index !== selectedSetIndexToRemove);
+    setDraftSets(retained);
+    setDraftSetCount(prev => Math.max(MIN_SET_COUNT, prev - 1));
+    setSelectedSetIndexToRemove(null);
+    setLogView('sets');
   };
 
   const handleSaveExerciseLog = () => {
@@ -685,7 +685,7 @@ export default function AddScreen() {
         throw new Error(`Set ${index + 1} requires integer reps and weight.`);
       }
 
-      return { reps, weight };
+      return { reps: normalizeReps(reps), weight: normalizeWeight(weight) };
     });
 
     try {
@@ -856,140 +856,128 @@ export default function AddScreen() {
       <Modal visible={exerciseLogVisible} transparent animationType="fade" onRequestClose={closeExerciseLog}>
         <View style={styles.modalOverlay}>
           <View style={styles.exerciseLogModalContent}>
-            <Text style={styles.modalTitle}>{activeExerciseName}</Text>
-            <Text style={styles.exerciseLogDescription}>{activeExerciseDescription}</Text>
 
-            <View style={styles.setCountRow}>
-              <Text style={styles.setCountLabel}>Sets</Text>
-              <View style={styles.setCountControls}>
-                <TouchableOpacity style={styles.setCountButton} onPress={() => handleSetCountChange(draftSetCount - 1)}>
-                  <Text style={styles.setCountButtonText}>−</Text>
-                </TouchableOpacity>
-                <Text style={styles.setCountValue}>{draftSetCount}</Text>
-                <TouchableOpacity style={styles.setCountButton} onPress={() => handleSetCountChange(draftSetCount + 1)}>
-                  <Text style={styles.setCountButtonText}>+</Text>
-                </TouchableOpacity>
-              </View>
-            </View>
+            {/* ── SETS VIEW ── */}
+            {logView === 'sets' && (
+              <>
+                <Text style={styles.modalTitle}>{activeExerciseName}</Text>
+                <Text style={styles.exerciseLogDescription}>{activeExerciseDescription}</Text>
 
-            <View style={styles.setTableHeaderRow}>
-              <Text style={styles.setTableSetHeader}>Set</Text>
-              <Text style={styles.setTableRepsHeader}>Reps</Text>
-              <Text style={styles.setTableWeightHeader}>Weight (lbs)</Text>
-            </View>
+                <View style={styles.setCountRow}>
+                  <Text style={styles.setCountLabel}>Sets</Text>
+                  <View style={styles.setCountControls}>
+                    <TouchableOpacity
+                      style={[styles.setCountButton, draftSetCount <= MIN_SET_COUNT && styles.setCountButtonDisabled]}
+                      onPress={handleSetCountDecrease}>
+                      <Text style={styles.setCountButtonText}>−</Text>
+                    </TouchableOpacity>
+                    <Text style={styles.setCountValue}>{draftSetCount}</Text>
+                    <TouchableOpacity
+                      style={[styles.setCountButton, draftSetCount >= MAX_SET_COUNT && styles.setCountButtonDisabled]}
+                      onPress={handleSetCountIncrease}>
+                      <Text style={styles.setCountButtonText}>+</Text>
+                    </TouchableOpacity>
+                  </View>
+                </View>
 
-            <ScrollView style={styles.exerciseLogList} keyboardShouldPersistTaps="handled">
-              {draftSets.slice(0, draftSetCount).map((setRow, index) => (
-                <View key={`set-${index}`} style={styles.setRow}>
-                  <Text style={styles.setRowLabel}>Set {index + 1}</Text>
+                <View style={styles.setTableHeaderRow}>
+                  <Text style={styles.setTableSetHeader}>Set</Text>
+                  <Text style={styles.setTableRepsHeader}>Reps</Text>
+                  <Text style={styles.setTableWeightHeader}>Weight (lbs)</Text>
+                </View>
 
-                  <TouchableOpacity
-                    style={[styles.setPickerButton, styles.repsPickerButton]}
-                    onPress={() => openValuePicker(index, 'reps')}>
-                    <Text style={styles.setPickerButtonText}>{setRow.reps}</Text>
+                <ScrollView style={styles.exerciseLogList}>
+                  {draftSets.slice(0, draftSetCount).map((setRow, index) => (
+                    <View key={`set-${index}`} style={styles.setRow}>
+                      <Text style={styles.setRowLabel}>Set {index + 1}</Text>
+                      <TouchableOpacity
+                        style={[styles.setPickerButton, styles.repsPickerButton]}
+                        onPress={() => openValuePicker(index, 'reps')}>
+                        <Text style={styles.setPickerButtonText}>{setRow.reps}</Text>
+                      </TouchableOpacity>
+                      <TouchableOpacity
+                        style={[styles.setPickerButton, styles.weightPickerButton]}
+                        onPress={() => openValuePicker(index, 'weight')}>
+                        <Text style={styles.setPickerButtonText}>{setRow.weight}</Text>
+                      </TouchableOpacity>
+                    </View>
+                  ))}
+                </ScrollView>
+
+                <View style={styles.exerciseLogButtonsRow}>
+                  <TouchableOpacity style={styles.exerciseLogCancelButton} onPress={closeExerciseLog}>
+                    <Text style={styles.closeButtonText}>Cancel</Text>
                   </TouchableOpacity>
-
-                  <TouchableOpacity
-                    style={[styles.setPickerButton, styles.weightPickerButton]}
-                    onPress={() => openValuePicker(index, 'weight')}>
-                    <Text style={styles.setPickerButtonText}>{setRow.weight}</Text>
+                  <TouchableOpacity style={styles.exerciseLogSaveButton} onPress={handleSaveExerciseLog}>
+                    <Text style={styles.exerciseLogSaveText}>Save</Text>
                   </TouchableOpacity>
                 </View>
-              ))}
-            </ScrollView>
+              </>
+            )}
 
-            <View style={styles.exerciseLogButtonsRow}>
-              <TouchableOpacity style={styles.exerciseLogCancelButton} onPress={closeExerciseLog}>
-                <Text style={styles.closeButtonText}>Cancel</Text>
-              </TouchableOpacity>
-              <TouchableOpacity style={styles.exerciseLogSaveButton} onPress={handleSaveExerciseLog}>
-                <Text style={styles.exerciseLogSaveText}>Save</Text>
-              </TouchableOpacity>
-            </View>
-          </View>
-        </View>
-      </Modal>
-
-      <Modal
-        visible={valuePickerVisible}
-        transparent
-        animationType="fade"
-        onRequestClose={() => {
-          setValuePickerVisible(false);
-          setValuePickerField(null);
-          setValuePickerSetIndex(null);
-        }}>
-        <View style={styles.modalOverlay}>
-          <View style={styles.valuePickerModalContent}>
-            <Text style={styles.modalTitle}>{valuePickerField === 'weight' ? 'Select Weight (lbs)' : 'Select Reps'}</Text>
-            <ScrollView style={styles.valuePickerList} keyboardShouldPersistTaps="handled">
-              {(valuePickerField === 'weight' ? WEIGHT_OPTIONS : REP_OPTIONS).map(option => (
+            {/* ── VALUE PICKER VIEW ── */}
+            {logView === 'pick-value' && (
+              <>
+                <Text style={styles.modalTitle}>
+                  {activePickerField === 'weight' ? 'Select Weight (lbs)' : 'Select Reps'}
+                </Text>
+                <ScrollView style={styles.valuePickerList}>
+                  {(activePickerField === 'weight' ? WEIGHT_OPTIONS : REP_OPTIONS).map(option => (
+                    <TouchableOpacity
+                      key={`pick-${activePickerField}-${option}`}
+                      style={styles.valuePickerOption}
+                      onPress={() => handleSelectPickerValue(option)}>
+                      <Text style={styles.valuePickerOptionText}>{option}</Text>
+                    </TouchableOpacity>
+                  ))}
+                </ScrollView>
                 <TouchableOpacity
-                  key={`${valuePickerField}-${option}`}
-                  style={styles.valuePickerOption}
-                  onPress={() => handleSelectPickerValue(option)}>
-                  <Text style={styles.valuePickerOptionText}>{option}</Text>
+                  style={styles.closeButton}
+                  onPress={() => {
+                    setLogView('sets');
+                    setActivePickerField(null);
+                    setActivePickerRowIndex(null);
+                  }}>
+                  <Text style={styles.closeButtonText}>Back</Text>
                 </TouchableOpacity>
-              ))}
-            </ScrollView>
-            <TouchableOpacity
-              style={styles.closeButton}
-              onPress={() => {
-                setValuePickerVisible(false);
-                setValuePickerField(null);
-                setValuePickerSetIndex(null);
-              }}>
-              <Text style={styles.closeButtonText}>Cancel</Text>
-            </TouchableOpacity>
-          </View>
-        </View>
-      </Modal>
+              </>
+            )}
 
-      <Modal
-        visible={removeSetPickerVisible}
-        transparent
-        animationType="fade"
-        onRequestClose={() => {
-          setRemoveSetPickerVisible(false);
-          setTargetSetCountAfterRemove(null);
-          setSelectedSetIndexesToRemove([]);
-        }}>
-        <View style={styles.modalOverlay}>
-          <View style={styles.removeSetsModalContent}>
-            <Text style={styles.modalTitle}>Choose sets to remove</Text>
-            <Text style={styles.modalSubtitle}>
-              Select exactly {draftSetCount - (targetSetCountAfterRemove ?? draftSetCount)} set(s)
-            </Text>
-
-            <ScrollView style={styles.removeSetsList}>
-              {draftSets.map((_, index) => {
-                const selected = selectedSetIndexesToRemove.includes(index);
-                return (
+            {/* ── REMOVE SET PICKER VIEW ── */}
+            {logView === 'pick-remove' && (
+              <>
+                <Text style={styles.modalTitle}>Select set to remove</Text>
+                <Text style={styles.modalSubtitle}>Tap a set row to select, then tap Remove.</Text>
+                <ScrollView style={styles.removeSetsList}>
+                  {draftSets.slice(0, draftSetCount).map((_, index) => {
+                    const selected = selectedSetIndexToRemove === index;
+                    return (
+                      <TouchableOpacity
+                        key={`remove-${index}`}
+                        style={[styles.removeSetRow, selected && styles.removeSetRowSelected]}
+                        onPress={() => setSelectedSetIndexToRemove(prev => (prev === index ? null : index))}>
+                        <Text style={styles.removeSetRowText}>Set {index + 1}</Text>
+                        <Text style={styles.removeSetRowText}>{selected ? '☑' : '☐'}</Text>
+                      </TouchableOpacity>
+                    );
+                  })}
+                </ScrollView>
+                <View style={styles.exerciseLogButtonsRow}>
                   <TouchableOpacity
-                    key={`remove-set-${index}`}
-                    style={styles.removeSetRow}
-                    onPress={() => toggleSetRemovalSelection(index)}>
-                    <Text style={styles.removeSetRowText}>Set {index + 1}</Text>
-                    <Text style={styles.removeSetRowText}>{selected ? '☑' : '☐'}</Text>
+                    style={styles.exerciseLogCancelButton}
+                    onPress={() => {
+                      setLogView('sets');
+                      setSelectedSetIndexToRemove(null);
+                    }}>
+                    <Text style={styles.closeButtonText}>Back</Text>
                   </TouchableOpacity>
-                );
-              })}
-            </ScrollView>
+                  <TouchableOpacity style={styles.exerciseLogSaveButton} onPress={confirmRemoveSet}>
+                    <Text style={styles.exerciseLogSaveText}>Remove</Text>
+                  </TouchableOpacity>
+                </View>
+              </>
+            )}
 
-            <View style={styles.exerciseLogButtonsRow}>
-              <TouchableOpacity
-                style={styles.exerciseLogCancelButton}
-                onPress={() => {
-                  setRemoveSetPickerVisible(false);
-                  setTargetSetCountAfterRemove(null);
-                  setSelectedSetIndexesToRemove([]);
-                }}>
-                <Text style={styles.closeButtonText}>Cancel</Text>
-              </TouchableOpacity>
-              <TouchableOpacity style={styles.exerciseLogSaveButton} onPress={confirmRemoveSelectedSets}>
-                <Text style={styles.exerciseLogSaveText}>Remove</Text>
-              </TouchableOpacity>
-            </View>
           </View>
         </View>
       </Modal>
@@ -1467,6 +1455,9 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
+  setCountButtonDisabled: {
+    opacity: 0.3,
+  },
   setCountButtonText: {
     color: '#fff',
     fontSize: 20,
@@ -1566,13 +1557,6 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '700',
   },
-  valuePickerModalContent: {
-    width: '70%',
-    maxHeight: '70%',
-    backgroundColor: '#1a1a1a',
-    borderRadius: 12,
-    padding: 20,
-  },
   valuePickerList: {
     maxHeight: 300,
     marginVertical: 12,
@@ -1589,13 +1573,6 @@ const styles = StyleSheet.create({
     fontSize: 15,
     fontWeight: '600',
   },
-  removeSetsModalContent: {
-    width: '85%',
-    maxHeight: '70%',
-    backgroundColor: '#1a1a1a',
-    borderRadius: 12,
-    padding: 20,
-  },
   removeSetsList: {
     maxHeight: 240,
     marginBottom: 12,
@@ -1609,6 +1586,11 @@ const styles = StyleSheet.create({
     paddingVertical: 12,
     paddingHorizontal: 10,
     marginBottom: 8,
+  },
+  removeSetRowSelected: {
+    backgroundColor: '#1a3320',
+    borderWidth: 1,
+    borderColor: '#2CD66F',
   },
   removeSetRowText: {
     color: '#fff',

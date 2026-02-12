@@ -20,6 +20,16 @@ const emptySchedule = (): ScheduleState => ({});
 const emptyCompletions = (): CompletionState => ({});
 const emptyWorkoutLogsByDate = (): WorkoutLogsByDateState => ({});
 
+const normalizeReps = (value: number): number => {
+  const nearestEven = Math.round(Math.floor(value) / 2) * 2;
+  return Math.min(30, Math.max(2, nearestEven));
+};
+
+const normalizeWeight = (value: number): number => {
+  const nearestFive = Math.round(Math.floor(value) / 5) * 5;
+  return Math.min(500, Math.max(5, nearestFive));
+};
+
 export const toLocalDateKey = (date: Date): string => {
   const year = date.getFullYear();
   const month = `${date.getMonth() + 1}`.padStart(2, '0');
@@ -129,8 +139,8 @@ export const useScheduleStore = create<ScheduleStoreState>()(
         const safeSets = entry.sets
           .slice(0, safeSetCount)
           .map(setRow => ({
-            reps: Math.max(0, Math.floor(setRow.reps)),
-            weight: Math.max(0, Math.floor(setRow.weight)),
+            reps: normalizeReps(setRow.reps),
+            weight: normalizeWeight(setRow.weight),
           }));
 
         set(state => ({
@@ -326,8 +336,8 @@ export const useScheduleStore = create<ScheduleStoreState>()(
                   .slice(0, setCount)
                   .map(setRow => {
                     const candidate = setRow as { reps?: unknown; weight?: unknown };
-                    const reps = typeof candidate?.reps === 'number' ? Math.max(0, Math.floor(candidate.reps)) : 0;
-                    const weight = typeof candidate?.weight === 'number' ? Math.max(0, Math.floor(candidate.weight)) : 0;
+                    const reps = typeof candidate?.reps === 'number' ? normalizeReps(candidate.reps) : 2;
+                    const weight = typeof candidate?.weight === 'number' ? normalizeWeight(candidate.weight) : 5;
                     return { reps, weight };
                   });
 
