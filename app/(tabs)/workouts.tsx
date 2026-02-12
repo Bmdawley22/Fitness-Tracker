@@ -611,6 +611,12 @@ export default function SavedScreen() {
     return list;
   }, [selectedFilter, savedExerciseGroups, savedExercises, savedExerciseSearchText]);
 
+  useEffect(() => {
+    if (savedExercises.length === 0) {
+      setSavedExercisesBaseContentHeight(0);
+    }
+  }, [savedExercises.length]);
+
   const handleFilterChange = (filter: SavedFilter) => {
     setSelectedFilter(filter);
     setSelectedWorkoutIds([]);
@@ -766,6 +772,11 @@ export default function SavedScreen() {
   const isEditButtonVisible = selectedFilter === 'workouts' ? hasWorkouts : hasExercises;
   const showRemoveAllWorkouts = selectedFilter === 'workouts' && isWorkoutEditMode && hasWorkouts;
   const showRemoveAllExercises = selectedFilter === 'exercises' && isExerciseEditMode && hasExercises;
+  const shouldShowSavedExerciseFilters =
+    selectedFilter === 'exercises' &&
+    hasExercises &&
+    savedExercisesViewportHeight > 0 &&
+    savedExercisesBaseContentHeight > savedExercisesViewportHeight + 1;
 
   return (
     <View style={styles.container}>
@@ -821,8 +832,70 @@ export default function SavedScreen() {
         </TouchableOpacity>
       )}
 
+      {selectedFilter === 'exercises' && shouldShowSavedExerciseFilters ? (
+        <View style={styles.savedExerciseFilters}>
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            contentContainerStyle={styles.exerciseFilterChipRow}
+            style={styles.exerciseFilterChipScroll}>
+            {savedExerciseGroupOptions.map(option => {
+              const isAll = option === 'All';
+              const isActive = isAll ? savedExerciseGroups.includes('All') : savedExerciseGroups.includes(option);
+              return (
+                <Pressable
+                  key={option}
+                  style={[
+                    styles.exerciseFilterChip,
+                    isActive && styles.exerciseFilterChipActive,
+                  ]}
+                  onPress={() => {
+                    if (isAll) {
+                      setSavedExerciseGroups(['All']);
+                      return;
+                    }
+                    setSavedExerciseGroups(prev => {
+                      const withoutAll = prev.filter(item => item !== 'All');
+                      const alreadySelected = withoutAll.includes(option);
+                      const next = alreadySelected ? withoutAll.filter(item => item !== option) : [...withoutAll, option];
+                      return next.length === 0 ? ['All'] : next;
+                    });
+                  }}>
+                  <Text
+                    style={[
+                      styles.exerciseFilterChipText,
+                      isActive && styles.exerciseFilterChipTextActive,
+                    ]}>
+                    {option}
+                  </Text>
+                </Pressable>
+              );
+            })}
+          </ScrollView>
+
+          <TextInput
+            style={[styles.searchInput, styles.savedExerciseSearchInput]}
+            placeholder="Search exercises..."
+            placeholderTextColor="#666"
+            value={savedExerciseSearchText}
+            onChangeText={setSavedExerciseSearchText}
+            autoCapitalize="none"
+            autoCorrect={false}
+          />
+        </View>
+      ) : null}
+
       {/* List */}
-      <ScrollView style={styles.listContainer}>
+      <ScrollView
+        style={styles.listContainer}
+        onLayout={event => setSavedExercisesViewportHeight(event.nativeEvent.layout.height)}
+        onContentSizeChange={(_, height) => {
+          if (selectedFilter === 'exercises') {
+            if (savedExerciseGroups.includes('All') && savedExerciseSearchText.trim() === '') {
+              setSavedExercisesBaseContentHeight(height);
+            }
+          }
+        }}>
         {selectedFilter === 'workouts' && sortedWorkouts.length === 0 && (
           <View style={styles.emptyState}>
             <Text style={styles.emptyText}>No saved workouts yet</Text>
@@ -887,7 +960,13 @@ export default function SavedScreen() {
           </View>
         )}
 
-        {selectedFilter === 'exercises' && savedExercises.map(exercise => {
+        {selectedFilter === 'exercises' && savedExercises.length > 0 && filteredSavedExercises.length === 0 && (
+          <View style={styles.emptyState}>
+            <Text style={styles.emptyText}>No exercises found for these filters</Text>
+          </View>
+        )}
+
+        {selectedFilter === 'exercises' && filteredSavedExercises.map(exercise => {
           if (isExerciseEditMode) {
             return (
               <Pressable
@@ -1883,6 +1962,13 @@ const styles = StyleSheet.create({
     fontSize: 16,
     margin: 16,
     marginBottom: 8,
+  },
+  savedExerciseFilters: {
+    marginBottom: 4,
+  },
+  savedExerciseSearchInput: {
+    marginTop: 0,
+    marginBottom: 12,
   },
   exerciseFilterChipScroll: {
     paddingHorizontal: 16,
