@@ -15,9 +15,7 @@ import {
 import React, { useState, useEffect, useMemo, useRef, useCallback } from 'react';
 import { Ionicons } from '@expo/vector-icons';
 import { useSavedWorkoutsStore, SavedWorkout } from '@/store/savedWorkouts';
-import { exercises as allExercises } from '@/data/exercises';
-import { workouts } from '@/data/workouts';
-import { useUIStore } from '@/store/uiState';
+import { useExerciseCatalogStore } from '@/store/exerciseCatalog';
 
 const MAX_EXERCISES = 12;
 const REVEAL_WIDTH = 84;
@@ -170,11 +168,18 @@ export default function SavedScreen() {
     updateWorkout,
     updateAndRegenerateId,
     removeExerciseFromWorkout,
-    addWorkout,
     addExerciseToWorkout,
     removeExercise,
   } = useSavedWorkoutsStore();
-  const { workoutToEditId, pendingWorkoutToAddId, pendingWorkoutToAddName, clearWorkoutEditState } = useUIStore();
+  const { seededExercises, hasHydrated: catalogHydrated, runSeedIfNeeded } = useExerciseCatalogStore();
+
+  useEffect(() => {
+    if (catalogHydrated) {
+      runSeedIfNeeded();
+    }
+  }, [catalogHydrated, runSeedIfNeeded]);
+
+  const availableSeededExercises = useMemo(() => (catalogHydrated ? seededExercises : []), [catalogHydrated, seededExercises]);
 
   const [selectedFilter, setSelectedFilter] = useState<SavedFilter>('workouts');
   const [isEditMode, setIsEditMode] = useState(false);
@@ -198,32 +203,10 @@ export default function SavedScreen() {
   const [showExerciseSelectionModal, setShowExerciseSelectionModal] = useState(false);
   const [exerciseSearchText, setExerciseSearchText] = useState('');
   
-  // Rename flow states
-  const [showConfirmAddModal, setShowConfirmAddModal] = useState(false);
-  const [pendingWorkoutInfo, setPendingWorkoutInfo] = useState<{ id: string; name: string } | null>(null);
+  // Swipe delete states
   const [pendingSwipeDelete, setPendingSwipeDelete] = useState<PendingSwipeDelete | null>(null);
   const [isDeletingFromSwipe, setIsDeletingFromSwipe] = useState(false);
   const [swipeResetToken, setSwipeResetToken] = useState(0);
-
-  // Check for pending workout edit and open edit modal
-  useEffect(() => {
-    if (workoutToEditId) {
-      const workoutToEdit = savedWorkouts.find(w => w.id === workoutToEditId);
-      if (workoutToEdit) {
-        setEditingWorkout(workoutToEdit);
-        setEditName(workoutToEdit.name);
-        setEditDescription(workoutToEdit.description);
-        
-        // Store pending workout info for confirmation after edit
-        if (pendingWorkoutToAddId && pendingWorkoutToAddName) {
-          setPendingWorkoutInfo({
-            id: pendingWorkoutToAddId,
-            name: pendingWorkoutToAddName
-          });
-        }
-      }
-    }
-  }, [workoutToEditId, savedWorkouts, pendingWorkoutToAddId, pendingWorkoutToAddName]);
 
   const handleOpenMenu = (workout: SavedWorkout) => {
     setMenuWorkout(workout);
@@ -322,44 +305,8 @@ export default function SavedScreen() {
         description: editDescription,
       });
       
-      // If in rename flow, show confirmation modal
-      if (pendingWorkoutInfo) {
-        setShowConfirmAddModal(true);
-      }
       setEditingWorkout(null);
     }
-  };
-
-  // Handle confirming add workout after rename
-  const handleConfirmAddWorkout = () => {
-    if (!pendingWorkoutInfo) return;
-    
-    const workoutToAdd = workouts.find(w => w.id === pendingWorkoutInfo.id);
-    if (!workoutToAdd) return;
-    
-    // Check if name still conflicts
-    const stillConflicts = savedWorkouts.find(w => w.name === workoutToAdd.name);
-    if (stillConflicts) {
-      // Still conflicts - user will need to go back and rename again
-      // For now, just close and let home screen handle it
-      setShowConfirmAddModal(false);
-      setPendingWorkoutInfo(null);
-      clearWorkoutEditState();
-      return;
-    }
-    
-    // Add the workout
-    addWorkout({
-      originalId: workoutToAdd.id,
-      name: workoutToAdd.name,
-      description: workoutToAdd.description,
-      exercises: [...workoutToAdd.exercises],
-    });
-
-    // Close and clear
-    setShowConfirmAddModal(false);
-    setPendingWorkoutInfo(null);
-    clearWorkoutEditState();
   };
 
   const handleRemoveExercise = (exerciseId: string) => {
@@ -468,8 +415,8 @@ export default function SavedScreen() {
   const exerciseNameById = useMemo(() => {
     const names = new Map<string, string>();
 
-    // 1) Built-in exercises by id
-    allExercises.forEach(exercise => {
+    // 1) Seeded exercises by id
+    availableSeededExercises.forEach(exercise => {
       names.set(exercise.id, exercise.name);
     });
 
@@ -488,7 +435,7 @@ export default function SavedScreen() {
     });
 
     return names;
-  }, [customExercises, savedExercises]);
+  }, [availableSeededExercises, customExercises, savedExercises]);
 
   const getExerciseName = (exerciseId: string) => {
     if (!hasHydrated) return exerciseId;
@@ -981,7 +928,7 @@ export default function SavedScreen() {
               <FlatList
                 data={(() => {
                   // Filter exercises based on search text
-                  const filteredAllExercises = allExercises.filter(e =>
+                  const filteredAllExercises = availableSeededExercises.filter(e =>
                     e.name.toLowerCase().includes(exerciseSearchText.toLowerCase())
                   );
 
@@ -1087,49 +1034,6 @@ export default function SavedScreen() {
                 promptRemoveSavedExercise(detailExercise, { closeDetail: true });
               }}>
               <Text style={styles.removeFromSavedButtonText}>Remove from Saved Exercises</Text>
-            </TouchableOpacity>
-          </View>
-        </View>
-      </Modal>
-
-      {/* Confirm Add Workout Modal */}
-      <Modal
-        visible={showConfirmAddModal}
-        transparent={true}
-        animationType="fade"
-        onRequestClose={() => {
-          setShowConfirmAddModal(false);
-          setPendingWorkoutInfo(null);
-          clearWorkoutEditState();
-        }}>
-        <View style={styles.modalOverlay}>
-          <View style={styles.modalContent}>
-            <TouchableOpacity 
-              style={styles.closeX}
-              onPress={() => {
-                setShowConfirmAddModal(false);
-                setPendingWorkoutInfo(null);
-                clearWorkoutEditState();
-              }}>
-              <Text style={styles.closeXText}>✕</Text>
-            </TouchableOpacity>
-            <Text style={styles.modalTitle}>Ready to Add</Text>
-            <Text style={styles.modalDescription}>
-              Still want to add &ldquo;{pendingWorkoutInfo?.name}&rdquo;?
-            </Text>
-            <TouchableOpacity 
-              style={styles.optionButton}
-              onPress={handleConfirmAddWorkout}>
-              <Text style={styles.optionButtonText}>Add</Text>
-            </TouchableOpacity>
-            <TouchableOpacity 
-              style={styles.closeButton}
-              onPress={() => {
-                setShowConfirmAddModal(false);
-                setPendingWorkoutInfo(null);
-                clearWorkoutEditState();
-              }}>
-              <Text style={styles.closeButtonText}>Cancel</Text>
             </TouchableOpacity>
           </View>
         </View>

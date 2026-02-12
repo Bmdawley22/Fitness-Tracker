@@ -211,6 +211,72 @@ For Android:
 npm run android
 ```
 
+## Migration Notes
+
+### Seeded Exercise Catalog (fedb-v1-200)
+
+**Date:** 2026-02-12
+
+The app has been migrated from hardcoded built-in exercises and workouts to a deterministic, versioned seeded exercise catalog from the `free-exercise-db` project (https://github.com/yuhonas/free-exercise-db).
+
+#### What Changed
+
+1. **Removed Legacy Data**
+   - Deleted `data/exercises.ts` (120+ hardcoded exercises)
+   - Deleted `data/workouts.ts` (3 hardcoded workouts)
+   - These were replaced by a seeded catalog of ~200 exercises
+
+2. **New Seeded Catalog Store**
+   - `store/exerciseCatalog.ts` — Persisted via Zustand + AsyncStorage
+   - Deterministic seeding on first app launch (or version bump)
+   - Stable exercise IDs: `seed-fedb-<stableKey>` to avoid collisions
+
+3. **Catalog Data Source**
+   - Vendor snapshot: `vendor/free-exercise-db/exercises.json`
+   - No runtime network fetch; all data is pre-vendored
+   - Normalization applied: name (required), description, instructions, primaryMuscles, secondaryMuscles, equipment, category
+
+4. **Muscle-Based Grouping**
+   - Replaced category-based UI filtering with `primaryMuscles` arrays
+   - Home/Add/Workouts screens now group exercises by muscle groups dynamically
+   - Custom exercises still support a primary category field for compatibility
+
+5. **User Data Preserved**
+   - Custom exercises and saved workouts are unaffected by seeding
+   - On version bump, only seeded records are updated; user data remains intact
+
+#### File Changes
+
+**Created:**
+- `data/seededCatalog.ts` — Catalog transform & deterministic selection logic
+- `store/exerciseCatalog.ts` — Persisted seeded exercise store
+
+**Updated:**
+- `app/(tabs)/index.tsx` — Home screen: uses seeded store, muscle-group filtering
+- `app/(tabs)/add.tsx` — Create flows: integrates seeded exercises
+- `app/(tabs)/workouts.tsx` — Saved workouts: uses seeded exercise lookup
+- `app/(tabs)/search.tsx` — Schedule: uses seeded exercises
+- `store/savedWorkouts.ts` — Extended SavedExercise/CustomExercise types with muscle arrays
+
+**Removed:**
+- `data/exercises.ts`
+- `data/workouts.ts`
+
+#### Seed Versioning & Refresh
+
+- **Version String:** `fedb-v1-200` (format: `fedb-v<major>-<count>`)
+- **Refresh Behavior:** On app update with new version, seeded catalog recomputes and replaces via upsert-by-id + hard-remove logic
+- **To Bump Version:** Update `FEDB_SEED_VERSION` in `data/seededCatalog.ts`, re-run deterministic selection
+
+#### Testing Checklist
+
+- [x] Fresh install: ~200 exercises seeded once
+- [x] Restart: no duplicates, version persisted
+- [x] Custom exercise creation: still works, survives refresh
+- [x] Exercise/workout creation flows: seeded items selectable
+- [x] Category-based UI replaced with muscle group logic
+- [x] Lint/typecheck passes
+
 ---
 
 **Brady:** The app is now set up and ready. Files are in `/home/openclaw/.openclaw/workspace/fitness-tracker/`.

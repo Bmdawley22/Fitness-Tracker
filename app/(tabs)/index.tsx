@@ -1,150 +1,114 @@
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Modal, Alert, TextInput, Pressable } from 'react-native';
 import React, { useRef, useState, useEffect, useMemo } from 'react';
-import { useNavigation } from '@react-navigation/native';
-import { exercises } from '@/data/exercises';
-import { workouts } from '@/data/workouts';
 import { useSavedWorkoutsStore } from '@/store/savedWorkouts';
-import { useUIStore } from '@/store/uiState';
+import { useExerciseCatalogStore } from '@/store/exerciseCatalog';
 import { CreateFlowHandle, CreateFlowModals } from './add';
 
 type FilterType = 'all' | 'workouts' | 'exercises';
 
+type ExerciseLike = {
+  id: string;
+  name: string;
+  description?: string;
+  category?: string;
+  primaryMuscles?: string[];
+  secondaryMuscles?: string[];
+  equipment?: string;
+  instructions?: string;
+  image?: string;
+};
+
+const resolveMuscleGroups = (exercise: ExerciseLike): string[] => {
+  const primary = Array.isArray(exercise.primaryMuscles) ? exercise.primaryMuscles.filter(Boolean) : [];
+  if (primary.length > 0) return primary;
+  if (exercise.category) return [exercise.category];
+  return ['Other'];
+};
+
 export default function HomeScreen() {
-  const navigation = useNavigation();
   const {
-    addWorkout,
-    isWorkoutSaved,
     savedWorkouts,
     addExerciseToWorkout,
     addExercise,
     isExerciseSaved,
     customExercises,
+    savedExercises,
   } = useSavedWorkoutsStore();
-  const { setWorkoutEditState, clearWorkoutEditState } = useUIStore();
+  const { seededExercises, hasHydrated: catalogHydrated, runSeedIfNeeded } = useExerciseCatalogStore();
 
   const [selectedFilter, setSelectedFilter] = useState<FilterType>('exercises');
   const [selectedExercise, setSelectedExercise] = useState<string | null>(null);
-  const [selectedExerciseCategory, setSelectedExerciseCategory] = useState('All');
+  const [selectedExerciseGroup, setSelectedExerciseGroup] = useState('All');
   const [exerciseSearchText, setExerciseSearchText] = useState('');
   const [selectedWorkout, setSelectedWorkout] = useState<string | null>(null);
   const [showAddExerciseModal, setShowAddExerciseModal] = useState(false);
   const [exerciseToAdd, setExerciseToAdd] = useState<string | null>(null);
   const [showWorkoutSelectionModal, setShowWorkoutSelectionModal] = useState(false);
-  const [showAddWorkoutModal, setShowAddWorkoutModal] = useState(false);
-  const [workoutToAdd, setWorkoutToAdd] = useState<string | null>(null);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
-  
-  // Duplicate detection states
-  const [showDuplicateModal, setShowDuplicateModal] = useState(false);
-  const [conflictingWorkout, setConflictingWorkout] = useState<{ id: string; name: string } | null>(null);
-  const [pendingWorkoutToAdd, setPendingWorkoutToAdd] = useState<string | null>(null);
-  const [showConfirmAddAfterRename, setShowConfirmAddAfterRename] = useState(false);
-  const [showNameStillMatches, setShowNameStillMatches] = useState(false);
   const [showQuickCreateModal, setShowQuickCreateModal] = useState(false);
   const createFlowRef = useRef<CreateFlowHandle>(null);
 
-  const homeExercises = useMemo(() => [...exercises, ...customExercises], [customExercises]);
+  useEffect(() => {
+    if (catalogHydrated) {
+      runSeedIfNeeded();
+    }
+  }, [catalogHydrated, runSeedIfNeeded]);
 
-  // Check if saved workout differs from original
-  const exerciseCategories = useMemo(() => {
-    const uniqueCategories = Array.from(new Set(homeExercises.map(exercise => exercise.category)));
-    const priority = ['Triceps', 'Back', 'Legs', 'Abs'];
-    const prioritized = priority.filter(category => uniqueCategories.includes(category));
-    const rest = uniqueCategories
-      .filter(category => !priority.includes(category))
-      .sort();
-    return ['All', ...prioritized, ...rest];
+  const availableSeededExercises = useMemo(() => (catalogHydrated ? seededExercises : []), [catalogHydrated, seededExercises]);
+
+  const homeExercises = useMemo(() => [...availableSeededExercises, ...customExercises], [availableSeededExercises, customExercises]);
+
+  const exerciseLookup = useMemo(() => {
+    const map = new Map<string, ExerciseLike>();
+    availableSeededExercises.forEach(exercise => {
+      map.set(exercise.id, exercise);
+    });
+    customExercises.forEach(exercise => {
+      map.set(exercise.id, exercise);
+    });
+    savedExercises.forEach(exercise => {
+      map.set(exercise.id, exercise);
+      if (exercise.originalId) {
+        map.set(exercise.originalId, exercise);
+      }
+    });
+    return map;
+  }, [availableSeededExercises, customExercises, savedExercises]);
+
+  const exerciseGroups = useMemo(() => {
+    const uniqueGroups = new Set<string>();
+    homeExercises.forEach(exercise => {
+      resolveMuscleGroups(exercise).forEach(group => {
+        uniqueGroups.add(group);
+      });
+    });
+    const groups = Array.from(uniqueGroups);
+    groups.sort((a, b) => a.localeCompare(b));
+    return ['All', ...groups];
   }, [homeExercises]);
 
   useEffect(() => {
     if (selectedFilter !== 'exercises') {
-      setSelectedExerciseCategory('All');
+      setSelectedExerciseGroup('All');
     }
   }, [selectedFilter]);
 
   const filteredExercises = useMemo(() => {
     if (selectedFilter !== 'exercises') return [];
-    let list = selectedExerciseCategory === 'All'
+    let list = selectedExerciseGroup === 'All'
       ? homeExercises
-      : homeExercises.filter(exercise => exercise.category === selectedExerciseCategory);
+      : homeExercises.filter(exercise => resolveMuscleGroups(exercise).includes(selectedExerciseGroup));
 
     if (exerciseSearchText.trim()) {
       const term = exerciseSearchText.trim().toLowerCase();
-      list = list.filter(exercise => exercise.name.toLowerCase().includes(term));
+      list = list.filter(exercise => {
+        const haystack = `${exercise.name} ${exercise.description ?? ''} ${resolveMuscleGroups(exercise).join(' ')}`.toLowerCase();
+        return haystack.includes(term);
+      });
     }
 
     return list;
-  }, [selectedFilter, selectedExerciseCategory, homeExercises, exerciseSearchText]);
-
-  // Check if saved workout differs from original
-  const hasWorkoutChanged = (originalId: string): boolean => {
-    const original = workouts.find(w => w.id === originalId);
-    const saved = savedWorkouts.find(w => w.originalId === originalId);
-    
-    if (!original || !saved) return false;
-    
-    // Compare name, description, and exercises
-    return (
-      saved.name !== original.name ||
-      saved.description !== original.description ||
-      saved.exercises.length !== original.exercises.length ||
-      !saved.exercises.every((ex, i) => ex === original.exercises[i])
-    );
-  };
-
-  // Find a saved workout by name
-  const findSavedWorkoutByName = (name: string) => {
-    return savedWorkouts.find(w => w.name === name);
-  };
-
-  // Handle rename - navigate to Saved tab and open edit modal
-  const handleRenameSavedWorkout = () => {
-    if (!conflictingWorkout || !pendingWorkoutToAdd) return;
-    
-    // Set UI state for the workouts tab to handle edit
-    setWorkoutEditState(conflictingWorkout.id, pendingWorkoutToAdd, workouts.find(w => w.id === pendingWorkoutToAdd)?.name || null);
-    
-    // Close current modals
-    setShowDuplicateModal(false);
-    
-    // Navigate to Saved tab (assuming it's called 'workouts')
-    navigation.navigate('workouts' as never);
-  };
-
-  // Handle confirming add after rename
-  const handleConfirmAddAfterRename = () => {
-    if (!pendingWorkoutToAdd) return;
-    
-    const workoutToAddData = workouts.find(w => w.id === pendingWorkoutToAdd);
-    if (!workoutToAddData) return;
-    
-    // Check if name still conflicts
-    const stillConflicts = findSavedWorkoutByName(workoutToAddData.name);
-    if (stillConflicts) {
-      // Show "Name still matches" modal
-      setShowNameStillMatches(true);
-      setShowConfirmAddAfterRename(false);
-      return;
-    }
-    
-    // Add the workout
-    const success = addWorkout({
-      originalId: workoutToAddData.id,
-      name: workoutToAddData.name,
-      description: workoutToAddData.description,
-      exercises: [...workoutToAddData.exercises],
-    });
-
-    if (success) {
-      setToastMessage('Workout saved!');
-    }
-    
-    // Clear states
-    setShowConfirmAddAfterRename(false);
-    setPendingWorkoutToAdd(null);
-    setConflictingWorkout(null);
-    clearWorkoutEditState();
-  };
+  }, [selectedFilter, selectedExerciseGroup, homeExercises, exerciseSearchText]);
 
   // Show toast for a few seconds
   useEffect(() => {
@@ -155,7 +119,7 @@ export default function HomeScreen() {
   }, [toastMessage]);
 
   const addExerciseToSavedById = (exerciseId: string) => {
-    const exercise = homeExercises.find(e => e.id === exerciseId);
+    const exercise = exerciseLookup.get(exerciseId);
     if (!exercise) return false;
 
     if (isExerciseSaved(exerciseId)) {
@@ -166,8 +130,13 @@ export default function HomeScreen() {
     const success = addExercise({
       originalId: exercise.id,
       name: exercise.name,
-      description: exercise.description,
-      category: exercise.category,
+      description: exercise.description ?? '',
+      category: exercise.category ?? 'Other',
+      primaryMuscles: exercise.primaryMuscles ?? [],
+      secondaryMuscles: exercise.secondaryMuscles ?? [],
+      equipment: exercise.equipment,
+      instructions: exercise.instructions,
+      image: exercise.image,
     });
 
     if (success) {
@@ -190,11 +159,6 @@ export default function HomeScreen() {
   const handleExercisePlusClick = (exerciseId: string) => {
     setExerciseToAdd(exerciseId);
     setShowAddExerciseModal(true);
-  };
-
-  const handleWorkoutPlusClick = (workoutId: string) => {
-    setWorkoutToAdd(workoutId);
-    setShowAddWorkoutModal(true);
   };
 
   const handleAddExerciseToExistingFromDetailModal = () => {
@@ -220,48 +184,44 @@ export default function HomeScreen() {
 
   const handleAddToExistingWorkout = () => {
     setShowAddExerciseModal(false);
-    
-    // Check if there are any saved workouts
+
     if (savedWorkouts.length === 0) {
-      Alert.alert("You have no Saved Workouts", "OK");
+      Alert.alert('You have no Saved Workouts', 'OK');
       setExerciseToAdd(null);
       return;
     }
-    
+
     setShowWorkoutSelectionModal(true);
   };
 
   const handleWorkoutSelection = (workoutId: string, workoutName: string) => {
     if (!exerciseToAdd) return;
-    
+
     const workout = savedWorkouts.find(w => w.id === workoutId);
     if (!workout) return;
-    
-    // Check for duplicate
+
     if (workout.exercises.includes(exerciseToAdd)) {
-      Alert.alert(`This exercise is already in ${workoutName}`, "OK");
+      Alert.alert(`This exercise is already in ${workoutName}`, 'OK');
       setShowWorkoutSelectionModal(false);
       setExerciseToAdd(null);
       return;
     }
-    
-    // Show confirmation dialog
+
     Alert.alert(
       `Save to ${workoutName}?`,
-      "Add this exercise to your workout",
+      'Add this exercise to your workout',
       [
-        { text: "Cancel", style: "cancel", onPress: () => {
+        { text: 'Cancel', style: 'cancel', onPress: () => {
           setShowWorkoutSelectionModal(false);
           setExerciseToAdd(null);
         }},
-        { text: "Save", onPress: () => {
+        { text: 'Save', onPress: () => {
           const success = addExerciseToWorkout(workoutId, exerciseToAdd);
           if (success) {
             setToastMessage(`Exercise added to ${workoutName}!`);
           } else {
             Alert.alert('Limit reached', 'You can only add 12 exercises to a workout.');
           }
-          // Auto-close modal after 1 second
           setTimeout(() => {
             setShowWorkoutSelectionModal(false);
             setExerciseToAdd(null);
@@ -271,68 +231,22 @@ export default function HomeScreen() {
     );
   };
 
-  const handleAddWorkoutToSaved = () => {
-    if (!workoutToAdd) return;
-    
-    const workout = workouts.find(w => w.id === workoutToAdd);
-    if (!workout) return;
-
-    // Check for duplicate name (allows saving same workout with different names)
-    const duplicate = findSavedWorkoutByName(workout.name);
-    if (duplicate) {
-      // Show duplicate modal
-      setConflictingWorkout({ id: duplicate.id, name: duplicate.name });
-      setPendingWorkoutToAdd(workoutToAdd);
-      setShowDuplicateModal(true);
-      setShowAddWorkoutModal(false);
-      return;
-    }
-
-    const success = addWorkout({
-      originalId: workout.id,
-      name: workout.name,
-      description: workout.description,
-      exercises: [...workout.exercises],
-    });
-
-    if (success) {
-      setToastMessage('Workout saved!');
-    }
-    
-    setShowAddWorkoutModal(false);
-    setWorkoutToAdd(null);
-  };
-
-  const handleAddWorkoutFromDetailModal = () => {
-    if (!selectedWorkout) return;
-    setWorkoutToAdd(selectedWorkout);
-    setShowAddWorkoutModal(true);
-  };
-
-  const selectedExerciseData = selectedExercise 
-    ? homeExercises.find(e => e.id === selectedExercise) 
+  const selectedExerciseData = selectedExercise
+    ? exerciseLookup.get(selectedExercise)
     : null;
-  
+
   const selectedWorkoutData = selectedWorkout
-    ? workouts.find(w => w.id === selectedWorkout)
+    ? savedWorkouts.find(w => w.id === selectedWorkout)
     : null;
-
-  // Check if the selected workout can be saved
-  const canSaveSelectedWorkout = selectedWorkout
-    ? !isWorkoutSaved(selectedWorkout) || hasWorkoutChanged(selectedWorkout)
-    : false;
 
   const exerciseToAddData = exerciseToAdd
-    ? homeExercises.find(e => e.id === exerciseToAdd)
+    ? exerciseLookup.get(exerciseToAdd)
     : null;
 
-  const workoutToAddData = workoutToAdd
-    ? workouts.find(w => w.id === workoutToAdd)
-    : null;
-
-  // Get exercise names for a workout
   const getWorkoutExercises = (exerciseIds: string[]) => {
-    return exerciseIds.map(id => homeExercises.find(e => e.id === id)).filter(Boolean);
+    return exerciseIds
+      .map(id => exerciseLookup.get(id))
+      .filter(Boolean);
   };
 
   const openWorkoutCreateFlow = () => {
@@ -344,6 +258,8 @@ export default function HomeScreen() {
     setShowQuickCreateModal(false);
     createFlowRef.current?.openCreateExercise();
   };
+
+  const sortedSavedWorkouts = useMemo(() => [...savedWorkouts].sort((a, b) => a.order - b.order), [savedWorkouts]);
 
   return (
     <View style={styles.container}>
@@ -391,20 +307,20 @@ export default function HomeScreen() {
               horizontal
               showsHorizontalScrollIndicator={false}
               contentContainerStyle={styles.categoryFilterScroll}>
-              {exerciseCategories.map(category => (
+              {exerciseGroups.map(group => (
                 <TouchableOpacity
-                  key={category}
+                  key={group}
                   style={[
                     styles.categoryFilterButton,
-                    selectedExerciseCategory === category && styles.categoryFilterButtonActive,
+                    selectedExerciseGroup === group && styles.categoryFilterButtonActive,
                   ]}
-                  onPress={() => setSelectedExerciseCategory(category)}>
+                  onPress={() => setSelectedExerciseGroup(group)}>
                   <Text
                     style={[
                       styles.categoryFilterText,
-                      selectedExerciseCategory === category && styles.categoryFilterTextActive,
+                      selectedExerciseGroup === group && styles.categoryFilterTextActive,
                     ]}>
-                    {category}
+                    {group}
                   </Text>
                 </TouchableOpacity>
               ))}
@@ -430,7 +346,7 @@ export default function HomeScreen() {
         {selectedFilter === 'exercises' && (
           filteredExercises.length === 0 ? (
             <Text style={styles.noExercisesText}>No exercises found in {
-              selectedExerciseCategory === 'All' ? 'this list' : selectedExerciseCategory
+              selectedExerciseGroup === 'All' ? 'this list' : selectedExerciseGroup
             }.</Text>
           ) : (
             filteredExercises.map(exercise => (
@@ -450,36 +366,24 @@ export default function HomeScreen() {
           )
         )}
 
-        {selectedFilter === 'workouts' && workouts.map(workout => {
-          const isSaved = isWorkoutSaved(workout.id);
-          const hasChanged = hasWorkoutChanged(workout.id);
-          const canSave = !isSaved || hasChanged;
-          
-          return (
-            <View key={workout.id} style={styles.listItem}>
-              <TouchableOpacity 
-                style={styles.listItemButton}
-                onPress={() => setSelectedWorkout(workout.id)}>
-                <View>
-                  <Text style={styles.listItemText}>{workout.name}</Text>
-                  <Text style={styles.listItemDescription}>{workout.description}</Text>
-                </View>
-              </TouchableOpacity>
-              <TouchableOpacity 
-                style={[
-                  styles.plusButton,
-                  !canSave && styles.plusButtonDisabled
-                ]}
-                onPress={canSave ? () => handleWorkoutPlusClick(workout.id) : undefined}
-                disabled={!canSave}>
-                <Text style={[
-                  styles.plusText,
-                  !canSave && styles.plusTextDisabled
-                ]}>+</Text>
-              </TouchableOpacity>
-            </View>
-          );
-        })}
+        {selectedFilter === 'workouts' && (
+          sortedSavedWorkouts.length === 0 ? (
+            <Text style={styles.noExercisesText}>No saved workouts yet.</Text>
+          ) : (
+            sortedSavedWorkouts.map(workout => (
+              <View key={workout.id} style={styles.listItem}>
+                <TouchableOpacity 
+                  style={styles.listItemButton}
+                  onPress={() => setSelectedWorkout(workout.id)}>
+                  <View>
+                    <Text style={styles.listItemText}>{workout.name}</Text>
+                    <Text style={styles.listItemDescription}>{workout.description}</Text>
+                  </View>
+                </TouchableOpacity>
+              </View>
+            ))
+          )
+        )}
       </ScrollView>
 
       {/* Toast */}
@@ -546,22 +450,9 @@ export default function HomeScreen() {
         onRequestClose={() => setSelectedWorkout(null)}>
         <View style={styles.modalOverlay}>
           <View style={styles.workoutModalContent}>
-            {/* Header with X and title */}
             <View style={styles.workoutModalHeader}>
               <View style={styles.workoutTitleRow}>
                 <Text style={styles.modalTitle}>{selectedWorkoutData?.name}</Text>
-                <TouchableOpacity 
-                  style={[
-                    styles.addToSavedButton,
-                    !canSaveSelectedWorkout && styles.addToSavedButtonDisabled
-                  ]}
-                  onPress={canSaveSelectedWorkout ? handleAddWorkoutFromDetailModal : undefined}
-                  disabled={!canSaveSelectedWorkout}>
-                  <Text style={[
-                    styles.addToSavedButtonText,
-                    !canSaveSelectedWorkout && styles.addToSavedButtonTextDisabled
-                  ]}>+</Text>
-                </TouchableOpacity>
               </View>
               <TouchableOpacity 
                 style={styles.closeX}
@@ -658,179 +549,6 @@ export default function HomeScreen() {
               onPress={() => {
                 setShowWorkoutSelectionModal(false);
                 setExerciseToAdd(null);
-              }}>
-              <Text style={styles.closeButtonText}>Cancel</Text>
-            </TouchableOpacity>
-          </View>
-        </View>
-      </Modal>
-
-      {/* Add Workout to Saved Modal */}
-      <Modal
-        visible={showAddWorkoutModal}
-        transparent={true}
-        animationType="fade"
-        onRequestClose={() => {
-          setShowAddWorkoutModal(false);
-          setWorkoutToAdd(null);
-        }}>
-        <View style={styles.modalOverlay}>
-          <View style={styles.modalContent}>
-            <TouchableOpacity 
-              style={styles.closeX}
-              onPress={() => {
-                setShowAddWorkoutModal(false);
-                setWorkoutToAdd(null);
-              }}>
-              <Text style={styles.closeXText}>✕</Text>
-            </TouchableOpacity>
-            <Text style={styles.modalTitle}>
-              Add &ldquo;{workoutToAddData?.name}&rdquo; to your Saved Workouts?
-            </Text>
-            <TouchableOpacity 
-              style={styles.optionButton}
-              onPress={handleAddWorkoutToSaved}>
-              <Text style={styles.optionButtonText}>Add</Text>
-            </TouchableOpacity>
-            <TouchableOpacity 
-              style={styles.closeButton}
-              onPress={() => {
-                setShowAddWorkoutModal(false);
-                setWorkoutToAdd(null);
-              }}>
-              <Text style={styles.closeButtonText}>Cancel</Text>
-            </TouchableOpacity>
-          </View>
-        </View>
-      </Modal>
-
-      {/* Duplicate Workout Modal */}
-      <Modal
-        visible={showDuplicateModal}
-        transparent={true}
-        animationType="fade"
-        onRequestClose={() => {
-          setShowDuplicateModal(false);
-          setPendingWorkoutToAdd(null);
-          setConflictingWorkout(null);
-        }}>
-        <View style={styles.modalOverlay}>
-          <View style={styles.modalContent}>
-            <TouchableOpacity 
-              style={styles.closeX}
-              onPress={() => {
-                setShowDuplicateModal(false);
-                setPendingWorkoutToAdd(null);
-                setConflictingWorkout(null);
-              }}>
-              <Text style={styles.closeXText}>✕</Text>
-            </TouchableOpacity>
-            <Text style={styles.modalTitle}>Duplicate Workout</Text>
-            <Text style={styles.modalDescription}>
-              Do you want to rename your existing workout and add this workout?
-            </Text>
-            <TouchableOpacity 
-              style={styles.optionButton}
-              onPress={handleRenameSavedWorkout}>
-              <Text style={styles.optionButtonText}>
-                Rename &ldquo;{conflictingWorkout?.name}&rdquo;
-              </Text>
-            </TouchableOpacity>
-            <TouchableOpacity 
-              style={styles.closeButton}
-              onPress={() => {
-                setShowDuplicateModal(false);
-                setPendingWorkoutToAdd(null);
-                setConflictingWorkout(null);
-              }}>
-              <Text style={styles.closeButtonText}>Cancel</Text>
-            </TouchableOpacity>
-          </View>
-        </View>
-      </Modal>
-
-      {/* Confirm Add After Rename Modal */}
-      <Modal
-        visible={showConfirmAddAfterRename}
-        transparent={true}
-        animationType="fade"
-        onRequestClose={() => {
-          setShowConfirmAddAfterRename(false);
-          setPendingWorkoutToAdd(null);
-        }}>
-        <View style={styles.modalOverlay}>
-          <View style={styles.modalContent}>
-            <TouchableOpacity 
-              style={styles.closeX}
-              onPress={() => {
-                setShowConfirmAddAfterRename(false);
-                setPendingWorkoutToAdd(null);
-              }}>
-              <Text style={styles.closeXText}>✕</Text>
-            </TouchableOpacity>
-            <Text style={styles.modalTitle}>Ready to Add</Text>
-            <Text style={styles.modalDescription}>
-              Still want to add &ldquo;{workouts.find(w => w.id === pendingWorkoutToAdd)?.name}&rdquo;?
-            </Text>
-            <TouchableOpacity 
-              style={styles.optionButton}
-              onPress={handleConfirmAddAfterRename}>
-              <Text style={styles.optionButtonText}>Add</Text>
-            </TouchableOpacity>
-            <TouchableOpacity 
-              style={styles.closeButton}
-              onPress={() => {
-                setShowConfirmAddAfterRename(false);
-                setPendingWorkoutToAdd(null);
-              }}>
-              <Text style={styles.closeButtonText}>Cancel</Text>
-            </TouchableOpacity>
-          </View>
-        </View>
-      </Modal>
-
-      {/* Name Still Matches Modal */}
-      <Modal
-        visible={showNameStillMatches}
-        transparent={true}
-        animationType="fade"
-        onRequestClose={() => {
-          setShowNameStillMatches(false);
-          setPendingWorkoutToAdd(null);
-        }}>
-        <View style={styles.modalOverlay}>
-          <View style={styles.modalContent}>
-            <TouchableOpacity 
-              style={styles.closeX}
-              onPress={() => {
-                setShowNameStillMatches(false);
-                setPendingWorkoutToAdd(null);
-              }}>
-              <Text style={styles.closeXText}>✕</Text>
-            </TouchableOpacity>
-            <Text style={styles.modalTitle}>Name Still Matches</Text>
-            <Text style={styles.modalDescription}>
-              A workout with this name already exists. Please rename it again.
-            </Text>
-            <TouchableOpacity 
-              style={styles.optionButton}
-              onPress={() => {
-                // Go back to edit - reopen the workouts tab
-                setShowNameStillMatches(false);
-                if (conflictingWorkout && pendingWorkoutToAdd) {
-                  setWorkoutEditState(conflictingWorkout.id, pendingWorkoutToAdd, workouts.find(w => w.id === pendingWorkoutToAdd)?.name || null);
-                  navigation.navigate('workouts' as never);
-                }
-              }}>
-              <Text style={styles.optionButtonText}>Rename</Text>
-            </TouchableOpacity>
-            <TouchableOpacity 
-              style={styles.closeButton}
-              onPress={() => {
-                setShowNameStillMatches(false);
-                setPendingWorkoutToAdd(null);
-                setConflictingWorkout(null);
-                clearWorkoutEditState();
               }}>
               <Text style={styles.closeButtonText}>Cancel</Text>
             </TouchableOpacity>
@@ -971,17 +689,10 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  plusButtonDisabled: {
-    borderColor: '#555',
-    opacity: 0.5,
-  },
   plusText: {
     color: '#fff',
     fontSize: 20,
     fontWeight: '600',
-  },
-  plusTextDisabled: {
-    color: '#555',
   },
   modalOverlay: {
     flex: 1,
@@ -1023,27 +734,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     flex: 1,
     gap: 12,
-  },
-  addToSavedButton: {
-    width: 28,
-    height: 28,
-    borderRadius: 14,
-    borderWidth: 2,
-    borderColor: '#fff',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  addToSavedButtonText: {
-    color: '#fff',
-    fontSize: 18,
-    fontWeight: '600',
-  },
-  addToSavedButtonDisabled: {
-    borderColor: '#555',
-    opacity: 0.5,
-  },
-  addToSavedButtonTextDisabled: {
-    color: '#555',
   },
   closeX: {
     position: 'absolute',
