@@ -1,13 +1,167 @@
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Modal, TextInput, Alert, FlatList } from 'react-native';
-import React, { useState, useEffect, useMemo } from 'react';
+import {
+  View,
+  Text,
+  StyleSheet,
+  ScrollView,
+  TouchableOpacity,
+  Modal,
+  TextInput,
+  Alert,
+  FlatList,
+  Animated,
+  PanResponder,
+  LayoutChangeEvent,
+} from 'react-native';
+import React, { useState, useEffect, useMemo, useRef, useCallback } from 'react';
+import { Ionicons } from '@expo/vector-icons';
 import { useSavedWorkoutsStore, SavedWorkout } from '@/store/savedWorkouts';
 import { exercises as allExercises } from '@/data/exercises';
 import { workouts } from '@/data/workouts';
 import { useUIStore } from '@/store/uiState';
 
 const MAX_EXERCISES = 12;
+const PARTIAL_REVEAL_RATIO = 0.25;
+const AUTO_TRIGGER_RATIO = 0.8;
 
 type SavedFilter = 'workouts' | 'exercises';
+type PendingSwipeDelete = { id: string; name: string; type: 'workout' | 'exercise' };
+
+type SwipeToDeleteRowProps = {
+  rowKey: string;
+  title: string;
+  subtitle?: string;
+  onPress: () => void;
+  onRequestDelete: () => void;
+  onLongPress?: () => void;
+  isOpen: boolean;
+  onOpen: (rowKey: string) => void;
+  onClose: () => void;
+  disabled?: boolean;
+};
+
+function SwipeToDeleteRow({
+  rowKey,
+  title,
+  subtitle,
+  onPress,
+  onRequestDelete,
+  onLongPress,
+  isOpen,
+  onOpen,
+  onClose,
+  disabled,
+}: SwipeToDeleteRowProps) {
+  const translateX = useRef(new Animated.Value(0)).current;
+  const rowWidthRef = useRef(0);
+  const deletingTriggeredRef = useRef(false);
+
+  const animateTo = useCallback(
+    (value: number) => {
+      Animated.spring(translateX, {
+        toValue: value,
+        useNativeDriver: true,
+        damping: 22,
+        stiffness: 260,
+        mass: 0.8,
+        overshootClamping: true,
+      }).start();
+    },
+    [translateX],
+  );
+
+  useEffect(() => {
+    if (disabled) {
+      animateTo(0);
+      return;
+    }
+
+    const width = rowWidthRef.current;
+    if (width <= 0) return;
+
+    if (isOpen) {
+      animateTo(-width * PARTIAL_REVEAL_RATIO);
+    } else {
+      animateTo(0);
+      deletingTriggeredRef.current = false;
+    }
+  }, [animateTo, isOpen, disabled]);
+
+  const handleDeleteRequest = useCallback(() => {
+    if (deletingTriggeredRef.current) return;
+    deletingTriggeredRef.current = true;
+    animateTo(0);
+    onClose();
+    onRequestDelete();
+  }, [animateTo, onClose, onRequestDelete]);
+
+  const panResponder = useMemo(
+    () =>
+      PanResponder.create({
+        onMoveShouldSetPanResponder: (_, gestureState) => {
+          if (disabled) return false;
+          return Math.abs(gestureState.dx) > 6 && Math.abs(gestureState.dx) > Math.abs(gestureState.dy);
+        },
+        onPanResponderGrant: () => {
+          deletingTriggeredRef.current = false;
+        },
+        onPanResponderMove: (_, gestureState) => {
+          const width = rowWidthRef.current;
+          if (width <= 0) return;
+          const next = Math.min(0, Math.max(-width, gestureState.dx));
+          translateX.setValue(next);
+        },
+        onPanResponderRelease: (_, gestureState) => {
+          const width = rowWidthRef.current;
+          if (width <= 0) return;
+
+          const drag = Math.max(0, -gestureState.dx);
+
+          if (drag >= width * AUTO_TRIGGER_RATIO) {
+            handleDeleteRequest();
+            return;
+          }
+
+          if (drag >= width * PARTIAL_REVEAL_RATIO) {
+            onOpen(rowKey);
+            animateTo(-width * PARTIAL_REVEAL_RATIO);
+            return;
+          }
+
+          onClose();
+          animateTo(0);
+        },
+      }),
+    [animateTo, disabled, handleDeleteRequest, onClose, onOpen, rowKey, translateX],
+  );
+
+  const onLayoutRow = (event: LayoutChangeEvent) => {
+    rowWidthRef.current = event.nativeEvent.layout.width;
+    if (isOpen && rowWidthRef.current > 0) {
+      translateX.setValue(-rowWidthRef.current * PARTIAL_REVEAL_RATIO);
+    }
+  };
+
+  const actionWidth = Math.max(0, rowWidthRef.current * PARTIAL_REVEAL_RATIO);
+
+  return (
+    <View style={styles.swipeRowContainer} onLayout={onLayoutRow}>
+      <TouchableOpacity
+        style={[styles.deleteActionArea, { width: actionWidth || '25%' }]}
+        onPress={handleDeleteRequest}
+        activeOpacity={0.85}
+        disabled={disabled}>
+        <Ionicons name="trash-outline" size={22} color="#fff" />
+      </TouchableOpacity>
+
+      <Animated.View style={[styles.listItem, { transform: [{ translateX }] }]} {...panResponder.panHandlers}>
+        <TouchableOpacity style={styles.workoutContent} onPress={onPress} onLongPress={onLongPress} activeOpacity={0.8}>
+          <Text style={styles.listItemText}>{title}</Text>
+          {subtitle ? <Text style={styles.listItemDescription}>{subtitle}</Text> : null}
+        </TouchableOpacity>
+      </Animated.View>
+    </View>
+  );
+}
 
 export default function SavedScreen() {
   const { 
@@ -50,6 +204,9 @@ export default function SavedScreen() {
   // Rename flow states
   const [showConfirmAddModal, setShowConfirmAddModal] = useState(false);
   const [pendingWorkoutInfo, setPendingWorkoutInfo] = useState<{ id: string; name: string } | null>(null);
+  const [openSwipeRowKey, setOpenSwipeRowKey] = useState<string | null>(null);
+  const [pendingSwipeDelete, setPendingSwipeDelete] = useState<PendingSwipeDelete | null>(null);
+  const [isDeletingFromSwipe, setIsDeletingFromSwipe] = useState(false);
 
   // Check for pending workout edit and open edit modal
   useEffect(() => {
@@ -345,6 +502,7 @@ export default function SavedScreen() {
     setSelectedFilter(filter);
     setSelectedWorkoutIds([]);
     setSelectedExerciseIds([]);
+    setOpenSwipeRowKey(null);
   };
 
   const handleToggleEditMode = () => {
@@ -354,6 +512,7 @@ export default function SavedScreen() {
       setSelectedWorkoutIds([]);
       setSelectedExerciseIds([]);
     }
+    setOpenSwipeRowKey(null);
     setMenuWorkout(null);
     setMenuExercise(null);
   };
@@ -382,6 +541,45 @@ export default function SavedScreen() {
     }
 
     setShowBulkRemoveConfirmModal(false);
+  };
+
+  const requestSwipeDelete = (entry: PendingSwipeDelete) => {
+    if (pendingSwipeDelete || isDeletingFromSwipe) return;
+    setPendingSwipeDelete(entry);
+    setOpenSwipeRowKey(null);
+  };
+
+  const handleConfirmSwipeDelete = () => {
+    if (!pendingSwipeDelete || isDeletingFromSwipe) return;
+
+    setIsDeletingFromSwipe(true);
+
+    if (pendingSwipeDelete.type === 'workout') {
+      removeWorkout(pendingSwipeDelete.id);
+      if (detailWorkout?.id === pendingSwipeDelete.id) {
+        setDetailWorkout(null);
+      }
+      if (menuWorkout?.id === pendingSwipeDelete.id) {
+        setMenuWorkout(null);
+      }
+    } else {
+      removeExercise(pendingSwipeDelete.id);
+      if (detailExercise?.id === pendingSwipeDelete.id) {
+        setDetailExercise(null);
+      }
+      if (menuExercise?.id === pendingSwipeDelete.id) {
+        setMenuExercise(null);
+      }
+    }
+
+    setPendingSwipeDelete(null);
+    setIsDeletingFromSwipe(false);
+  };
+
+  const handleCancelSwipeDelete = () => {
+    if (isDeletingFromSwipe) return;
+    setPendingSwipeDelete(null);
+    setOpenSwipeRowKey(null);
   };
 
   // Sort workouts by order
@@ -433,40 +631,45 @@ export default function SavedScreen() {
           </View>
         )}
 
-        {selectedFilter === 'workouts' && sortedWorkouts.map((workout, index) => {
-          return (
-          <View key={workout.id} style={styles.listItem}>
-            <TouchableOpacity 
-              style={styles.workoutContent}
-              onPress={() => setDetailWorkout(workout)}>
-              <Text style={styles.listItemText}>{workout.name}</Text>
-              <Text style={styles.listItemDescription}>{workout.description}</Text>
-            </TouchableOpacity>
-            
-            {isEditMode ? (
-              <TouchableOpacity
-                style={[
-                  styles.selectionControl,
-                  selectedWorkoutIds.includes(workout.id) && styles.selectionControlSelected,
-                ]}
-                onPress={() => toggleWorkoutSelection(workout.id)}>
-                <Text
+        {selectedFilter === 'workouts' && sortedWorkouts.map(workout => {
+          if (isEditMode) {
+            return (
+              <View key={workout.id} style={styles.listItem}>
+                <TouchableOpacity style={styles.workoutContent} onPress={() => setDetailWorkout(workout)}>
+                  <Text style={styles.listItemText}>{workout.name}</Text>
+                  <Text style={styles.listItemDescription}>{workout.description}</Text>
+                </TouchableOpacity>
+                <TouchableOpacity
                   style={[
-                    styles.selectionControlMinus,
-                    selectedWorkoutIds.includes(workout.id) && styles.selectionControlMinusSelected,
-                  ]}>
-                  -
-                </Text>
-              </TouchableOpacity>
-            ) : (
-              /* 3-dot menu button */
-              <TouchableOpacity
-                style={styles.menuButton}
-                onPress={() => handleOpenMenu(workout)}>
-                <Text style={styles.menuButtonText}>⋯</Text>
-              </TouchableOpacity>
-            )}
-          </View>
+                    styles.selectionControl,
+                    selectedWorkoutIds.includes(workout.id) && styles.selectionControlSelected,
+                  ]}
+                  onPress={() => toggleWorkoutSelection(workout.id)}>
+                  <Text
+                    style={[
+                      styles.selectionControlMinus,
+                      selectedWorkoutIds.includes(workout.id) && styles.selectionControlMinusSelected,
+                    ]}>
+                    -
+                  </Text>
+                </TouchableOpacity>
+              </View>
+            );
+          }
+
+          return (
+            <SwipeToDeleteRow
+              key={workout.id}
+              rowKey={`workout-${workout.id}`}
+              title={workout.name}
+              subtitle={workout.description}
+              onPress={() => setDetailWorkout(workout)}
+              onLongPress={() => handleOpenMenu(workout)}
+              isOpen={openSwipeRowKey === `workout-${workout.id}`}
+              onOpen={setOpenSwipeRowKey}
+              onClose={() => setOpenSwipeRowKey(current => (current === `workout-${workout.id}` ? null : current))}
+              onRequestDelete={() => requestSwipeDelete({ id: workout.id, name: workout.name, type: 'workout' })}
+            />
           );
         })}
 
@@ -476,37 +679,51 @@ export default function SavedScreen() {
           </View>
         )}
 
-        {selectedFilter === 'exercises' && savedExercises.map(exercise => (
-          <View key={exercise.id} style={styles.listItem}>
-            <TouchableOpacity 
-              style={styles.workoutContent}
-              onPress={() => setDetailExercise({ id: exercise.id, name: exercise.name, description: exercise.description ?? '', originalId: exercise.originalId })}>
-              <Text style={styles.listItemText}>{exercise.name}</Text>
-            </TouchableOpacity>
-            {isEditMode ? (
-              <TouchableOpacity
-                style={[
-                  styles.selectionControl,
-                  selectedExerciseIds.includes(exercise.id) && styles.selectionControlSelected,
-                ]}
-                onPress={() => toggleExerciseSelection(exercise.id)}>
-                <Text
+        {selectedFilter === 'exercises' && savedExercises.map(exercise => {
+          if (isEditMode) {
+            return (
+              <View key={exercise.id} style={styles.listItem}>
+                <TouchableOpacity
+                  style={styles.workoutContent}
+                  onPress={() =>
+                    setDetailExercise({ id: exercise.id, name: exercise.name, description: exercise.description ?? '', originalId: exercise.originalId })
+                  }>
+                  <Text style={styles.listItemText}>{exercise.name}</Text>
+                </TouchableOpacity>
+                <TouchableOpacity
                   style={[
-                    styles.selectionControlMinus,
-                    selectedExerciseIds.includes(exercise.id) && styles.selectionControlMinusSelected,
-                  ]}>
-                  -
-                </Text>
-              </TouchableOpacity>
-            ) : (
-              <TouchableOpacity
-                style={styles.menuButton}
-                onPress={() => handleOpenExerciseMenu({ id: exercise.id, name: exercise.name, originalId: exercise.originalId })}>
-                <Text style={styles.menuButtonText}>⋯</Text>
-              </TouchableOpacity>
-            )}
-          </View>
-        ))}
+                    styles.selectionControl,
+                    selectedExerciseIds.includes(exercise.id) && styles.selectionControlSelected,
+                  ]}
+                  onPress={() => toggleExerciseSelection(exercise.id)}>
+                  <Text
+                    style={[
+                      styles.selectionControlMinus,
+                      selectedExerciseIds.includes(exercise.id) && styles.selectionControlMinusSelected,
+                    ]}>
+                    -
+                  </Text>
+                </TouchableOpacity>
+              </View>
+            );
+          }
+
+          return (
+            <SwipeToDeleteRow
+              key={exercise.id}
+              rowKey={`exercise-${exercise.id}`}
+              title={exercise.name}
+              onPress={() =>
+                setDetailExercise({ id: exercise.id, name: exercise.name, description: exercise.description ?? '', originalId: exercise.originalId })
+              }
+              onLongPress={() => handleOpenExerciseMenu({ id: exercise.id, name: exercise.name, originalId: exercise.originalId })}
+              isOpen={openSwipeRowKey === `exercise-${exercise.id}`}
+              onOpen={setOpenSwipeRowKey}
+              onClose={() => setOpenSwipeRowKey(current => (current === `exercise-${exercise.id}` ? null : current))}
+              onRequestDelete={() => requestSwipeDelete({ id: exercise.id, name: exercise.name, type: 'exercise' })}
+            />
+          );
+        })}
       </ScrollView>
 
       {/* 3-dot Menu Modal for Workouts */}
@@ -583,6 +800,29 @@ export default function SavedScreen() {
             <TouchableOpacity
               style={styles.menuOption}
               onPress={() => setShowBulkRemoveConfirmModal(false)}>
+              <Text style={styles.menuOptionText}>Cancel</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
+
+      <Modal
+        visible={pendingSwipeDelete !== null}
+        transparent={true}
+        animationType="fade"
+        onRequestClose={handleCancelSwipeDelete}>
+        <View style={styles.modalOverlay}>
+          <View style={styles.menuModalContent}>
+            <Text style={styles.menuModalTitle}>Confirm removal</Text>
+            <Text style={styles.modalDescription}>
+              Are you sure you want to remove {pendingSwipeDelete ? `"${pendingSwipeDelete.name}"` : 'this item'} from Saved?
+            </Text>
+
+            <TouchableOpacity style={styles.menuOptionDanger} onPress={handleConfirmSwipeDelete}>
+              <Text style={styles.menuOptionDangerText}>Confirm</Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity style={styles.menuOption} onPress={handleCancelSwipeDelete}>
               <Text style={styles.menuOptionText}>Cancel</Text>
             </TouchableOpacity>
           </View>
@@ -999,6 +1239,21 @@ const styles = StyleSheet.create({
     color: '#666',
     fontSize: 16,
   },
+  swipeRowContainer: {
+    position: 'relative',
+    overflow: 'hidden',
+  },
+  deleteActionArea: {
+    position: 'absolute',
+    right: 0,
+    top: 0,
+    bottom: 0,
+    backgroundColor: '#d32f2f',
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderBottomWidth: 1,
+    borderBottomColor: '#111',
+  },
   listItem: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -1006,6 +1261,7 @@ const styles = StyleSheet.create({
     paddingVertical: 12,
     borderBottomWidth: 1,
     borderBottomColor: '#222',
+    backgroundColor: '#000',
   },
   workoutContent: {
     flex: 1,
