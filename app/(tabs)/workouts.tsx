@@ -1851,13 +1851,13 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   exerciseFilterChip: {
-    paddingVertical: 12,
+    paddingVertical: 10,
     paddingHorizontal: 14,
     borderRadius: 20,
     backgroundColor: '#1a1a1a',
     borderWidth: 1,
     borderColor: '#333',
-    minHeight: 42,
+    minHeight: 38,
     justifyContent: 'center',
   },
   exerciseFilterChipActive: {
