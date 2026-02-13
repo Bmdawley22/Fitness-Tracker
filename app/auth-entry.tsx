@@ -1,5 +1,5 @@
 import { useRouter } from 'expo-router';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import {
   Modal,
   Pressable,
@@ -15,9 +15,16 @@ import { useAuthStore } from '@/store/auth';
 export default function AuthEntryScreen() {
   const router = useRouter();
   const signIn = useAuthStore(state => state.signIn);
+  const isSignedIn = useAuthStore(state => state.isSignedIn);
 
   const [loginVisible, setLoginVisible] = useState(false);
   const [signupVisible, setSignupVisible] = useState(false);
+
+  useEffect(() => {
+    if (isSignedIn) {
+      router.replace('/(tabs)');
+    }
+  }, [isSignedIn, router]);
 
   const completeSignIn = () => {
     signIn();
