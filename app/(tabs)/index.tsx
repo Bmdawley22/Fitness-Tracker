@@ -2,6 +2,7 @@ import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Modal, Alert, Tex
 import React, { useRef, useState, useEffect, useMemo } from 'react';
 import { useSavedWorkoutsStore } from '@/store/savedWorkouts';
 import { useExerciseCatalogStore } from '@/store/exerciseCatalog';
+import { useAuthStore } from '@/store/auth';
 import { CreateFlowHandle, CreateFlowModals } from './add';
 
 type FilterType = 'all' | 'workouts' | 'exercises';
@@ -47,7 +48,9 @@ export default function HomeScreen() {
   const [showWorkoutSelectionModal, setShowWorkoutSelectionModal] = useState(false);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
   const [showQuickCreateModal, setShowQuickCreateModal] = useState(false);
+  const [showLogoutConfirmModal, setShowLogoutConfirmModal] = useState(false);
   const createFlowRef = useRef<CreateFlowHandle>(null);
+  const signOut = useAuthStore(state => state.signOut);
 
   useEffect(() => {
     if (catalogHydrated) {
@@ -284,8 +287,13 @@ export default function HomeScreen() {
 
   return (
     <View style={styles.container}>
-      <Text style={styles.header}>Home</Text>
-      
+      <View style={styles.headerRow}>
+        <Text style={styles.header}>Home</Text>
+        <TouchableOpacity style={styles.logoutButton} onPress={() => setShowLogoutConfirmModal(true)}>
+          <Text style={styles.logoutButtonText}>Logout</Text>
+        </TouchableOpacity>
+      </View>
+
       {/* Filter Buttons */}
       <View style={styles.filterContainer}>
         <View style={styles.filterButtonsRow}>
@@ -651,6 +659,32 @@ export default function HomeScreen() {
           </View>
         </View>
       </Modal>
+
+      <Modal
+        visible={showLogoutConfirmModal}
+        transparent={true}
+        animationType="fade"
+        onRequestClose={() => setShowLogoutConfirmModal(false)}>
+        <View style={styles.modalOverlay}>
+          <View style={styles.logoutModalContent}>
+            <Text style={styles.modalTitle}>Log out?</Text>
+            <Text style={styles.modalDescription}>Are you sure you want to log out?</Text>
+            <View style={styles.logoutActionsRow}>
+              <TouchableOpacity style={styles.logoutCancelButton} onPress={() => setShowLogoutConfirmModal(false)}>
+                <Text style={styles.logoutCancelButtonText}>Cancel</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={styles.logoutConfirmButton}
+                onPress={() => {
+                  setShowLogoutConfirmModal(false);
+                  signOut();
+                }}>
+                <Text style={styles.logoutConfirmButtonText}>Confirm logout</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
     </View>
   );
 }
@@ -661,12 +695,30 @@ const styles = StyleSheet.create({
     backgroundColor: '#000',
     paddingTop: 60,
   },
+  headerRow: {
+    paddingHorizontal: 16,
+    marginBottom: 16,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
   header: {
     color: '#fff',
     fontSize: 24,
     fontWeight: '700',
-    paddingHorizontal: 16,
-    marginBottom: 16,
+  },
+  logoutButton: {
+    backgroundColor: '#fff',
+    borderRadius: 8,
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  logoutButtonText: {
+    color: '#000',
+    fontSize: 14,
+    fontWeight: '700',
   },
   filterContainer: {
     flexDirection: 'row',
@@ -999,5 +1051,41 @@ const styles = StyleSheet.create({
     color: '#fff',
     fontSize: 16,
     fontWeight: '500',
+  },
+  logoutModalContent: {
+    width: '88%',
+    maxWidth: 360,
+    backgroundColor: '#111',
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: '#333',
+    padding: 16,
+    gap: 12,
+  },
+  logoutActionsRow: {
+    flexDirection: 'row',
+    gap: 10,
+    justifyContent: 'flex-end',
+  },
+  logoutCancelButton: {
+    borderWidth: 1,
+    borderColor: '#555',
+    borderRadius: 8,
+    paddingVertical: 10,
+    paddingHorizontal: 12,
+  },
+  logoutCancelButtonText: {
+    color: '#fff',
+    fontWeight: '700',
+  },
+  logoutConfirmButton: {
+    backgroundColor: '#fff',
+    borderRadius: 8,
+    paddingVertical: 10,
+    paddingHorizontal: 12,
+  },
+  logoutConfirmButtonText: {
+    color: '#000',
+    fontWeight: '700',
   },
 });
