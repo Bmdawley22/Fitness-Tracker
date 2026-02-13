@@ -175,6 +175,9 @@ export default function AuthEntryScreen() {
       {mode === 'entry' ? (
         <View style={styles.centerBlock}>
           <Text style={styles.pageTitle}>Fitness-Tracker</Text>
+          <Text style={styles.entryQuote}>
+            "We are what we repeatedly do. Excellence, then, is not an act, but a habit"
+          </Text>
           <View style={styles.entryButtons}>
             <TouchableOpacity style={styles.entryButton} onPress={() => setMode('login')}>
               <Text style={styles.entryButtonText}>Login</Text>
@@ -367,6 +370,15 @@ const styles = StyleSheet.create({
     fontWeight: '800',
     textAlign: 'center',
     marginBottom: 24,
+  },
+  entryQuote: {
+    color: '#fff',
+    fontSize: 16,
+    fontStyle: 'italic',
+    textAlign: 'center',
+    lineHeight: 24,
+    marginBottom: 24,
+    paddingHorizontal: 8,
   },
   entryButtons: {
     width: '100%',
