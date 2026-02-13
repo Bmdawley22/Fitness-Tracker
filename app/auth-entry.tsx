@@ -23,6 +23,9 @@ type LoginErrors = {
 
 const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const USERNAME_REGEX = /^[A-Za-z0-9_.]+$/;
+const PASSWORD_UPPER_REGEX = /[A-Z]/;
+const PASSWORD_LOWER_REGEX = /[a-z]/;
+const PASSWORD_NUMBER_REGEX = /[0-9]/;
 
 export default function AuthEntryScreen() {
   const router = useRouter();
@@ -88,6 +91,12 @@ export default function AuthEntryScreen() {
       errors.password = 'Password is required.';
     } else if (signupPassword.length < 8 || signupPassword.length > 64) {
       errors.password = 'Password must be 8–64 characters.';
+    } else if (!PASSWORD_UPPER_REGEX.test(signupPassword)) {
+      errors.password = 'Password must include at least 1 uppercase letter.';
+    } else if (!PASSWORD_LOWER_REGEX.test(signupPassword)) {
+      errors.password = 'Password must include at least 1 lowercase letter.';
+    } else if (!PASSWORD_NUMBER_REGEX.test(signupPassword)) {
+      errors.password = 'Password must include at least 1 number.';
     }
 
     if (!reenterPassword) {
@@ -163,153 +172,175 @@ export default function AuthEntryScreen() {
 
   return (
     <View style={styles.container}>
-      <Text style={styles.pageTitle}>Fitness-Tracker</Text>
-
       {mode === 'entry' ? (
-        <View style={styles.entryButtons}>
-          <TouchableOpacity style={styles.entryButton} onPress={() => setMode('login')}>
-            <Text style={styles.entryButtonText}>Login</Text>
-          </TouchableOpacity>
-          <TouchableOpacity style={styles.entryButton} onPress={() => setMode('signup')}>
-            <Text style={styles.entryButtonText}>Signup</Text>
-          </TouchableOpacity>
+        <View style={styles.centerBlock}>
+          <Text style={styles.pageTitle}>Fitness-Tracker</Text>
+          <View style={styles.entryButtons}>
+            <TouchableOpacity style={styles.entryButton} onPress={() => setMode('login')}>
+              <Text style={styles.entryButtonText}>Login</Text>
+            </TouchableOpacity>
+            <TouchableOpacity style={styles.entryButton} onPress={() => setMode('signup')}>
+              <Text style={styles.entryButtonText}>Signup</Text>
+            </TouchableOpacity>
+          </View>
         </View>
       ) : null}
 
       {showCard ? (
-        <View style={styles.authCard}>
-          <Text style={styles.cardTitle}>{titleText}</Text>
+        <View style={styles.centerBlock}>
+          <Text style={styles.pageTitle}>Fitness-Tracker</Text>
 
-          {mode === 'login' && showPostSignupMessage ? (
-            <View style={styles.successBox}>
-              <Text style={styles.successText}>Account created.</Text>
-              <Text style={styles.successText}>Login to enter Fitness Tracker</Text>
-            </View>
-          ) : null}
+          <View style={styles.authCard}>
+            <Text style={styles.cardTitle}>{titleText}</Text>
 
-          {mode === 'login' ? (
-            <>
-              <Text style={styles.label}>Username</Text>
-              <TextInput
-                value={loginUsername}
-                onChangeText={text => {
-                  setLoginUsername(text);
-                  if (loginErrors.username || loginErrors.form) setLoginErrors({});
-                }}
-                autoCapitalize="none"
-                placeholder="Enter username"
-                placeholderTextColor="#9a9a9a"
-                style={styles.input}
-              />
-              {loginErrors.username ? <Text style={styles.errorText}>{loginErrors.username}</Text> : null}
+            {mode === 'login' && showPostSignupMessage ? (
+              <View style={styles.successBox}>
+                <Text style={styles.successText}>Account created.</Text>
+                <Text style={styles.successText}>Login to enter Fitness Tracker</Text>
+              </View>
+            ) : null}
 
-              <Text style={styles.label}>Password</Text>
-              <TextInput
-                value={loginPassword}
-                onChangeText={text => {
-                  setLoginPassword(text);
-                  if (loginErrors.password || loginErrors.form) setLoginErrors({});
-                }}
-                placeholder="Enter password"
-                placeholderTextColor="#9a9a9a"
-                secureTextEntry
-                style={styles.input}
-              />
-              {loginErrors.password ? <Text style={styles.errorText}>{loginErrors.password}</Text> : null}
-              {loginErrors.form ? <Text style={styles.errorText}>{loginErrors.form}</Text> : null}
+            {mode === 'login' ? (
+              <>
+                <View style={styles.fieldGroup}>
+                  <Text style={styles.label}>Username</Text>
+                  <TextInput
+                    value={loginUsername}
+                    onChangeText={text => {
+                      setLoginUsername(text);
+                      if (loginErrors.username || loginErrors.form) setLoginErrors({});
+                    }}
+                    autoCapitalize="none"
+                    placeholder="Enter username"
+                    placeholderTextColor="#9a9a9a"
+                    style={styles.input}
+                  />
+                  {loginErrors.username ? <Text style={styles.errorText}>{loginErrors.username}</Text> : null}
+                </View>
 
-              <TouchableOpacity style={styles.submitButton} onPress={handleLogin}>
-                <Text style={styles.submitButtonText}>Login</Text>
-              </TouchableOpacity>
+                <View style={styles.fieldGroup}>
+                  <Text style={styles.label}>Password</Text>
+                  <TextInput
+                    value={loginPassword}
+                    onChangeText={text => {
+                      setLoginPassword(text);
+                      if (loginErrors.password || loginErrors.form) setLoginErrors({});
+                    }}
+                    placeholder="Enter password"
+                    placeholderTextColor="#9a9a9a"
+                    secureTextEntry
+                    style={styles.input}
+                  />
+                  {loginErrors.password ? <Text style={styles.errorText}>{loginErrors.password}</Text> : null}
+                  {loginErrors.form ? <Text style={styles.errorText}>{loginErrors.form}</Text> : null}
+                </View>
 
-              <Pressable onPress={() => setMode('signup')}>
-                <Text style={styles.switchLink}>Need an account? Signup</Text>
-              </Pressable>
-            </>
-          ) : null}
+                <TouchableOpacity style={styles.submitButton} onPress={handleLogin}>
+                  <Text style={styles.submitButtonText}>Login</Text>
+                </TouchableOpacity>
 
-          {mode === 'signup' ? (
-            <>
-              <Text style={styles.label}>First name</Text>
-              <TextInput
-                value={firstName}
-                onChangeText={text => {
-                  setFirstName(text);
-                  if (signupErrors.firstName || signupErrors.form) setSignupErrors({});
-                }}
-                placeholder="Enter first name"
-                placeholderTextColor="#9a9a9a"
-                style={styles.input}
-              />
-              {signupErrors.firstName ? <Text style={styles.errorText}>{signupErrors.firstName}</Text> : null}
+                <Pressable onPress={() => setMode('signup')}>
+                  <Text style={styles.switchLink}>Need an account? Signup</Text>
+                </Pressable>
+              </>
+            ) : null}
 
-              <Text style={styles.label}>Email</Text>
-              <TextInput
-                value={signupEmail}
-                onChangeText={text => {
-                  setSignupEmail(text);
-                  if (signupErrors.email || signupErrors.form) setSignupErrors({});
-                }}
-                autoCapitalize="none"
-                keyboardType="email-address"
-                placeholder="Enter email"
-                placeholderTextColor="#9a9a9a"
-                style={styles.input}
-              />
-              {signupErrors.email ? <Text style={styles.errorText}>{signupErrors.email}</Text> : null}
+            {mode === 'signup' ? (
+              <>
+                <View style={styles.fieldGroup}>
+                  <Text style={styles.label}>First name</Text>
+                  <TextInput
+                    value={firstName}
+                    onChangeText={text => {
+                      setFirstName(text);
+                      if (signupErrors.firstName || signupErrors.form) setSignupErrors({});
+                    }}
+                    placeholder="Enter first name"
+                    placeholderTextColor="#9a9a9a"
+                    style={styles.input}
+                  />
+                  {signupErrors.firstName ? <Text style={styles.errorText}>{signupErrors.firstName}</Text> : null}
+                </View>
 
-              <Text style={styles.label}>Username</Text>
-              <TextInput
-                value={signupUsername}
-                onChangeText={text => {
-                  setSignupUsername(text);
-                  if (signupErrors.username || signupErrors.form) setSignupErrors({});
-                }}
-                autoCapitalize="none"
-                placeholder="Enter username"
-                placeholderTextColor="#9a9a9a"
-                style={styles.input}
-              />
-              {signupErrors.username ? <Text style={styles.errorText}>{signupErrors.username}</Text> : null}
+                <View style={styles.fieldGroup}>
+                  <Text style={styles.label}>Email</Text>
+                  <TextInput
+                    value={signupEmail}
+                    onChangeText={text => {
+                      setSignupEmail(text);
+                      if (signupErrors.email || signupErrors.form) setSignupErrors({});
+                    }}
+                    autoCapitalize="none"
+                    keyboardType="email-address"
+                    placeholder="Enter email"
+                    placeholderTextColor="#9a9a9a"
+                    style={styles.input}
+                  />
+                  {signupErrors.email ? <Text style={styles.errorText}>{signupErrors.email}</Text> : null}
+                </View>
 
-              <Text style={styles.label}>Password</Text>
-              <TextInput
-                value={signupPassword}
-                onChangeText={text => {
-                  setSignupPassword(text);
-                  if (signupErrors.password || signupErrors.form) setSignupErrors({});
-                }}
-                placeholder="Create password"
-                placeholderTextColor="#9a9a9a"
-                secureTextEntry
-                style={styles.input}
-              />
-              {signupErrors.password ? <Text style={styles.errorText}>{signupErrors.password}</Text> : null}
+                <View style={styles.fieldGroup}>
+                  <Text style={styles.label}>Username</Text>
+                  <TextInput
+                    value={signupUsername}
+                    onChangeText={text => {
+                      setSignupUsername(text);
+                      if (signupErrors.username || signupErrors.form) setSignupErrors({});
+                    }}
+                    autoCapitalize="none"
+                    placeholder="Enter username"
+                    placeholderTextColor="#9a9a9a"
+                    style={styles.input}
+                  />
+                  {signupErrors.username ? <Text style={styles.errorText}>{signupErrors.username}</Text> : null}
+                </View>
 
-              <Text style={styles.label}>Reenter password</Text>
-              <TextInput
-                value={reenterPassword}
-                onChangeText={text => {
-                  setReenterPassword(text);
-                  if (signupErrors.reenterPassword || signupErrors.form) setSignupErrors({});
-                }}
-                placeholder="Reenter password"
-                placeholderTextColor="#9a9a9a"
-                secureTextEntry
-                style={styles.input}
-              />
-              {signupErrors.reenterPassword ? <Text style={styles.errorText}>{signupErrors.reenterPassword}</Text> : null}
-              {signupErrors.form ? <Text style={styles.errorText}>{signupErrors.form}</Text> : null}
+                <View style={styles.fieldGroup}>
+                  <Text style={styles.label}>Password</Text>
+                  <TextInput
+                    value={signupPassword}
+                    onChangeText={text => {
+                      setSignupPassword(text);
+                      if (signupErrors.password || signupErrors.form) setSignupErrors({});
+                    }}
+                    placeholder="Create password"
+                    placeholderTextColor="#9a9a9a"
+                    secureTextEntry
+                    style={styles.input}
+                  />
+                  <Text style={styles.helperText}>
+                    Password must be 8–64 characters and include at least 1 uppercase letter, 1 lowercase letter, and 1 number.
+                  </Text>
+                  {signupErrors.password ? <Text style={styles.errorText}>{signupErrors.password}</Text> : null}
+                </View>
 
-              <TouchableOpacity style={styles.submitButton} onPress={handleSignup}>
-                <Text style={styles.submitButtonText}>Create Account</Text>
-              </TouchableOpacity>
+                <View style={styles.fieldGroup}>
+                  <Text style={styles.label}>Reenter password</Text>
+                  <TextInput
+                    value={reenterPassword}
+                    onChangeText={text => {
+                      setReenterPassword(text);
+                      if (signupErrors.reenterPassword || signupErrors.form) setSignupErrors({});
+                    }}
+                    placeholder="Reenter password"
+                    placeholderTextColor="#9a9a9a"
+                    secureTextEntry
+                    style={styles.input}
+                  />
+                  {signupErrors.reenterPassword ? <Text style={styles.errorText}>{signupErrors.reenterPassword}</Text> : null}
+                  {signupErrors.form ? <Text style={styles.errorText}>{signupErrors.form}</Text> : null}
+                </View>
 
-              <Pressable onPress={() => setMode('login')}>
-                <Text style={styles.switchLink}>Already have an account? Login</Text>
-              </Pressable>
-            </>
-          ) : null}
+                <TouchableOpacity style={styles.submitButton} onPress={handleSignup}>
+                  <Text style={styles.submitButtonText}>Create Account</Text>
+                </TouchableOpacity>
+
+                <Pressable onPress={() => setMode('login')}>
+                  <Text style={styles.switchLink}>Already have an account? Login</Text>
+                </Pressable>
+              </>
+            ) : null}
+          </View>
         </View>
       ) : null}
     </View>
@@ -321,9 +352,14 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: '#000',
     alignItems: 'center',
-    justifyContent: 'flex-start',
+    justifyContent: 'center',
     paddingHorizontal: 20,
-    paddingTop: 72,
+  },
+  centerBlock: {
+    width: '100%',
+    maxWidth: 420,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   pageTitle: {
     color: '#fff',
@@ -344,6 +380,8 @@ const styles = StyleSheet.create({
     borderRadius: 10,
     paddingVertical: 12,
     alignItems: 'center',
+    borderWidth: 1,
+    borderColor: '#22c55e',
   },
   entryButtonText: {
     color: '#000',
@@ -357,8 +395,7 @@ const styles = StyleSheet.create({
     borderRadius: 16,
     borderWidth: 1,
     borderColor: '#fff',
-    padding: 16,
-    marginTop: 20,
+    padding: 18,
   },
   cardTitle: {
     color: '#fff',
@@ -368,7 +405,7 @@ const styles = StyleSheet.create({
     marginBottom: 14,
   },
   successBox: {
-    marginBottom: 14,
+    marginBottom: 16,
   },
   successText: {
     color: '#a7f3d0',
@@ -377,12 +414,14 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     lineHeight: 20,
   },
+  fieldGroup: {
+    marginBottom: 16,
+  },
   label: {
     color: '#fff',
     fontSize: 14,
     fontWeight: '600',
-    marginBottom: 6,
-    marginTop: 2,
+    marginBottom: 8,
   },
   input: {
     backgroundColor: '#fff',
@@ -392,18 +431,25 @@ const styles = StyleSheet.create({
     paddingVertical: 11,
     fontSize: 15,
   },
+  helperText: {
+    color: '#cfcfcf',
+    fontSize: 12,
+    marginTop: 8,
+    lineHeight: 16,
+  },
   errorText: {
     color: '#fca5a5',
     fontSize: 13,
-    marginTop: 4,
-    marginBottom: 8,
+    marginTop: 6,
   },
   submitButton: {
     backgroundColor: '#fff',
     borderRadius: 10,
     paddingVertical: 12,
     alignItems: 'center',
-    marginTop: 10,
+    marginTop: 20,
+    borderWidth: 1,
+    borderColor: '#22c55e',
   },
   submitButtonText: {
     color: '#000',
@@ -414,7 +460,7 @@ const styles = StyleSheet.create({
     color: '#fff',
     fontSize: 13,
     textAlign: 'center',
-    marginTop: 12,
+    marginTop: 14,
     textDecorationLine: 'underline',
   },
 });
