@@ -1,80 +1,317 @@
 import { useRouter } from 'expo-router';
-import { useEffect, useState } from 'react';
-import {
-  Modal,
-  Pressable,
-  StyleSheet,
-  Text,
-  TextInput,
-  TouchableOpacity,
-  View,
-} from 'react-native';
+import { useEffect, useMemo, useState } from 'react';
+import { Pressable, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
 
 import { useAuthStore } from '@/store/auth';
 
+type AuthMode = 'entry' | 'login' | 'signup';
+
+type SignupErrors = {
+  firstName?: string;
+  email?: string;
+  username?: string;
+  password?: string;
+  reenterPassword?: string;
+  form?: string;
+};
+
+type LoginErrors = {
+  username?: string;
+  password?: string;
+  form?: string;
+};
+
+const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+const USERNAME_REGEX = /^[A-Za-z0-9_.]+$/;
+
 export default function AuthEntryScreen() {
   const router = useRouter();
-  const signIn = useAuthStore(state => state.signIn);
-  const isSignedIn = useAuthStore(state => state.isSignedIn);
 
-  const [loginVisible, setLoginVisible] = useState(false);
-  const [signupVisible, setSignupVisible] = useState(false);
+  const isSignedIn = useAuthStore(state => state.isSignedIn);
+  const hasHydrated = useAuthStore(state => state.hasHydrated);
+  const createLocalAccount = useAuthStore(state => state.createLocalAccount);
+  const loginWithCredentials = useAuthStore(state => state.loginWithCredentials);
+  const consumePostSignupMessage = useAuthStore(state => state.consumePostSignupMessage);
+
+  const [mode, setMode] = useState<AuthMode>('entry');
+  const [showPostSignupMessage, setShowPostSignupMessage] = useState(false);
+
+  const [loginUsername, setLoginUsername] = useState('');
+  const [loginPassword, setLoginPassword] = useState('');
+  const [loginErrors, setLoginErrors] = useState<LoginErrors>({});
+
+  const [firstName, setFirstName] = useState('');
+  const [signupEmail, setSignupEmail] = useState('');
+  const [signupUsername, setSignupUsername] = useState('');
+  const [signupPassword, setSignupPassword] = useState('');
+  const [reenterPassword, setReenterPassword] = useState('');
+  const [signupErrors, setSignupErrors] = useState<SignupErrors>({});
 
   useEffect(() => {
+    if (!hasHydrated) return;
     if (isSignedIn) {
       router.replace('/(tabs)');
     }
-  }, [isSignedIn, router]);
+  }, [hasHydrated, isSignedIn, router]);
 
-  const completeSignIn = () => {
-    signIn();
-    setLoginVisible(false);
-    setSignupVisible(false);
+  useEffect(() => {
+    if (mode === 'login') {
+      setShowPostSignupMessage(consumePostSignupMessage());
+    }
+  }, [consumePostSignupMessage, mode]);
+
+  const validateSignup = (): boolean => {
+    const errors: SignupErrors = {};
+    const trimmedFirstName = firstName.trim();
+    const trimmedEmail = signupEmail.trim();
+    const trimmedUsername = signupUsername.trim();
+
+    if (!trimmedFirstName) {
+      errors.firstName = 'First name is required.';
+    }
+
+    if (!trimmedEmail) {
+      errors.email = 'Email is required.';
+    } else if (!EMAIL_REGEX.test(trimmedEmail)) {
+      errors.email = 'Enter a valid email address.';
+    }
+
+    if (!trimmedUsername) {
+      errors.username = 'Username is required.';
+    } else if (trimmedUsername.length < 3 || trimmedUsername.length > 24) {
+      errors.username = 'Username must be 3–24 characters.';
+    } else if (!USERNAME_REGEX.test(trimmedUsername)) {
+      errors.username = 'Username can only use letters, numbers, underscore, or period.';
+    }
+
+    if (!signupPassword) {
+      errors.password = 'Password is required.';
+    } else if (signupPassword.length < 8 || signupPassword.length > 64) {
+      errors.password = 'Password must be 8–64 characters.';
+    }
+
+    if (!reenterPassword) {
+      errors.reenterPassword = 'Please reenter your password.';
+    } else if (signupPassword !== reenterPassword) {
+      errors.reenterPassword = 'Passwords must match.';
+    }
+
+    setSignupErrors(errors);
+    return Object.keys(errors).length === 0;
+  };
+
+  const validateLogin = (): boolean => {
+    const errors: LoginErrors = {};
+
+    if (!loginUsername.trim()) {
+      errors.username = 'Username is required.';
+    }
+
+    if (!loginPassword) {
+      errors.password = 'Password is required.';
+    }
+
+    setLoginErrors(errors);
+    return Object.keys(errors).length === 0;
+  };
+
+  const handleSignup = () => {
+    if (!validateSignup()) return;
+
+    const result = createLocalAccount({
+      firstName,
+      email: signupEmail,
+      username: signupUsername,
+      password: signupPassword,
+    });
+
+    if (!result.ok) {
+      setSignupErrors(prev => ({ ...prev, form: result.error ?? 'Unable to create account.' }));
+      return;
+    }
+
+    setFirstName('');
+    setSignupEmail('');
+    setSignupUsername('');
+    setSignupPassword('');
+    setReenterPassword('');
+    setSignupErrors({});
+    setMode('login');
+  };
+
+  const handleLogin = () => {
+    if (!validateLogin()) return;
+
+    const result = loginWithCredentials(loginUsername, loginPassword);
+    if (!result.ok) {
+      setLoginErrors({ form: result.error ?? 'Login failed.' });
+      return;
+    }
+
+    setLoginErrors({});
+    setLoginPassword('');
     router.replace('/(tabs)');
   };
 
+  const showCard = mode === 'login' || mode === 'signup';
+
+  const titleText = useMemo(() => {
+    if (mode === 'signup') return 'Create Account';
+    if (mode === 'login') return 'Login';
+    return '';
+  }, [mode]);
+
   return (
     <View style={styles.container}>
-      <Text style={styles.title}>Fitness Tracker</Text>
-      <Text style={styles.tagline}>
-        “We are what we repeatedly do. Excellence then is not an act but a habit.” –Aristotle
-      </Text>
+      <Text style={styles.pageTitle}>Fitness-Tracker</Text>
 
-      <View style={styles.buttonRow}>
-        <TouchableOpacity style={styles.actionButton} onPress={() => setLoginVisible(true)}>
-          <Text style={styles.actionButtonText}>login</Text>
-        </TouchableOpacity>
-        <TouchableOpacity style={styles.actionButton} onPress={() => setSignupVisible(true)}>
-          <Text style={styles.actionButtonText}>sign up</Text>
-        </TouchableOpacity>
-      </View>
+      {mode === 'entry' ? (
+        <View style={styles.entryButtons}>
+          <TouchableOpacity style={styles.entryButton} onPress={() => setMode('login')}>
+            <Text style={styles.entryButtonText}>Login</Text>
+          </TouchableOpacity>
+          <TouchableOpacity style={styles.entryButton} onPress={() => setMode('signup')}>
+            <Text style={styles.entryButtonText}>Signup</Text>
+          </TouchableOpacity>
+        </View>
+      ) : null}
 
-      <Modal visible={loginVisible} transparent animationType="fade" onRequestClose={() => setLoginVisible(false)}>
-        <Pressable style={styles.modalBackdrop} onPress={() => setLoginVisible(false)}>
-          <Pressable style={styles.modalCard} onPress={() => {}}>
-            <Text style={styles.modalTitle}>Login</Text>
-            <TextInput placeholder="username" placeholderTextColor="#777" style={styles.input} />
-            <TextInput placeholder="password" placeholderTextColor="#777" style={styles.input} secureTextEntry />
-            <TouchableOpacity style={styles.submitButton} onPress={completeSignIn}>
-              <Text style={styles.submitButtonText}>Continue</Text>
-            </TouchableOpacity>
-          </Pressable>
-        </Pressable>
-      </Modal>
+      {showCard ? (
+        <View style={styles.authCard}>
+          <Text style={styles.cardTitle}>{titleText}</Text>
 
-      <Modal visible={signupVisible} transparent animationType="fade" onRequestClose={() => setSignupVisible(false)}>
-        <Pressable style={styles.modalBackdrop} onPress={() => setSignupVisible(false)}>
-          <Pressable style={styles.modalCard} onPress={() => {}}>
-            <Text style={styles.modalTitle}>Sign Up</Text>
-            <TextInput placeholder="username" placeholderTextColor="#777" style={styles.input} />
-            <TextInput placeholder="email" placeholderTextColor="#777" style={styles.input} keyboardType="email-address" autoCapitalize="none" />
-            <TextInput placeholder="password" placeholderTextColor="#777" style={styles.input} secureTextEntry />
-            <TouchableOpacity style={styles.submitButton} onPress={completeSignIn}>
-              <Text style={styles.submitButtonText}>Create Account</Text>
-            </TouchableOpacity>
-          </Pressable>
-        </Pressable>
-      </Modal>
+          {mode === 'login' && showPostSignupMessage ? (
+            <View style={styles.successBox}>
+              <Text style={styles.successText}>Account created.</Text>
+              <Text style={styles.successText}>Login to enter Fitness Tracker</Text>
+            </View>
+          ) : null}
+
+          {mode === 'login' ? (
+            <>
+              <Text style={styles.label}>Username</Text>
+              <TextInput
+                value={loginUsername}
+                onChangeText={text => {
+                  setLoginUsername(text);
+                  if (loginErrors.username || loginErrors.form) setLoginErrors({});
+                }}
+                autoCapitalize="none"
+                placeholder="Enter username"
+                placeholderTextColor="#9a9a9a"
+                style={styles.input}
+              />
+              {loginErrors.username ? <Text style={styles.errorText}>{loginErrors.username}</Text> : null}
+
+              <Text style={styles.label}>Password</Text>
+              <TextInput
+                value={loginPassword}
+                onChangeText={text => {
+                  setLoginPassword(text);
+                  if (loginErrors.password || loginErrors.form) setLoginErrors({});
+                }}
+                placeholder="Enter password"
+                placeholderTextColor="#9a9a9a"
+                secureTextEntry
+                style={styles.input}
+              />
+              {loginErrors.password ? <Text style={styles.errorText}>{loginErrors.password}</Text> : null}
+              {loginErrors.form ? <Text style={styles.errorText}>{loginErrors.form}</Text> : null}
+
+              <TouchableOpacity style={styles.submitButton} onPress={handleLogin}>
+                <Text style={styles.submitButtonText}>Login</Text>
+              </TouchableOpacity>
+
+              <Pressable onPress={() => setMode('signup')}>
+                <Text style={styles.switchLink}>Need an account? Signup</Text>
+              </Pressable>
+            </>
+          ) : null}
+
+          {mode === 'signup' ? (
+            <>
+              <Text style={styles.label}>First name</Text>
+              <TextInput
+                value={firstName}
+                onChangeText={text => {
+                  setFirstName(text);
+                  if (signupErrors.firstName || signupErrors.form) setSignupErrors({});
+                }}
+                placeholder="Enter first name"
+                placeholderTextColor="#9a9a9a"
+                style={styles.input}
+              />
+              {signupErrors.firstName ? <Text style={styles.errorText}>{signupErrors.firstName}</Text> : null}
+
+              <Text style={styles.label}>Email</Text>
+              <TextInput
+                value={signupEmail}
+                onChangeText={text => {
+                  setSignupEmail(text);
+                  if (signupErrors.email || signupErrors.form) setSignupErrors({});
+                }}
+                autoCapitalize="none"
+                keyboardType="email-address"
+                placeholder="Enter email"
+                placeholderTextColor="#9a9a9a"
+                style={styles.input}
+              />
+              {signupErrors.email ? <Text style={styles.errorText}>{signupErrors.email}</Text> : null}
+
+              <Text style={styles.label}>Username</Text>
+              <TextInput
+                value={signupUsername}
+                onChangeText={text => {
+                  setSignupUsername(text);
+                  if (signupErrors.username || signupErrors.form) setSignupErrors({});
+                }}
+                autoCapitalize="none"
+                placeholder="Enter username"
+                placeholderTextColor="#9a9a9a"
+                style={styles.input}
+              />
+              {signupErrors.username ? <Text style={styles.errorText}>{signupErrors.username}</Text> : null}
+
+              <Text style={styles.label}>Password</Text>
+              <TextInput
+                value={signupPassword}
+                onChangeText={text => {
+                  setSignupPassword(text);
+                  if (signupErrors.password || signupErrors.form) setSignupErrors({});
+                }}
+                placeholder="Create password"
+                placeholderTextColor="#9a9a9a"
+                secureTextEntry
+                style={styles.input}
+              />
+              {signupErrors.password ? <Text style={styles.errorText}>{signupErrors.password}</Text> : null}
+
+              <Text style={styles.label}>Reenter password</Text>
+              <TextInput
+                value={reenterPassword}
+                onChangeText={text => {
+                  setReenterPassword(text);
+                  if (signupErrors.reenterPassword || signupErrors.form) setSignupErrors({});
+                }}
+                placeholder="Reenter password"
+                placeholderTextColor="#9a9a9a"
+                secureTextEntry
+                style={styles.input}
+              />
+              {signupErrors.reenterPassword ? <Text style={styles.errorText}>{signupErrors.reenterPassword}</Text> : null}
+              {signupErrors.form ? <Text style={styles.errorText}>{signupErrors.form}</Text> : null}
+
+              <TouchableOpacity style={styles.submitButton} onPress={handleSignup}>
+                <Text style={styles.submitButtonText}>Create Account</Text>
+              </TouchableOpacity>
+
+              <Pressable onPress={() => setMode('login')}>
+                <Text style={styles.switchLink}>Already have an account? Login</Text>
+              </Pressable>
+            </>
+          ) : null}
+        </View>
+      ) : null}
     </View>
   );
 }
@@ -83,84 +320,101 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: '#000',
-    justifyContent: 'center',
     alignItems: 'center',
-    paddingHorizontal: 24,
+    justifyContent: 'flex-start',
+    paddingHorizontal: 20,
+    paddingTop: 72,
   },
-  title: {
+  pageTitle: {
     color: '#fff',
     fontSize: 34,
     fontWeight: '800',
     textAlign: 'center',
+    marginBottom: 24,
   },
-  tagline: {
-    marginTop: 16,
-    color: '#fff',
-    fontSize: 16,
-    textAlign: 'center',
-    fontStyle: 'italic',
-    lineHeight: 24,
-    maxWidth: 360,
-  },
-  buttonRow: {
-    marginTop: 28,
+  entryButtons: {
+    width: '100%',
+    maxWidth: 380,
     flexDirection: 'row',
     gap: 12,
   },
-  actionButton: {
+  entryButton: {
+    flex: 1,
     backgroundColor: '#fff',
-    borderRadius: 8,
-    minWidth: 130,
+    borderRadius: 10,
     paddingVertical: 12,
     alignItems: 'center',
-    justifyContent: 'center',
   },
-  actionButtonText: {
+  entryButtonText: {
     color: '#000',
     fontSize: 16,
     fontWeight: '700',
   },
-  modalBackdrop: {
-    flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.55)',
-    justifyContent: 'center',
-    alignItems: 'center',
-    paddingHorizontal: 20,
-  },
-  modalCard: {
+  authCard: {
     width: '100%',
-    maxWidth: 380,
-    backgroundColor: '#111',
-    borderRadius: 12,
+    maxWidth: 420,
+    backgroundColor: '#1d1d1d',
+    borderRadius: 16,
     borderWidth: 1,
-    borderColor: '#333',
+    borderColor: '#fff',
     padding: 16,
-    gap: 10,
+    marginTop: 20,
   },
-  modalTitle: {
+  cardTitle: {
     color: '#fff',
-    fontSize: 20,
-    fontWeight: '700',
-    marginBottom: 2,
+    fontSize: 24,
+    fontWeight: '800',
+    textAlign: 'center',
+    marginBottom: 14,
+  },
+  successBox: {
+    marginBottom: 14,
+  },
+  successText: {
+    color: '#a7f3d0',
+    fontSize: 14,
+    textAlign: 'center',
+    fontWeight: '600',
+    lineHeight: 20,
+  },
+  label: {
+    color: '#fff',
+    fontSize: 14,
+    fontWeight: '600',
+    marginBottom: 6,
+    marginTop: 2,
   },
   input: {
     backgroundColor: '#fff',
     color: '#000',
-    borderRadius: 8,
+    borderRadius: 10,
     paddingHorizontal: 12,
-    paddingVertical: 10,
+    paddingVertical: 11,
     fontSize: 15,
   },
+  errorText: {
+    color: '#fca5a5',
+    fontSize: 13,
+    marginTop: 4,
+    marginBottom: 8,
+  },
   submitButton: {
-    marginTop: 8,
     backgroundColor: '#fff',
-    borderRadius: 8,
+    borderRadius: 10,
     paddingVertical: 12,
     alignItems: 'center',
+    marginTop: 10,
   },
   submitButtonText: {
     color: '#000',
     fontSize: 15,
     fontWeight: '700',
+  },
+  switchLink: {
+    color: '#fff',
+    fontSize: 13,
+    textAlign: 'center',
+    marginTop: 12,
+    textDecorationLine: 'underline',
   },
 });
