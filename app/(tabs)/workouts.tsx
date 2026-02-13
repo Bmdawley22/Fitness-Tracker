@@ -15,6 +15,7 @@ import {
   Pressable,
 } from 'react-native';
 import React, { useState, useEffect, useMemo, useRef, useCallback } from 'react';
+import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { useSavedWorkoutsStore, SavedWorkout } from '@/store/savedWorkouts';
 import { useExerciseCatalogStore } from '@/store/exerciseCatalog';
@@ -261,6 +262,7 @@ export default function SavedScreen() {
   const [pendingSwipeDelete, setPendingSwipeDelete] = useState<PendingSwipeDelete | null>(null);
   const [showLogoutConfirmModal, setShowLogoutConfirmModal] = useState(false);
   const signOut = useAuthStore(state => state.signOut);
+  const router = useRouter();
   const [isDeletingFromSwipe, setIsDeletingFromSwipe] = useState(false);
   const [swipeResetToken, setSwipeResetToken] = useState(0);
 
@@ -1529,8 +1531,9 @@ export default function SavedScreen() {
                 onPress={() => {
                   setShowLogoutConfirmModal(false);
                   signOut();
+                  router.replace('/auth-entry');
                 }}>
-                <Text style={styles.logoutConfirmButtonText}>Confirm logout</Text>
+                <Text style={styles.logoutConfirmButtonText}>Confirm Logout</Text>
               </TouchableOpacity>
             </View>
           </View>
