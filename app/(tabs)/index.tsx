@@ -1,5 +1,6 @@
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Modal, Alert, TextInput, Pressable, Linking } from 'react-native';
 import React, { useRef, useState, useEffect, useMemo } from 'react';
+import { useRouter } from 'expo-router';
 import { useSavedWorkoutsStore } from '@/store/savedWorkouts';
 import { useExerciseCatalogStore } from '@/store/exerciseCatalog';
 import { useAuthStore } from '@/store/auth';
@@ -51,6 +52,7 @@ export default function HomeScreen() {
   const [showLogoutConfirmModal, setShowLogoutConfirmModal] = useState(false);
   const createFlowRef = useRef<CreateFlowHandle>(null);
   const signOut = useAuthStore(state => state.signOut);
+  const router = useRouter();
 
   useEffect(() => {
     if (catalogHydrated) {
@@ -678,8 +680,9 @@ export default function HomeScreen() {
                 onPress={() => {
                   setShowLogoutConfirmModal(false);
                   signOut();
+                  router.replace('/auth-entry');
                 }}>
-                <Text style={styles.logoutConfirmButtonText}>Confirm logout</Text>
+                <Text style={styles.logoutConfirmButtonText}>Confirm Logout</Text>
               </TouchableOpacity>
             </View>
           </View>
