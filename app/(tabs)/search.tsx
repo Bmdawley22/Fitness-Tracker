@@ -236,28 +236,32 @@ export default function SearchScreen() {
 
       <View style={styles.weekBlock}>
         <View style={styles.weekHeaderRow}>
-          <TouchableOpacity
-            style={styles.weekNavButton}
-            onPress={() => shiftSelectedWeek(-7)}
-            accessibilityRole="button"
-            accessibilityLabel="Show previous week"
-            accessibilityHint="Moves the schedule view to the previous week">
-            <Ionicons name="chevron-back" size={18} color="#fff" />
-          </TouchableOpacity>
+          <View style={styles.arrowContainer}>
+            <TouchableOpacity
+              style={styles.weekNavButton}
+              onPress={() => shiftSelectedWeek(-7)}
+              accessibilityRole="button"
+              accessibilityLabel="Show previous week"
+              accessibilityHint="Moves the schedule view to the previous week">
+              <Ionicons name="chevron-back" size={18} color="#fff" />
+            </TouchableOpacity>
+          </View>
 
           <View style={styles.weekTitleContainer}>
             <Text style={styles.weekTitle}>{weekTitleLine}</Text>
             <Text style={styles.weekRangeText}>{weekRangeLabel}</Text>
           </View>
 
-          <TouchableOpacity
-            style={styles.weekNavButton}
-            onPress={() => shiftSelectedWeek(7)}
-            accessibilityRole="button"
-            accessibilityLabel="Show next week"
-            accessibilityHint="Moves the schedule view to the next week">
-            <Ionicons name="chevron-forward" size={18} color="#fff" />
-          </TouchableOpacity>
+          <View style={styles.arrowContainer}>
+            <TouchableOpacity
+              style={styles.weekNavButton}
+              onPress={() => shiftSelectedWeek(7)}
+              accessibilityRole="button"
+              accessibilityLabel="Show next week"
+              accessibilityHint="Moves the schedule view to the next week">
+              <Ionicons name="chevron-forward" size={18} color="#fff" />
+            </TouchableOpacity>
+          </View>
         </View>
       </View>
 
@@ -573,12 +577,21 @@ const styles = StyleSheet.create({
   weekNavButton: {
     width: 40,
     height: 40,
-    borderRadius: 10,
+    borderRadius: 6,
+    borderWidth: 0,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: 'transparent',
+  },
+  arrowContainer: {
+    width: 40,
+    height: 40,
+    borderRadius: 8,
     borderWidth: 2,
     borderColor: '#fff',
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: 'rgba(255, 255, 255, 0.08)',
+    backgroundColor: 'transparent',
   },
   weekTitleContainer: {
     flex: 1,

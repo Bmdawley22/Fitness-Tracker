@@ -1712,10 +1712,12 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     flex: 1,
-    gap: 8,
+    gap: 12,
+    justifyContent: 'space-between',
   },
   workoutContent: {
     flex: 1,
+    marginRight: 8,
   },
   listItemText: {
     color: '#fff',
@@ -1728,14 +1730,13 @@ const styles = StyleSheet.create({
     marginTop: 4,
   },
   menuButton: {
-    width: 24,
+    width: 32,
     height: 32,
-    borderRadius: 12,
+    borderRadius: 16,
     alignItems: 'center',
     justifyContent: 'center',
-    borderWidth: 1,
-    borderColor: '#333',
-    backgroundColor: '#111',
+    borderWidth: 0,
+    backgroundColor: 'transparent',
   },
   menuButtonText: {
     color: '#fff',
