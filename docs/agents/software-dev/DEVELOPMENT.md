@@ -189,6 +189,13 @@ npm update
 ### Error Messages
 - Check `/android` or `/ios` folders for native errors
 
+## Worklet version sync
+- The project ships a `postinstall` script that runs `react-native-reanimated postinstall` so every `npm install` re-synchronizes the JS worklets version with the native runtime.
+- After you bump `moti`, `react-native-reanimated`, or any dependency that bundles Reanimated worklets, delete `node_modules`, re-run `npm install`, and follow up with `npx react-native-reanimated postinstall` to regenerate the native bindings.
+- Rebuild the native platforms afterwards (`cd ios && pod install` after removing `Pods/Podfile.lock` if necessary; Android `./gradlew clean && ./gradlew --refresh-dependencies`) so the pods/Gradle cache get the new worklet binary.
+- Clear Metro cache (`npm start -- --reset-cache`) before running the app again to avoid stale worklet metadata.
+- This sequence prevents the JavaScript/native mismatch crash when opening the hero dashboard flow CTA.
+
 ## Resources
 
 - **Expo Docs:** https://docs.expo.dev

@@ -4,6 +4,10 @@ import { useRouter } from 'expo-router';
 import { useSavedWorkoutsStore } from '@/store/savedWorkouts';
 import { useExerciseCatalogStore } from '@/store/exerciseCatalog';
 import { useAuthStore } from '@/store/auth';
+import { HeroDashboard } from '@/components/hero-dashboard';
+import { useFlowStore } from '@/store/flow';
+import { useScheduleStore } from '@/store/schedule';
+import { ThemeTokens } from '@/constants/theme';
 import { CreateFlowHandle, CreateFlowModals } from './add';
 
 type FilterType = 'all' | 'workouts' | 'exercises';
@@ -25,6 +29,43 @@ const resolveMuscleGroups = (exercise: ExerciseLike): string[] => {
   if (primary.length > 0) return primary;
   if (exercise.category) return [exercise.category];
   return ['Other'];
+};
+
+const formatHeroDateLabel = (date: Date) =>
+  date.toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric' });
+
+const estimateHeroDuration = (exerciseCount: number) => {
+  const baseDuration = exerciseCount * 3 + 5;
+  return Math.max(12, Math.min(75, baseDuration));
+};
+
+const computeStreak = (completedDates: Record<string, boolean>) => {
+  const todayKeys = Object.keys(completedDates)
+    .filter(key => completedDates[key])
+    .sort((a, b) => b.localeCompare(a));
+
+  let streak = 0;
+  let previousDate: Date | null = null;
+
+  for (const key of todayKeys) {
+    const currentDate = new Date(key);
+    if (!previousDate) {
+      streak = 1;
+      previousDate = currentDate;
+      continue;
+    }
+
+    const diffDays = (previousDate.getTime() - currentDate.getTime()) / (1000 * 60 * 60 * 24);
+    if (diffDays <= 1.25) {
+      streak += 1;
+      previousDate = currentDate;
+      continue;
+    }
+
+    break;
+  }
+
+  return streak;
 };
 
 export default function HomeScreen() {
@@ -53,6 +94,9 @@ export default function HomeScreen() {
   const createFlowRef = useRef<CreateFlowHandle>(null);
   const signOut = useAuthStore(state => state.signOut);
   const router = useRouter();
+  const startFlow = useFlowStore(state => state.startFlow);
+  const completedDates = useScheduleStore(state => state.completedDates);
+  const streak = useMemo(() => computeStreak(completedDates), [completedDates]);
 
   useEffect(() => {
     if (catalogHydrated) {
@@ -286,6 +330,23 @@ export default function HomeScreen() {
   };
 
   const sortedSavedWorkouts = useMemo(() => [...savedWorkouts].sort((a, b) => a.order - b.order), [savedWorkouts]);
+  const savedExerciseCount = savedExercises.length + customExercises.length;
+  const heroWorkout = sortedSavedWorkouts[0] ?? null;
+  const heroWorkoutInfo = heroWorkout
+    ? {
+        id: heroWorkout.id,
+        name: heroWorkout.name,
+        description:
+          heroWorkout.description || `${heroWorkout.exercises.length} exercise${heroWorkout.exercises.length === 1 ? '' : 's'}`,
+        dateLabel: formatHeroDateLabel(new Date()),
+        estimatedDuration: estimateHeroDuration(heroWorkout.exercises.length),
+      }
+    : undefined;
+  const handleHeroStart = () => {
+    if (!heroWorkout) return;
+    startFlow(heroWorkout.id, 'hero-cta');
+    router.push('/flow');
+  };
 
   return (
     <View style={styles.container}>
@@ -296,105 +357,115 @@ export default function HomeScreen() {
         </TouchableOpacity>
       </View>
 
-      {/* Filter Buttons */}
-      <View style={styles.filterContainer}>
-        <View style={styles.filterButtonsRow}>
+      <ScrollView style={styles.mainScroll} contentContainerStyle={styles.mainScrollContent}>
+        <View style={styles.heroWrapper}>
+          <HeroDashboard
+            streak={streak}
+            savedExercises={savedExerciseCount}
+            workout={heroWorkoutInfo}
+            onStart={handleHeroStart}
+          />
+        </View>
+
+        {/* Filter Buttons */}
+        <View style={styles.filterContainer}>
+          <View style={styles.filterButtonsRow}>
+            <TouchableOpacity
+              style={[styles.filterButton, selectedFilter === 'all' && styles.filterButtonActive]}
+              onPress={() => setSelectedFilter('all')}>
+              <Text style={[styles.filterText, selectedFilter === 'all' && styles.filterTextActive]}>
+                All
+              </Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={[styles.filterButton, selectedFilter === 'workouts' && styles.filterButtonActive]}
+              onPress={() => setSelectedFilter('workouts')}>
+              <Text style={[styles.filterText, selectedFilter === 'workouts' && styles.filterTextActive]}>
+                Workouts
+              </Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={[styles.filterButton, selectedFilter === 'exercises' && styles.filterButtonActive]}
+              onPress={() => setSelectedFilter('exercises')}>
+              <Text style={[styles.filterText, selectedFilter === 'exercises' && styles.filterTextActive]}>
+                Exercises
+              </Text>
+            </TouchableOpacity>
+          </View>
+
           <TouchableOpacity
-            style={[styles.filterButton, selectedFilter === 'all' && styles.filterButtonActive]}
-            onPress={() => setSelectedFilter('all')}>
-            <Text style={[styles.filterText, selectedFilter === 'all' && styles.filterTextActive]}>
-              All
-            </Text>
-          </TouchableOpacity>
-          <TouchableOpacity
-            style={[styles.filterButton, selectedFilter === 'workouts' && styles.filterButtonActive]}
-            onPress={() => setSelectedFilter('workouts')}>
-            <Text style={[styles.filterText, selectedFilter === 'workouts' && styles.filterTextActive]}>
-              Workouts
-            </Text>
-          </TouchableOpacity>
-          <TouchableOpacity
-            style={[styles.filterButton, selectedFilter === 'exercises' && styles.filterButtonActive]}
-            onPress={() => setSelectedFilter('exercises')}>
-            <Text style={[styles.filterText, selectedFilter === 'exercises' && styles.filterTextActive]}>
-              Exercises
-            </Text>
+            style={styles.quickCreateButton}
+            onPress={() => setShowQuickCreateModal(true)}
+            accessibilityRole="button"
+            accessibilityLabel="Open quick create menu">
+            <Text style={styles.quickCreateButtonText}>Create</Text>
           </TouchableOpacity>
         </View>
 
-        <TouchableOpacity
-          style={styles.quickCreateButton}
-          onPress={() => setShowQuickCreateModal(true)}
-          accessibilityRole="button"
-          accessibilityLabel="Open quick create menu">
-          <Text style={styles.quickCreateButtonText}>Create</Text>
-        </TouchableOpacity>
-      </View>
+        {selectedFilter === 'exercises' && (
+          <>
+            <View style={styles.categoryFilterContainer}>
+              <ScrollView
+                horizontal
+                showsHorizontalScrollIndicator={false}
+                contentContainerStyle={styles.categoryFilterScroll}>
+                {exerciseGroups.map(group => {
+                  const isAll = group === 'All';
+                  const isActive = isAll
+                    ? selectedExerciseGroups.includes('All')
+                    : selectedExerciseGroups.includes(group);
 
-      {selectedFilter === 'exercises' && (
-        <>
-          <View style={styles.categoryFilterContainer}>
-            <ScrollView
-              horizontal
-              showsHorizontalScrollIndicator={false}
-              contentContainerStyle={styles.categoryFilterScroll}>
-              {exerciseGroups.map(group => {
-                const isAll = group === 'All';
-                const isActive = isAll
-                  ? selectedExerciseGroups.includes('All')
-                  : selectedExerciseGroups.includes(group);
-
-                return (
-                  <TouchableOpacity
-                    key={group}
-                    style={[
-                      styles.categoryFilterButton,
-                      isActive && styles.categoryFilterButtonActive,
-                    ]}
-                    onPress={() => {
-                      if (isAll) {
-                        setSelectedExerciseGroups(['All']);
-                        return;
-                      }
-
-                      setSelectedExerciseGroups(prev => {
-                        const withoutAll = prev.filter(item => item !== 'All');
-                        const alreadySelected = withoutAll.includes(group);
-                        const next = alreadySelected
-                          ? withoutAll.filter(item => item !== group)
-                          : [...withoutAll, group];
-                        return next.length === 0 ? ['All'] : next;
-                      });
-                    }}>
-                    <Text
+                  return (
+                    <TouchableOpacity
+                      key={group}
                       style={[
-                        styles.categoryFilterText,
-                        isActive && styles.categoryFilterTextActive,
-                      ]}>
-                      {group}
-                    </Text>
-                  </TouchableOpacity>
-                );
-              })}
-            </ScrollView>
-          </View>
+                        styles.categoryFilterButton,
+                        isActive && styles.categoryFilterButtonActive,
+                      ]}
+                      onPress={() => {
+                        if (isAll) {
+                          setSelectedExerciseGroups(['All']);
+                          return;
+                        }
 
-          <View style={styles.searchContainer}>
-            <TextInput
-              style={styles.searchInput}
-              placeholder="Search exercises..."
-              placeholderTextColor="#666"
-              value={exerciseSearchText}
-              onChangeText={setExerciseSearchText}
-              autoCapitalize="none"
-              autoCorrect={false}
-            />
-          </View>
-        </>
-      )}
+                        setSelectedExerciseGroups(prev => {
+                          const withoutAll = prev.filter(item => item !== 'All');
+                          const alreadySelected = withoutAll.includes(group);
+                          const next = alreadySelected
+                            ? withoutAll.filter(item => item !== group)
+                            : [...withoutAll, group];
+                          return next.length === 0 ? ['All'] : next;
+                        });
+                      }}>
+                      <Text
+                        style={[
+                          styles.categoryFilterText,
+                          isActive && styles.categoryFilterTextActive,
+                        ]}>
+                        {group}
+                      </Text>
+                    </TouchableOpacity>
+                  );
+                })}
+              </ScrollView>
+            </View>
 
-      {/* List */}
-      <ScrollView style={styles.listContainer}>
+            <View style={styles.searchContainer}>
+              <TextInput
+                style={styles.searchInput}
+                placeholder="Search exercises..."
+                placeholderTextColor="#666"
+                value={exerciseSearchText}
+                onChangeText={setExerciseSearchText}
+                autoCapitalize="none"
+                autoCorrect={false}
+              />
+            </View>
+          </>
+        )}
+
+        {/* List */}
+        <View style={styles.listContainer}>
         {selectedFilter === 'exercises' && (
           filteredExercises.length === 0 ? (
             <Text style={styles.noExercisesText}>No exercises found in {
@@ -438,6 +509,7 @@ export default function HomeScreen() {
             ))
           )
         )}
+        </View>
       </ScrollView>
 
       {/* Toast */}
@@ -695,12 +767,12 @@ export default function HomeScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#000',
-    paddingTop: 60,
+    backgroundColor: ThemeTokens.colors.dark.background,
   },
   headerRow: {
-    paddingHorizontal: 16,
-    marginBottom: 16,
+    paddingHorizontal: ThemeTokens.spacing.md,
+    paddingTop: ThemeTokens.spacing.xl,
+    paddingBottom: ThemeTokens.spacing.md,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
@@ -723,12 +795,22 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: '700',
   },
+  mainScroll: {
+    flex: 1,
+  },
+  mainScrollContent: {
+    paddingHorizontal: 0,
+  },
+  heroWrapper: {
+    paddingHorizontal: ThemeTokens.spacing.md,
+    marginBottom: ThemeTokens.spacing.lg,
+  },
   filterContainer: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingHorizontal: 16,
-    marginBottom: 16,
+    paddingHorizontal: ThemeTokens.spacing.md,
+    marginBottom: ThemeTokens.spacing.md,
   },
   filterButtonsRow: {
     flexDirection: 'row',
@@ -740,8 +822,8 @@ const styles = StyleSheet.create({
     height: 34,
     borderRadius: 18,
     borderWidth: 2,
-    borderColor: '#2CD66F',
-    backgroundColor: '#2CD66F',
+    borderColor: ThemeTokens.colors.dark.accent,
+    backgroundColor: ThemeTokens.colors.dark.accent,
     alignItems: 'center',
     justifyContent: 'center',
     marginLeft: 12,
@@ -810,7 +892,7 @@ const styles = StyleSheet.create({
     color: '#000',
   },
   listContainer: {
-    flex: 1,
+    paddingBottom: ThemeTokens.spacing.md,
   },
   listItem: {
     flexDirection: 'row',
