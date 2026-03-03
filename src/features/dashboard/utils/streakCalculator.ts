@@ -7,8 +7,15 @@ type WorkoutRecord = {
 };
 
 /**
+ * Format date as YYYY-MM-DD day key using local time.
+ */
+function formatDayKey(date: Date): string {
+  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
+}
+
+/**
  * Calculate streak days and days since last workout from workout history.
- * Streak = consecutive days with ≥1 workout.
+ * Streak = consecutive calendar days with ≥1 workout.
  */
 export function calculateStreakAndRecency(workouts: WorkoutRecord[]): UserPatterns {
   if (workouts.length === 0) {
@@ -24,21 +31,31 @@ export function calculateStreakAndRecency(workouts: WorkoutRecord[]): UserPatter
 
   const lastWorkoutTs = sorted[0].timestamp;
   const now = Date.now();
-  const msPerDay = 24 * 60 * 60 * 1000;
 
-  const daysSinceLastWorkout = Math.floor((now - lastWorkoutTs) / msPerDay);
+  // Calculate calendar days since last workout (not 24-hour periods)
+  const nowDate = new Date(now);
+  const lastWorkoutDate = new Date(lastWorkoutTs);
+  const nowDayKey = formatDayKey(nowDate);
+  const lastWorkoutDayKey = formatDayKey(lastWorkoutDate);
 
-  // Group workouts by day
+  let daysSinceLastWorkout = 0;
+  if (nowDayKey !== lastWorkoutDayKey) {
+    const nowDayStart = new Date(nowDate.getFullYear(), nowDate.getMonth(), nowDate.getDate()).getTime();
+    const lastWorkoutDayStart = new Date(lastWorkoutDate.getFullYear(), lastWorkoutDate.getMonth(), lastWorkoutDate.getDate()).getTime();
+    daysSinceLastWorkout = Math.floor((nowDayStart - lastWorkoutDayStart) / (24 * 60 * 60 * 1000));
+  }
+
+  // Group workouts by calendar day (local time)
   const workoutsByDay = new Map<string, number>();
   sorted.forEach(workout => {
-    const date = new Date(workout.timestamp);
-    const dayKey = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
+    const dayKey = formatDayKey(new Date(workout.timestamp));
     workoutsByDay.set(dayKey, workout.timestamp);
   });
 
-  // Calculate streak (consecutive days)
+  // Calculate streak (consecutive calendar days)
   let streakDays = 0;
-  const todayKey = new Date(now).toISOString().split('T')[0];
+  const todayKey = formatDayKey(new Date(now));
+  const msPerDay = 24 * 60 * 60 * 1000;
   let checkDate = new Date(now);
 
   // Start from today (or yesterday if no workout today)
@@ -47,7 +64,7 @@ export function calculateStreakAndRecency(workouts: WorkoutRecord[]): UserPatter
   }
 
   while (true) {
-    const dayKey = `${checkDate.getFullYear()}-${String(checkDate.getMonth() + 1).padStart(2, '0')}-${String(checkDate.getDate()).padStart(2, '0')}`;
+    const dayKey = formatDayKey(checkDate);
     
     if (workoutsByDay.has(dayKey)) {
       streakDays++;
