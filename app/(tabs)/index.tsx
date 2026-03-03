@@ -5,6 +5,7 @@ import { useSavedWorkoutsStore } from '@/store/savedWorkouts';
 import { useExerciseCatalogStore } from '@/store/exerciseCatalog';
 import { useAuthStore } from '@/store/auth';
 import { CreateFlowHandle, CreateFlowModals } from './add';
+import { HeroDashboard } from '@/src/features/dashboard/components/HeroDashboard';
 
 type FilterType = 'all' | 'workouts' | 'exercises';
 
@@ -287,6 +288,19 @@ export default function HomeScreen() {
 
   const sortedSavedWorkouts = useMemo(() => [...savedWorkouts].sort((a, b) => a.order - b.order), [savedWorkouts]);
 
+  const getRecentWorkouts = async (daysBack: number) => {
+    const cutoff = Date.now() - (daysBack * 24 * 60 * 60 * 1000);
+    return savedWorkouts
+      .filter(workout => workout.createdAt >= cutoff)
+      .map(workout => ({ timestamp: workout.createdAt }));
+  };
+
+  const hasWorkoutHistory = savedWorkouts.length > 0;
+  const mostRecentWorkout = useMemo(
+    () => [...savedWorkouts].sort((a, b) => b.createdAt - a.createdAt)[0],
+    [savedWorkouts]
+  );
+
   return (
     <View style={styles.container}>
       <View style={styles.headerRow}>
@@ -294,6 +308,16 @@ export default function HomeScreen() {
         <TouchableOpacity style={styles.logoutButton} onPress={() => setShowLogoutConfirmModal(true)}>
           <Text style={styles.logoutButtonText}>Logout</Text>
         </TouchableOpacity>
+      </View>
+
+      <View style={styles.dashboardContainer}>
+        <HeroDashboard
+          getRecentWorkouts={getRecentWorkouts}
+          hasWorkoutHistory={hasWorkoutHistory}
+          mostRecentRoutineName={mostRecentWorkout?.name}
+          onStartWorkout={() => router.push('/flow')}
+          onLogWorkout={() => router.push('/add')}
+        />
       </View>
 
       {/* Filter Buttons */}
@@ -722,6 +746,10 @@ const styles = StyleSheet.create({
     color: '#000',
     fontSize: 14,
     fontWeight: '700',
+  },
+  dashboardContainer: {
+    paddingHorizontal: 16,
+    marginBottom: 16,
   },
   filterContainer: {
     flexDirection: 'row',
