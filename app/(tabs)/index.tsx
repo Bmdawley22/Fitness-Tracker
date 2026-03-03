@@ -315,8 +315,8 @@ export default function HomeScreen() {
           getRecentWorkouts={getRecentWorkouts}
           hasWorkoutHistory={hasWorkoutHistory}
           mostRecentRoutineName={mostRecentWorkout?.name}
-          onStartWorkout={() => router.push('/flow')}
-          onLogWorkout={() => router.push('/add')}
+          onStartWorkout={() => router.push('/(tabs)/workouts')}
+          onLogWorkout={() => router.push('/(tabs)/add')}
         />
       </View>
 

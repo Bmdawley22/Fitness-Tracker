@@ -1,8 +1,5 @@
-// SuggestedWorkoutWidget.tsx - Suggest most recent workout routine
-
 import React from 'react';
 import { View, Text, StyleSheet, Pressable } from 'react-native';
-import { Colors, ThemeTokens } from '@/constants/theme';
 import { useTelemetry } from '../../hooks/useTelemetry';
 
 type SuggestedWorkoutWidgetProps = {
@@ -29,10 +26,7 @@ export function SuggestedWorkoutWidget({ routineName, onStart }: SuggestedWorkou
       </View>
       <Pressable
         onPress={handleStart}
-        style={({ pressed }) => [
-          styles.ctaButton,
-          pressed && styles.ctaButtonPressed,
-        ]}>
+        style={({ pressed }) => [styles.ctaButton, pressed && styles.ctaButtonPressed]}>
         <Text style={styles.ctaText}>Start Workout</Text>
       </Pressable>
     </View>
@@ -42,46 +36,39 @@ export function SuggestedWorkoutWidget({ routineName, onStart }: SuggestedWorkou
 const styles = StyleSheet.create({
   container: {
     height: 120,
-    backgroundColor: Colors.dark.surfaceLift,
-    borderRadius: ThemeTokens.radii.lg,
+    backgroundColor: '#111',
+    borderRadius: 12,
     borderWidth: 2,
-    borderColor: Colors.dark.border,
-    padding: ThemeTokens.spacing.md,
+    borderColor: '#333',
+    padding: 16,
     justifyContent: 'space-between',
   },
   content: {
-    gap: ThemeTokens.spacing.xs,
+    gap: 4,
   },
   label: {
     fontSize: 12,
-    fontFamily: ThemeTokens.fonts.medium,
-    color: Colors.dark.mutedText,
+    color: '#888',
     textTransform: 'uppercase',
     letterSpacing: 0.5,
   },
   routineName: {
     fontSize: 18,
-    fontFamily: ThemeTokens.fonts.heading,
-    color: Colors.dark.text,
+    color: '#fff',
     fontWeight: '700',
   },
   ctaButton: {
-    backgroundColor: Colors.dark.accent,
-    borderRadius: ThemeTokens.radii.pill,
-    paddingVertical: ThemeTokens.spacing.xs,
+    backgroundColor: '#2CD66F',
+    borderRadius: 999,
+    paddingVertical: 8,
     alignItems: 'center',
     justifyContent: 'center',
-    shadowColor: Colors.dark.glow,
-    shadowOpacity: 0.6,
-    shadowRadius: 12,
-    shadowOffset: { width: 0, height: 6 },
   },
   ctaButtonPressed: {
     transform: [{ scale: 0.97 }],
   },
   ctaText: {
     fontSize: 14,
-    fontFamily: ThemeTokens.fonts.medium,
     color: '#030409',
     fontWeight: '700',
   },

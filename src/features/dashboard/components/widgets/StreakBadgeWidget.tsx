@@ -1,8 +1,5 @@
-// StreakBadgeWidget.tsx - Display user workout streak
-
 import React from 'react';
 import { View, Text, StyleSheet } from 'react-native';
-import { Colors, ThemeTokens } from '@/constants/theme';
 
 type StreakBadgeWidgetProps = {
   streakDays: number;
@@ -10,7 +7,7 @@ type StreakBadgeWidgetProps = {
 };
 
 export function StreakBadgeWidget({ streakDays, variant }: StreakBadgeWidgetProps) {
-  const accentColor = variant === 'active' ? Colors.dark.accent : '#FF9500';
+  const accentColor = variant === 'active' ? '#2CD66F' : '#FF9500';
 
   return (
     <View style={[styles.container, { borderColor: accentColor }]}>
@@ -25,21 +22,21 @@ export function StreakBadgeWidget({ streakDays, variant }: StreakBadgeWidgetProp
 const styles = StyleSheet.create({
   container: {
     height: 80,
-    backgroundColor: Colors.dark.surfaceLift,
-    borderRadius: ThemeTokens.radii.lg,
+    backgroundColor: '#111',
+    borderRadius: 12,
     borderWidth: 2,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    gap: ThemeTokens.spacing.sm,
-    paddingHorizontal: ThemeTokens.spacing.md,
+    gap: 8,
+    paddingHorizontal: 16,
   },
   emoji: {
     fontSize: 32,
   },
   text: {
     fontSize: 20,
-    fontFamily: ThemeTokens.fonts.heading,
+    color: '#fff',
     fontWeight: '700',
   },
 });

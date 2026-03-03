@@ -1,8 +1,5 @@
-// QuickLogWidget.tsx - Quick workout log button
-
 import React from 'react';
 import { Pressable, Text, StyleSheet } from 'react-native';
-import { Colors, ThemeTokens } from '@/constants/theme';
 import { useTelemetry } from '../../hooks/useTelemetry';
 
 type QuickLogWidgetProps = {
@@ -23,10 +20,7 @@ export function QuickLogWidget({ onTap }: QuickLogWidgetProps) {
   return (
     <Pressable
       onPress={handleTap}
-      style={({ pressed }) => [
-        styles.container,
-        pressed && styles.containerPressed,
-      ]}>
+      style={({ pressed }) => [styles.container, pressed && styles.containerPressed]}>
       <Text style={styles.text}>+ Log Workout</Text>
     </Pressable>
   );
@@ -35,24 +29,19 @@ export function QuickLogWidget({ onTap }: QuickLogWidgetProps) {
 const styles = StyleSheet.create({
   container: {
     height: 60,
-    backgroundColor: Colors.dark.surfaceLift,
-    borderRadius: ThemeTokens.radii.lg,
+    backgroundColor: '#111',
+    borderRadius: 12,
     borderWidth: 2,
-    borderColor: Colors.dark.accent,
+    borderColor: '#2CD66F',
     alignItems: 'center',
     justifyContent: 'center',
-    shadowColor: Colors.dark.glow,
-    shadowOpacity: 0.4,
-    shadowRadius: 10,
-    shadowOffset: { width: 0, height: 4 },
   },
   containerPressed: {
     transform: [{ scale: 0.98 }],
   },
   text: {
     fontSize: 16,
-    fontFamily: ThemeTokens.fonts.medium,
-    color: Colors.dark.accent,
+    color: '#2CD66F',
     fontWeight: '700',
   },
 });
