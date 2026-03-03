@@ -36,12 +36,16 @@ export function HeroDashboard({
     if (!context) return;
 
     TelemetryCollector.getInstance().setContext(context);
+  }, [context]);
 
-    if (!hasTrackedHeroView.current) {
-      track('hero_dashboard_view', {});
-      hasTrackedHeroView.current = true;
+  useEffect(() => {
+    if (!context || loading || hasTrackedHeroView.current) {
+      return;
     }
-  }, [context, track]);
+
+    track('hero_dashboard_view', {});
+    hasTrackedHeroView.current = true;
+  }, [context, loading, track]);
 
   useEffect(() => {
     if (!layout) return;
