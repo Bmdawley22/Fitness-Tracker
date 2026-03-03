@@ -17,7 +17,7 @@ import {
 import React, { useState, useEffect, useMemo, useRef, useCallback } from 'react';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
-import { useSavedWorkoutsStore, SavedWorkout } from '@/store/savedWorkouts';
+import { useSavedWorkoutsStore, SavedWorkout, SavedExercise } from '@/store/savedWorkouts';
 import { useExerciseCatalogStore } from '@/store/exerciseCatalog';
 import { useAuthStore } from '@/store/auth';
 
@@ -214,6 +214,7 @@ export default function SavedScreen() {
     removeWorkout, 
     updateWorkout,
     updateAndRegenerateId,
+    addWorkoutWithId,
     removeExerciseFromWorkout,
     addExerciseToWorkout,
     removeExercise,
@@ -390,6 +391,26 @@ export default function SavedScreen() {
       openWorkoutEditor(detailWorkout);
       setDetailWorkout(null);
     }
+  };
+
+  const handleDuplicateWorkout = () => {
+    if (!menuWorkout) return;
+
+    const duplicateName = `${menuWorkout.name} Copy`;
+    const duplicatedId = addWorkoutWithId({
+      originalId: '',
+      name: duplicateName,
+      description: menuWorkout.description,
+      exercises: [...menuWorkout.exercises],
+    });
+
+    if (duplicatedId) {
+      Alert.alert('Workout duplicated', `${duplicateName} was added to your saved workouts.`);
+    } else {
+      Alert.alert('Duplicate failed', 'Could not duplicate workout.');
+    }
+
+    setMenuWorkout(null);
   };
 
   const handleSaveEdit = () => {
@@ -730,6 +751,7 @@ export default function SavedScreen() {
             setMenuWorkout(null);
             setPendingSwipeDelete(null);
             setSwipeResetToken(prev => prev + 1);
+            Alert.alert('Saved workouts removed', 'All saved workouts were removed.');
           },
         },
       ],
@@ -803,16 +825,150 @@ export default function SavedScreen() {
 
   // Sort workouts by order
   const sortedWorkouts = [...savedWorkouts].sort((a, b) => a.order - b.order);
+  const sortedSavedExercises = [...savedExercises].sort((a, b) => a.createdAt - b.createdAt);
   const hasWorkouts = sortedWorkouts.length > 0;
   const hasExercises = savedExercises.length > 0;
   const isEditButtonVisible = selectedFilter === 'workouts' ? hasWorkouts : hasExercises;
-  const showRemoveAllWorkouts = selectedFilter === 'workouts' && isWorkoutEditMode && hasWorkouts;
+  const showRemoveAllWorkouts = selectedFilter === 'workouts' && hasWorkouts;
   const showRemoveAllExercises = selectedFilter === 'exercises' && isExerciseEditMode && hasExercises;
   const shouldShowSavedExerciseFilters =
     selectedFilter === 'exercises' &&
     hasExercises &&
     savedExercisesViewportHeight > 0 &&
     savedExercisesBaseContentHeight > savedExercisesViewportHeight + 1;
+
+  const formatDateShort = (timestamp: number) =>
+    new Date(timestamp).toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
+
+  const getWorkoutTags = (workout: SavedWorkout) => {
+    const groups = new Set<string>();
+    workout.exercises.forEach(exerciseId => {
+      const name = getExerciseName(exerciseId);
+      if (name && groups.size < 3) groups.add(name);
+    });
+    return Array.from(groups).slice(0, 3);
+  };
+
+  const renderWorkoutItem = ({ item }: { item: SavedWorkout }) => {
+    if (isWorkoutEditMode) {
+      return (
+        <Pressable
+          style={[
+            styles.savedCard,
+            selectedWorkoutIds.includes(item.id) && styles.editModeListItemSelected,
+          ]}>
+          <View style={styles.workoutContent}>
+            <Text style={styles.savedCardTitle}>{item.name}</Text>
+            <Text style={styles.savedCardSubtitle}>{formatDateShort(item.createdAt)} · {item.exercises.length} exercises · {Math.max(15, item.exercises.length * 5)} min</Text>
+          </View>
+          <Pressable
+            style={[
+              styles.selectionControl,
+              selectedWorkoutIds.includes(item.id) && styles.selectionControlSelected,
+            ]}
+            onPress={event => {
+              event?.stopPropagation?.();
+              toggleWorkoutSelection(item.id);
+            }}>
+            <Text
+              style={[
+                styles.selectionControlMinus,
+                selectedWorkoutIds.includes(item.id) && styles.selectionControlMinusSelected,
+              ]}>
+              -
+            </Text>
+          </Pressable>
+        </Pressable>
+      );
+    }
+
+    const tags = getWorkoutTags(item);
+
+    return (
+      <View style={styles.cardRowWrap}>
+        <Pressable style={styles.savedCard} onPress={() => setDetailWorkout(item)}>
+          <Pressable
+            style={styles.cardMenuButton}
+            onPress={event => {
+              event?.stopPropagation?.();
+              handleOpenMenu(item);
+            }}>
+            <Ionicons name="ellipsis-vertical" size={18} color="#fff" />
+          </Pressable>
+          <Text style={styles.savedCardTitle}>{item.name}</Text>
+          <Text style={styles.savedCardSubtitle}>{formatDateShort(item.createdAt)} · {item.exercises.length} exercises · {Math.max(15, item.exercises.length * 5)} min</Text>
+          <View style={styles.tagRow}>
+            {tags.map(tag => (
+              <View key={`${item.id}-${tag}`} style={styles.tagPill}>
+                <Text style={styles.tagText}>{tag}</Text>
+              </View>
+            ))}
+          </View>
+        </Pressable>
+        <Pressable style={styles.arrowContainer} onPress={() => setDetailWorkout(item)}>
+          <Text style={styles.arrowLabel}>Start</Text>
+          <Ionicons name="chevron-forward" size={16} color="#fff" />
+        </Pressable>
+      </View>
+    );
+  };
+
+  const renderExerciseItem = ({ item }: { item: SavedExercise }) => {
+    if (isExerciseEditMode) {
+      return (
+        <Pressable
+          style={[
+            styles.savedCard,
+            selectedExerciseIds.includes(item.id) && styles.editModeListItemSelected,
+          ]}>
+          <View style={styles.workoutContent}>
+            <Text style={styles.savedCardTitle}>{item.name}</Text>
+            <Text style={styles.savedCardSubtitle}>{formatDateShort(item.createdAt)} · saved exercise</Text>
+          </View>
+          <Pressable
+            style={[
+              styles.selectionControl,
+              selectedExerciseIds.includes(item.id) && styles.selectionControlSelected,
+            ]}
+            onPress={event => {
+              event?.stopPropagation?.();
+              toggleExerciseSelection(item.id);
+            }}>
+            <Text
+              style={[
+                styles.selectionControlMinus,
+                selectedExerciseIds.includes(item.id) && styles.selectionControlMinusSelected,
+              ]}>
+              -
+            </Text>
+          </Pressable>
+        </Pressable>
+      );
+    }
+
+    return (
+      <SwipeToDeleteRow
+        title={item.name}
+        subtitle={`${formatDateShort(item.createdAt)} · saved exercise`}
+        onPress={() =>
+          setDetailExercise({
+            id: item.id,
+            name: item.name,
+            description: item.description ?? '',
+            originalId: item.originalId,
+            primaryMuscles: item.primaryMuscles,
+            secondaryMuscles: item.secondaryMuscles,
+            instructions: item.instructions,
+            image: item.image,
+          })
+        }
+        onLongPress={() => handleOpenExerciseMenu({ id: item.id, name: item.name, originalId: item.originalId })}
+        onPressMenu={() => handleOpenExerciseMenu({ id: item.id, name: item.name, originalId: item.originalId })}
+        onRequestDelete={() => requestSwipeDelete({ id: item.id, name: item.name, type: 'exercise' })}
+        resetToken={swipeResetToken}
+      />
+    );
+  };
 
   return (
     <View style={styles.container}>
@@ -825,7 +981,7 @@ export default function SavedScreen() {
 
       {/* Filter Buttons */}
       <View style={styles.filterContainer}>
-        <View style={styles.filterButtonsGroup}>
+        <View style={styles.segmentedControl}>
           <TouchableOpacity
             style={[styles.filterButton, selectedFilter === 'workouts' && styles.filterButtonActive]}
             onPress={() => handleFilterChange('workouts')}>
@@ -841,8 +997,10 @@ export default function SavedScreen() {
             </Text>
           </TouchableOpacity>
         </View>
+      </View>
 
-        {isEditButtonVisible ? (
+      {isEditButtonVisible ? (
+        <View style={styles.editModeRow}>
           <TouchableOpacity
             style={[styles.editModeButton, isCurrentEditMode && styles.editModeButtonActive]}
             onPress={handleToggleEditMode}>
@@ -850,15 +1008,15 @@ export default function SavedScreen() {
               Edit List
             </Text>
           </TouchableOpacity>
-        ) : (
-          <View style={{ width: 92 }} />
-        )}
-      </View>
+        </View>
+      ) : null}
 
       {showRemoveAllWorkouts && (
-        <TouchableOpacity style={[styles.removeAllButton, styles.removeAllButtonDanger]} onPress={handleRemoveAllWorkouts}>
-          <Text style={styles.removeAllButtonText}>Remove all saved workouts</Text>
-        </TouchableOpacity>
+        <View style={styles.removeAllRow}>
+          <TouchableOpacity style={[styles.removeAllButton, styles.removeAllButtonDanger]} onPress={handleRemoveAllWorkouts}>
+            <Text style={styles.removeAllButtonText}>Remove all Workouts</Text>
+          </TouchableOpacity>
+        </View>
       )}
 
       {showRemoveAllExercises && (
@@ -927,141 +1085,43 @@ export default function SavedScreen() {
       ) : null}
 
       {/* List */}
-      <ScrollView
-        style={styles.listContainer}
-        onLayout={event => setSavedExercisesViewportHeight(event.nativeEvent.layout.height)}
-        onContentSizeChange={(_, height) => {
-          if (selectedFilter === 'exercises') {
-            if (savedExerciseGroups.includes('All') && savedExerciseSearchText.trim() === '') {
-              setSavedExercisesBaseContentHeight(height);
-            }
-          }
-        }}>
-        {selectedFilter === 'workouts' && sortedWorkouts.length === 0 && (
+      {selectedFilter === 'workouts' ? (
+        sortedWorkouts.length === 0 ? (
           <View style={styles.emptyState}>
             <Text style={styles.emptyText}>No saved workouts yet</Text>
           </View>
-        )}
-
-        {selectedFilter === 'workouts' && sortedWorkouts.map(workout => {
-          if (isWorkoutEditMode) {
-            return (
-              <Pressable
-                key={workout.id}
-                style={[
-                  styles.listItem,
-                  styles.editModeListItem,
-                  selectedWorkoutIds.includes(workout.id) && styles.editModeListItemSelected,
-                ]}>
-                <View style={styles.workoutContent}>
-                  <Text style={styles.listItemText}>{workout.name}</Text>
-                  <Text style={styles.listItemDescription}>{workout.description}</Text>
-                </View>
-                <Pressable
-                  style={[
-                    styles.selectionControl,
-                    selectedWorkoutIds.includes(workout.id) && styles.selectionControlSelected,
-                  ]}
-                  onPress={event => {
-                    event?.stopPropagation?.();
-                    toggleWorkoutSelection(workout.id);
-                  }}>
-                  <Text
-                    style={[
-                      styles.selectionControlMinus,
-                      selectedWorkoutIds.includes(workout.id) && styles.selectionControlMinusSelected,
-                    ]}>
-                    -
-                  </Text>
-                </Pressable>
-              </Pressable>
-            );
-          }
-
-          return (
-            <SwipeToDeleteRow
-              key={workout.id}
-              title={workout.name}
-              subtitle={workout.description}
-              onPress={() => setDetailWorkout(workout)}
-              onLongPress={() => handleOpenMenu(workout)}
-              onPressMenu={() => handleOpenMenu(workout)}
-              onRequestDelete={() => requestSwipeDelete({ id: workout.id, name: workout.name, type: 'workout' })}
-              resetToken={swipeResetToken}
-            />
-          );
-        })}
-
-        {selectedFilter === 'exercises' && savedExercises.length === 0 && (
-          <View style={styles.emptyState}>
-            <Text style={styles.emptyText}>No saved exercises yet</Text>
-          </View>
-        )}
-
-        {selectedFilter === 'exercises' && savedExercises.length > 0 && filteredSavedExercises.length === 0 && (
-          <View style={styles.emptyState}>
-            <Text style={styles.emptyText}>No exercises found for these filters</Text>
-          </View>
-        )}
-
-        {selectedFilter === 'exercises' && filteredSavedExercises.map(exercise => {
-          if (isExerciseEditMode) {
-            return (
-              <Pressable
-                key={exercise.id}
-                style={[
-                  styles.listItem,
-                  styles.editModeListItem,
-                  selectedExerciseIds.includes(exercise.id) && styles.editModeListItemSelected,
-                ]}>
-                <View style={styles.workoutContent}>
-                  <Text style={styles.listItemText}>{exercise.name}</Text>
-                </View>
-                <Pressable
-                  style={[
-                    styles.selectionControl,
-                    selectedExerciseIds.includes(exercise.id) && styles.selectionControlSelected,
-                  ]}
-                  onPress={event => {
-                    event?.stopPropagation?.();
-                    toggleExerciseSelection(exercise.id);
-                  }}>
-                  <Text
-                    style={[
-                      styles.selectionControlMinus,
-                      selectedExerciseIds.includes(exercise.id) && styles.selectionControlMinusSelected,
-                    ]}>
-                    -
-                  </Text>
-                </Pressable>
-              </Pressable>
-            );
-          }
-
-          return (
-            <SwipeToDeleteRow
-              key={exercise.id}
-              title={exercise.name}
-              onPress={() =>
-                setDetailExercise({
-                  id: exercise.id,
-                  name: exercise.name,
-                  description: exercise.description ?? '',
-                  originalId: exercise.originalId,
-                  primaryMuscles: exercise.primaryMuscles,
-                  secondaryMuscles: exercise.secondaryMuscles,
-                  instructions: exercise.instructions,
-                  image: exercise.image,
-                })
-              }
-              onLongPress={() => handleOpenExerciseMenu({ id: exercise.id, name: exercise.name, originalId: exercise.originalId })}
-              onPressMenu={() => handleOpenExerciseMenu({ id: exercise.id, name: exercise.name, originalId: exercise.originalId })}
-              onRequestDelete={() => requestSwipeDelete({ id: exercise.id, name: exercise.name, type: 'exercise' })}
-              resetToken={swipeResetToken}
-            />
-          );
-        })}
-      </ScrollView>
+        ) : (
+          <FlatList
+            data={sortedWorkouts}
+            keyExtractor={item => item.id}
+            renderItem={renderWorkoutItem}
+            contentContainerStyle={styles.cardsListContent}
+            style={styles.listContainer}
+          />
+        )
+      ) : savedExercises.length === 0 ? (
+        <View style={styles.emptyState}>
+          <Text style={styles.emptyText}>No saved exercises yet</Text>
+        </View>
+      ) : filteredSavedExercises.length === 0 ? (
+        <View style={styles.emptyState}>
+          <Text style={styles.emptyText}>No exercises found for these filters</Text>
+        </View>
+      ) : (
+        <FlatList
+          data={isExerciseEditMode ? sortedSavedExercises : filteredSavedExercises}
+          keyExtractor={item => item.id}
+          renderItem={renderExerciseItem}
+          style={styles.listContainer}
+          contentContainerStyle={styles.cardsListContent}
+          onLayout={event => setSavedExercisesViewportHeight(event.nativeEvent.layout.height)}
+          onContentSizeChange={(_, height) => {
+            if (savedExerciseGroups.includes('All') && savedExerciseSearchText.trim() === '') {
+              setSavedExercisesBaseContentHeight(height);
+            }
+          }}
+        />
+      )}
 
       {/* 3-dot Menu Modal for Workouts */}
       <Modal
@@ -1081,9 +1141,13 @@ export default function SavedScreen() {
             <TouchableOpacity style={styles.menuOption} onPress={handleEdit}>
               <Text style={styles.menuOptionText}>Edit</Text>
             </TouchableOpacity>
+
+            <TouchableOpacity style={styles.menuOption} onPress={handleDuplicateWorkout}>
+              <Text style={styles.menuOptionText}>Duplicate</Text>
+            </TouchableOpacity>
             
             <TouchableOpacity style={styles.menuOptionDanger} onPress={handleRemoveFromSaved}>
-              <Text style={styles.menuOptionDangerText}>Remove from Saved</Text>
+              <Text style={styles.menuOptionDangerText}>Delete</Text>
             </TouchableOpacity>
           </View>
         </View>
@@ -1576,32 +1640,43 @@ const styles = StyleSheet.create({
     fontWeight: '700',
   },
   filterContainer: {
-    flexDirection: 'row',
     paddingHorizontal: 16,
-    marginBottom: 12,
-    alignItems: 'center',
-    justifyContent: 'space-between',
+    marginBottom: 10,
   },
-  filterButtonsGroup: {
+  segmentedControl: {
     flexDirection: 'row',
+    backgroundColor: '#101010',
+    borderRadius: 26,
+    padding: 4,
     gap: 8,
   },
   filterButton: {
-    paddingVertical: 8,
-    paddingHorizontal: 16,
-    borderRadius: 20,
+    flex: 1,
+    minHeight: 48,
+    borderRadius: 22,
     backgroundColor: '#1a1a1a',
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1,
+    borderColor: '#2a2a2a',
   },
   filterButtonActive: {
-    backgroundColor: '#fff',
+    backgroundColor: '#2CD66F',
+    borderColor: '#2CD66F',
   },
   filterText: {
     color: '#fff',
-    fontSize: 14,
-    fontWeight: '600',
+    fontSize: 15,
+    fontWeight: '700',
   },
   filterTextActive: {
-    color: '#000',
+    color: '#031008',
+    fontWeight: '800',
+  },
+  editModeRow: {
+    paddingHorizontal: 16,
+    alignItems: 'flex-end',
+    marginBottom: 8,
   },
   editModeButton: {
     borderRadius: 16,
@@ -1640,22 +1715,109 @@ const styles = StyleSheet.create({
     fontSize: 15,
     fontWeight: '600',
   },
+  removeAllRow: {
+    paddingHorizontal: 16,
+    alignItems: 'flex-end',
+    marginBottom: 10,
+  },
   removeAllButton: {
-    marginHorizontal: 16,
-    marginTop: 8,
-    marginBottom: 12,
-    borderRadius: 8,
+    borderRadius: 999,
     alignItems: 'center',
     justifyContent: 'center',
-    paddingVertical: 10,
+    paddingVertical: 8,
+    paddingHorizontal: 14,
   },
   removeAllButtonDanger: {
-    backgroundColor: '#d32f2f',
+    backgroundColor: '#2a1111',
+    borderWidth: 1,
+    borderColor: '#d32f2f',
   },
   removeAllButtonText: {
-    color: '#fff',
-    fontSize: 15,
+    color: '#ff8b8b',
+    fontSize: 13,
     fontWeight: '700',
+  },
+  cardsListContent: {
+    paddingHorizontal: 12,
+    paddingBottom: 22,
+    gap: 10,
+  },
+  cardRowWrap: {
+    flexDirection: 'row',
+    alignItems: 'stretch',
+    marginBottom: 10,
+  },
+  savedCard: {
+    flex: 1,
+    backgroundColor: '#111',
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: '#2CD66F44',
+    padding: 14,
+    shadowColor: '#2CD66F',
+    shadowOpacity: 0.15,
+    shadowRadius: 8,
+    shadowOffset: { width: 0, height: 2 },
+    elevation: 2,
+  },
+  savedCardTitle: {
+    color: '#fff',
+    fontSize: 16,
+    fontWeight: '700',
+    marginBottom: 4,
+    paddingRight: 28,
+  },
+  savedCardSubtitle: {
+    color: '#9aa0a6',
+    fontSize: 12,
+  },
+  tagRow: {
+    marginTop: 10,
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 6,
+  },
+  tagPill: {
+    backgroundColor: '#1e1e1e',
+    borderRadius: 999,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderWidth: 1,
+    borderColor: '#2f2f2f',
+  },
+  tagText: {
+    color: '#c6c6c6',
+    fontSize: 11,
+    fontWeight: '600',
+  },
+  arrowContainer: {
+    marginLeft: -8,
+    width: 72,
+    borderRadius: 16,
+    backgroundColor: '#1f8f4a',
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1,
+    borderColor: '#2CD66F',
+    paddingVertical: 8,
+    gap: 2,
+  },
+  arrowLabel: {
+    color: '#fff',
+    fontSize: 12,
+    fontWeight: '700',
+  },
+  cardMenuButton: {
+    position: 'absolute',
+    right: 10,
+    top: 10,
+    zIndex: 3,
+    width: 26,
+    height: 26,
+    borderRadius: 13,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#181818',
   },
   listContainer: {
     flex: 1,
