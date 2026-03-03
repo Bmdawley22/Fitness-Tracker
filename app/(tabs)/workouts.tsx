@@ -1958,6 +1958,11 @@ const styles = StyleSheet.create({
     minHeight: 80,
     textAlignVertical: 'top',
   },
+  validationErrorText: {
+    color: '#ff6b6b',
+    fontSize: 13,
+    marginTop: 6,
+  },
   addExerciseButton: {
     backgroundColor: '#1a1a1a',
     padding: 16,
