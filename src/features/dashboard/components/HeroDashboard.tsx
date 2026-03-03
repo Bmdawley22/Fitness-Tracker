@@ -4,6 +4,8 @@ import React, { useEffect } from 'react';
 import { View, StyleSheet, ActivityIndicator } from 'react-native';
 import Animated, { FadeInDown } from 'react-native-reanimated';
 import { useDashboardContext } from '../hooks/useDashboardContext';
+import { useTelemetry } from '../hooks/useTelemetry';
+import { TelemetryCollector } from '../services/TelemetryCollector';
 import { StreakBadgeWidget } from './widgets/StreakBadgeWidget';
 import { SuggestedWorkoutWidget } from './widgets/SuggestedWorkoutWidget';
 import { QuickLogWidget } from './widgets/QuickLogWidget';
@@ -33,6 +35,31 @@ export function HeroDashboard({
     getRecentWorkouts,
     hasWorkoutHistory
   );
+  const { track } = useTelemetry();
+
+  // Track dashboard view on mount
+  useEffect(() => {
+    track('hero_dashboard_view', {});
+  }, [track]);
+
+  // Set context when loaded
+  useEffect(() => {
+    if (context) {
+      TelemetryCollector.getInstance().setContext(context);
+    }
+  }, [context]);
+
+  // Track widget renders when layout changes
+  useEffect(() => {
+    if (layout) {
+      layout.widgets.forEach((widgetType, index) => {
+        track('widget_rendered', {
+          widgetType,
+          widgetPosition: index,
+        });
+      });
+    }
+  }, [layout, track]);
 
   if (loading || !context || !layout) {
     return (

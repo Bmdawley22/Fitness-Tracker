@@ -3,15 +3,26 @@
 import React from 'react';
 import { Pressable, Text, StyleSheet } from 'react-native';
 import { Colors, ThemeTokens } from '@/constants/theme';
+import { useTelemetry } from '../../hooks/useTelemetry';
 
 type QuickLogWidgetProps = {
   onTap: () => void;
 };
 
 export function QuickLogWidget({ onTap }: QuickLogWidgetProps) {
+  const { track } = useTelemetry();
+
+  const handleTap = () => {
+    track('quick_action_tap', {
+      actionId: 'qa_log_workout',
+      actionType: 'log_workout',
+    });
+    onTap();
+  };
+
   return (
     <Pressable
-      onPress={onTap}
+      onPress={handleTap}
       style={({ pressed }) => [
         styles.container,
         pressed && styles.containerPressed,

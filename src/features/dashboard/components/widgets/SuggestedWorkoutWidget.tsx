@@ -3,6 +3,7 @@
 import React from 'react';
 import { View, Text, StyleSheet, Pressable } from 'react-native';
 import { Colors, ThemeTokens } from '@/constants/theme';
+import { useTelemetry } from '../../hooks/useTelemetry';
 
 type SuggestedWorkoutWidgetProps = {
   routineName: string;
@@ -10,6 +11,16 @@ type SuggestedWorkoutWidgetProps = {
 };
 
 export function SuggestedWorkoutWidget({ routineName, onStart }: SuggestedWorkoutWidgetProps) {
+  const { track } = useTelemetry();
+
+  const handleStart = () => {
+    track('suggestion_accepted', {
+      suggestionType: 'workout_plan',
+      actionType: 'start_suggested',
+    });
+    onStart();
+  };
+
   return (
     <View style={styles.container}>
       <View style={styles.content}>
@@ -17,7 +28,7 @@ export function SuggestedWorkoutWidget({ routineName, onStart }: SuggestedWorkou
         <Text style={styles.routineName}>{routineName}</Text>
       </View>
       <Pressable
-        onPress={onStart}
+        onPress={handleStart}
         style={({ pressed }) => [
           styles.ctaButton,
           pressed && styles.ctaButtonPressed,

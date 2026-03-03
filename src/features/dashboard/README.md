@@ -6,6 +6,7 @@ Step 1: Context-Aware Dashboard Foundation - core context detection and adaptive
 
 ## Features Implemented
 
+### Step 1: Foundation
 ✅ Time slot detection (morning/midday/evening/night)  
 ✅ Pattern analysis (last workout timestamp, streak days)  
 ✅ Adaptive layout engine (selects and renders 3 widget types)  
@@ -14,6 +15,18 @@ Step 1: Context-Aware Dashboard Foundation - core context detection and adaptive
   - SuggestedWorkoutWidget (resume last routine)
   - QuickLogWidget (1-tap workout log)  
 ✅ Widget entrance animations (FadeInDown with 200ms stagger)
+
+### Step 2: Telemetry & Event Tracking
+✅ TelemetryCollector service with event buffering (auto-flush at 10 events)  
+✅ useTelemetry hook for easy event capture  
+✅ Event tracking for all dashboard interactions:
+  - `hero_dashboard_view` (on mount)
+  - `widget_rendered` (for each widget with position)
+  - `quick_action_tap` (QuickLogWidget tap)
+  - `suggestion_accepted` (SuggestedWorkoutWidget CTA tap)  
+✅ Context capture at event time (timeSlot, userState, streak, etc.)  
+✅ Local console logging of event batches  
+✅ User state derivation (active_streak, recent_activity, onboarding, inactive)
 
 ## Integration Example
 
@@ -67,11 +80,14 @@ src/features/dashboard/
 │       └── QuickLogWidget.tsx       # Quick log button
 ├── services/
 │   ├── ContextEngine.ts             # Time + pattern detection
-│   └── AdaptiveLayoutEngine.ts      # Widget selection logic
+│   ├── AdaptiveLayoutEngine.ts      # Widget selection logic
+│   └── TelemetryCollector.ts        # Event buffering + batch logging
 ├── hooks/
-│   └── useDashboardContext.ts       # Context resolution hook
+│   ├── useDashboardContext.ts       # Context resolution hook
+│   └── useTelemetry.ts              # Event tracking hook
 ├── types/
-│   └── DashboardContext.ts          # TypeScript types
+│   ├── DashboardContext.ts          # Context types
+│   └── TelemetryEvent.ts            # Event schema types
 └── utils/
     ├── timeSlotDetector.ts          # Time slot detection
     └── streakCalculator.ts          # Streak calculation
@@ -107,9 +123,13 @@ src/features/dashboard/
 - Stagger: 200ms between widgets
 - Duration: 450ms per widget
 
-## Excluded from Step 1
+## Excluded from Step 2
 
-❌ Telemetry/analytics  
+❌ API endpoint for telemetry upload (events logged to console only)  
+❌ Background telemetry flush (manual flush on 10-event threshold)  
+❌ Offline event persistence (AsyncStorage buffering)  
+❌ A/B test tracking  
+❌ Conversion funnel analytics  
 ❌ Quick actions bar  
 ❌ RecoveryWidget, other widget types  
 ❌ Background pattern refresh  
@@ -118,8 +138,10 @@ src/features/dashboard/
 
 ## Next Steps
 
-Step 2 will add:
-- Telemetry scaffolding
+Step 3 will add:
+- API endpoint for telemetry upload
+- Background telemetry flush
+- Offline event persistence
 - Quick actions bar
 - Additional widget types (RecoveryWidget, etc.)
 - Background refresh
