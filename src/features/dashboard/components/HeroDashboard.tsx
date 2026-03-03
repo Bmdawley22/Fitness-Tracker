@@ -1,4 +1,4 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useRef } from 'react';
 import { View, StyleSheet, ActivityIndicator } from 'react-native';
 import Animated, { FadeInDown } from 'react-native-reanimated';
 import { useDashboardContext } from '../hooks/useDashboardContext';
@@ -30,14 +30,18 @@ export function HeroDashboard({
 }: HeroDashboardProps) {
   const { context, layout, loading } = useDashboardContext(getRecentWorkouts, hasWorkoutHistory);
   const { track } = useTelemetry();
+  const hasTrackedHeroView = useRef(false);
 
   useEffect(() => {
-    track('hero_dashboard_view', {});
-  }, [track]);
+    if (!context) return;
 
-  useEffect(() => {
-    if (context) TelemetryCollector.getInstance().setContext(context);
-  }, [context]);
+    TelemetryCollector.getInstance().setContext(context);
+
+    if (!hasTrackedHeroView.current) {
+      track('hero_dashboard_view', {});
+      hasTrackedHeroView.current = true;
+    }
+  }, [context, track]);
 
   useEffect(() => {
     if (!layout) return;
