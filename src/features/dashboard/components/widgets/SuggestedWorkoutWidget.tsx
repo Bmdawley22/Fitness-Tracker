@@ -1,5 +1,6 @@
 import React from 'react';
 import { View, Text, StyleSheet, Pressable } from 'react-native';
+import Animated, { useAnimatedStyle, useSharedValue, withSpring, withTiming } from 'react-native-reanimated';
 import { useTelemetry } from '../../hooks/useTelemetry';
 
 type SuggestedWorkoutWidgetProps = {
@@ -9,6 +10,15 @@ type SuggestedWorkoutWidgetProps = {
 
 export function SuggestedWorkoutWidget({ routineName, onStart }: SuggestedWorkoutWidgetProps) {
   const { track } = useTelemetry();
+  const scale = useSharedValue(1);
+  const glow = useSharedValue(0.15);
+
+  const animatedStyle = useAnimatedStyle(() => ({
+    transform: [{ scale: scale.value }],
+  }));
+  const glowStyle = useAnimatedStyle(() => ({
+    opacity: glow.value,
+  }));
 
   const handleStart = () => {
     track('suggestion_accepted', {
@@ -19,17 +29,26 @@ export function SuggestedWorkoutWidget({ routineName, onStart }: SuggestedWorkou
   };
 
   return (
-    <View style={styles.container}>
+    <Animated.View style={[styles.container, animatedStyle]}>
+      <Animated.View pointerEvents="none" style={[styles.glowLayer, glowStyle]} />
       <View style={styles.content}>
         <Text style={styles.label}>Resume:</Text>
         <Text style={styles.routineName}>{routineName}</Text>
       </View>
       <Pressable
         onPress={handleStart}
+        onPressIn={() => {
+          scale.value = withSpring(0.98, { damping: 14, stiffness: 260 });
+          glow.value = withTiming(0.35, { duration: 160 });
+        }}
+        onPressOut={() => {
+          scale.value = withSpring(1, { damping: 14, stiffness: 260 });
+          glow.value = withTiming(0.15, { duration: 200 });
+        }}
         style={({ pressed }) => [styles.ctaButton, pressed && styles.ctaButtonPressed]}>
         <Text style={styles.ctaText}>Start Workout</Text>
       </Pressable>
-    </View>
+    </Animated.View>
   );
 }
 
@@ -42,6 +61,11 @@ const styles = StyleSheet.create({
     borderColor: '#333',
     padding: 16,
     justifyContent: 'space-between',
+    overflow: 'hidden',
+  },
+  glowLayer: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: '#2CD66F',
   },
   content: {
     gap: 4,

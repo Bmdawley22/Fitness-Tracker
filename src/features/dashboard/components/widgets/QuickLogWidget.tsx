@@ -1,5 +1,6 @@
 import React from 'react';
 import { Pressable, Text, StyleSheet } from 'react-native';
+import Animated, { useAnimatedStyle, useSharedValue, withSpring } from 'react-native-reanimated';
 import { useTelemetry } from '../../hooks/useTelemetry';
 
 type QuickLogWidgetProps = {
@@ -8,6 +9,10 @@ type QuickLogWidgetProps = {
 
 export function QuickLogWidget({ onTap }: QuickLogWidgetProps) {
   const { track } = useTelemetry();
+  const scale = useSharedValue(1);
+  const animatedStyle = useAnimatedStyle(() => ({
+    transform: [{ scale: scale.value }],
+  }));
 
   const handleTap = () => {
     track('quick_action_tap', {
@@ -18,11 +23,19 @@ export function QuickLogWidget({ onTap }: QuickLogWidgetProps) {
   };
 
   return (
-    <Pressable
-      onPress={handleTap}
-      style={({ pressed }) => [styles.container, pressed && styles.containerPressed]}>
-      <Text style={styles.text}>+ Log Workout</Text>
-    </Pressable>
+    <Animated.View style={animatedStyle}>
+      <Pressable
+        onPress={handleTap}
+        onPressIn={() => {
+          scale.value = withSpring(0.98, { damping: 14, stiffness: 260 });
+        }}
+        onPressOut={() => {
+          scale.value = withSpring(1, { damping: 14, stiffness: 260 });
+        }}
+        style={({ pressed }) => [styles.container, pressed && styles.containerPressed]}>
+        <Text style={styles.text}>+ Log Workout</Text>
+      </Pressable>
+    </Animated.View>
   );
 }
 

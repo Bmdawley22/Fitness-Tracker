@@ -3,7 +3,7 @@ import React, { forwardRef, useEffect, useImperativeHandle, useMemo, useRef, use
 import { useExerciseCatalogStore } from '@/store/exerciseCatalog';
 import { useSavedWorkoutsStore, CustomExercise } from '@/store/savedWorkouts';
 import { ExerciseLogEntry, toLocalDateKey, useScheduleStore, WEEK_DAYS } from '@/store/schedule';
-import { Ionicons } from '@expo/vector-icons';
+import { ArrowAffordance } from '@/src/features/dashboard/components/ArrowAffordance';
 
 const WINDOW_HEIGHT = Dimensions.get('window').height;
 const DEFAULT_SET_COUNT = 3;
@@ -874,10 +874,7 @@ export default function AddScreen() {
             </View>
             <TouchableOpacity style={styles.changeTodayButton} onPress={() => setWorkoutSelectorVisible(true)}>
               <Text style={styles.changeTodayButtonText}>Change Today&apos;s Workout</Text>
-              <View style={styles.inlineArrowContainer}>
-                <Text style={styles.inlineArrowLabel}>Plan</Text>
-                <Ionicons name="chevron-forward" size={14} color="#fff" />
-              </View>
+              <ArrowAffordance label="Plan" onPress={() => setWorkoutSelectorVisible(true)} style={styles.inlineArrowContainer} />
             </TouchableOpacity>
 
             <ScrollView style={styles.todayExercisesList} contentContainerStyle={styles.todayExercisesListContent}>
@@ -905,10 +902,7 @@ export default function AddScreen() {
           <View style={styles.emptyTodayWrap}>
             <TouchableOpacity style={styles.addTodayButton} onPress={() => setWorkoutSelectorVisible(true)}>
               <Text style={styles.addTodayButtonText}>Add workout for today</Text>
-              <View style={styles.inlineArrowContainer}>
-                <Text style={styles.inlineArrowLabel}>Plan</Text>
-                <Ionicons name="chevron-forward" size={14} color="#fff" />
-              </View>
+              <ArrowAffordance label="Plan" onPress={() => setWorkoutSelectorVisible(true)} style={styles.inlineArrowContainer} />
             </TouchableOpacity>
           </View>
         )}

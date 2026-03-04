@@ -1,9 +1,11 @@
-import { Alert, View, Text, StyleSheet, ScrollView, TouchableOpacity, Modal, Pressable } from 'react-native';
+import { Alert, View, Text, StyleSheet, ScrollView, TouchableOpacity, Modal } from 'react-native';
 import React, { useEffect, useMemo, useState } from 'react';
+import Animated, { FadeInDown, useAnimatedStyle, useSharedValue, withTiming } from 'react-native-reanimated';
 import { useSavedWorkoutsStore } from '@/store/savedWorkouts';
 import { useExerciseCatalogStore } from '@/store/exerciseCatalog';
 import { toLocalDateKey, useScheduleStore, WEEK_DAYS } from '@/store/schedule';
 import { Ionicons } from '@expo/vector-icons';
+import { ArrowAffordance } from '@/src/features/dashboard/components/ArrowAffordance';
 
 type WorkoutOption = {
   id: string;
@@ -77,6 +79,8 @@ export default function SearchScreen() {
     const today = normalizeDate(new Date());
     return new Date(today.getFullYear(), today.getMonth(), 1);
   });
+  const weekSlide = useSharedValue(0);
+  const weekOpacity = useSharedValue(1);
 
   const workoutOptions = useMemo<WorkoutOption[]>(() => {
     return savedWorkouts.map(workout => ({
@@ -171,10 +175,19 @@ export default function SearchScreen() {
   }, [savedHydrated, scheduleHydrated, catalogHydrated, savedWorkouts, cleanupInvalidAssignments]);
 
   const shiftSelectedWeek = (days: number) => {
+    weekSlide.value = days > 0 ? 12 : -12;
+    weekOpacity.value = 0.7;
     setSelectedDate(prev =>
       normalizeDate(new Date(prev.getFullYear(), prev.getMonth(), prev.getDate() + days)),
     );
+    weekSlide.value = withTiming(0, { duration: 220 });
+    weekOpacity.value = withTiming(1, { duration: 220 });
   };
+
+  const weekLabelAnimatedStyle = useAnimatedStyle(() => ({
+    transform: [{ translateX: weekSlide.value }],
+    opacity: weekOpacity.value,
+  }));
 
   const handleAssignWorkout = (workoutId: string) => {
     if (!assignmentDateKey) return;
@@ -250,10 +263,10 @@ export default function SearchScreen() {
             <Ionicons name="chevron-back" size={18} color="#fff" />
           </TouchableOpacity>
 
-          <View style={styles.weekTitleContainer}>
+          <Animated.View style={[styles.weekTitleContainer, weekLabelAnimatedStyle]}>
             <Text style={styles.weekTitle}>{weekTitleLine}</Text>
             <Text style={styles.weekRangeText}>{weekRangeLabel}</Text>
-          </View>
+          </Animated.View>
 
           <TouchableOpacity
             style={styles.weekNavButton}
@@ -284,7 +297,11 @@ export default function SearchScreen() {
             <View key={dateKey} style={[styles.dayRow, isCompleted && styles.dayRowCompleted]}>
               <View style={[styles.dayTitleRow, isCompleted && styles.dayTitleRowCompleted]}>
                 <Text style={styles.dayTitle}>{dayLabel}</Text>
-                {isCompleted ? <Text style={styles.completedDayLabel}>Completed</Text> : null}
+                {isCompleted ? (
+                  <Animated.View entering={FadeInDown.duration(220)}>
+                    <Text style={styles.completedDayLabel}>Completed</Text>
+                  </Animated.View>
+                ) : null}
               </View>
 
               {assignedWorkout ? (
@@ -299,12 +316,11 @@ export default function SearchScreen() {
                       <Text style={styles.dayMetaText}>{assignedWorkout.exercises.length} exercises</Text>
                     </TouchableOpacity>
 
-                    <Pressable
-                      style={({ pressed }) => [styles.dayArrowContainer, pressed && styles.dayArrowContainerPressed]}
-                      onPress={() => setDetailWorkoutId(assignedWorkoutId)}>
-                      <Text style={styles.dayArrowLabel}>Start</Text>
-                      <Ionicons name="chevron-forward" size={16} color="#fff" />
-                    </Pressable>
+                    <ArrowAffordance
+                      label="Start"
+                      onPress={() => setDetailWorkoutId(assignedWorkoutId)}
+                      style={styles.dayArrowContainer}
+                    />
                   </View>
 
                   <View style={styles.headerDivider} />
@@ -381,15 +397,14 @@ export default function SearchScreen() {
                     }}>
                     <Text style={styles.assignButtonLabel}>No workout assigned</Text>
                   </TouchableOpacity>
-                  <Pressable
-                    style={({ pressed }) => [styles.dayArrowContainer, pressed && styles.dayArrowContainerPressed]}
+                  <ArrowAffordance
+                    label="Plan"
                     onPress={() => {
                       setAssignmentDateKey(dateKey);
                       setAssignmentDateLabel(dayLabel);
-                    }}>
-                    <Text style={styles.dayArrowLabel}>Plan</Text>
-                    <Ionicons name="chevron-forward" size={16} color="#fff" />
-                  </Pressable>
+                    }}
+                    style={styles.dayArrowContainer}
+                  />
                 </View>
               )}
             </View>
@@ -475,21 +490,20 @@ export default function SearchScreen() {
             </View>
 
             {selectedDateAssignedWorkout ? (
-              <Pressable
-                style={({ pressed }) => [styles.calendarAssignedCta, pressed && styles.dayArrowContainerPressed]}
-                onPress={() => {
-                  setDetailWorkoutId(selectedDateAssignedWorkoutId);
-                  setIsCalendarOpen(false);
-                }}>
+              <View style={styles.calendarAssignedCta}>
                 <View style={{ flex: 1 }}>
                   <Text style={styles.calendarAssignedTitle}>{selectedDateAssignedWorkout.name}</Text>
                   <Text style={styles.calendarAssignedSubtitle}>Assigned workout</Text>
                 </View>
-                <View style={styles.calendarAssignedArrow}>
-                  <Text style={styles.dayArrowLabel}>Start</Text>
-                  <Ionicons name="chevron-forward" size={16} color="#fff" />
-                </View>
-              </Pressable>
+                <ArrowAffordance
+                  label="Start"
+                  onPress={() => {
+                    setDetailWorkoutId(selectedDateAssignedWorkoutId);
+                    setIsCalendarOpen(false);
+                  }}
+                  style={styles.calendarAssignedArrow}
+                />
+              </View>
             ) : null}
 
             <TouchableOpacity style={styles.closeButton} onPress={() => setIsCalendarOpen(false)}>

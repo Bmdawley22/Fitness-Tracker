@@ -6,8 +6,8 @@ import { useExerciseCatalogStore } from '@/store/exerciseCatalog';
 import { useAuthStore } from '@/store/auth';
 import { CreateFlowHandle, CreateFlowModals } from './add';
 import { HeroDashboard } from '@/src/features/dashboard/components/HeroDashboard';
+import { ArrowAffordance } from '@/src/features/dashboard/components/ArrowAffordance';
 import { toLocalDateKey, useScheduleStore } from '@/store/schedule';
-import { Ionicons } from '@expo/vector-icons';
 
 type FilterType = 'all' | 'workouts' | 'exercises';
 
@@ -336,12 +336,7 @@ export default function HomeScreen() {
             <Text style={styles.scheduledTodayLabel}>Scheduled for today</Text>
             <Text style={styles.scheduledTodayTitle}>{scheduledWorkoutForToday.name}</Text>
           </View>
-          <Pressable
-            style={({ pressed }) => [styles.scheduledArrowContainer, pressed && styles.scheduledArrowContainerPressed]}
-            onPress={() => router.push('/(tabs)/add')}>
-            <Text style={styles.scheduledArrowText}>Start</Text>
-            <Ionicons name="chevron-forward" size={16} color="#fff" />
-          </Pressable>
+          <ArrowAffordance label="Start" onPress={() => router.push('/(tabs)/add')} style={styles.scheduledArrowContainer} />
         </View>
       ) : null}
 

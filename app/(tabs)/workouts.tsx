@@ -20,6 +20,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useSavedWorkoutsStore, SavedWorkout, SavedExercise } from '@/store/savedWorkouts';
 import { useExerciseCatalogStore } from '@/store/exerciseCatalog';
 import { useAuthStore } from '@/store/auth';
+import { ArrowAffordance } from '@/src/features/dashboard/components/ArrowAffordance';
 
 const MAX_EXERCISES = 12;
 const REVEAL_WIDTH = 84;
@@ -905,10 +906,7 @@ export default function SavedScreen() {
             ))}
           </View>
         </Pressable>
-        <Pressable style={styles.arrowContainer} onPress={() => setDetailWorkout(item)}>
-          <Text style={styles.arrowLabel}>Start</Text>
-          <Ionicons name="chevron-forward" size={16} color="#fff" />
-        </Pressable>
+        <ArrowAffordance label="Start" onPress={() => setDetailWorkout(item)} style={styles.arrowContainer} />
       </View>
     );
   };
