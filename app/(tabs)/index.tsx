@@ -338,11 +338,11 @@ export default function HomeScreen() {
 
       <View style={styles.dashboardContainer}>
         <HeroDashboard
-          getRecentWorkouts={getRecentWorkouts}
-          hasWorkoutHistory={hasWorkoutHistory}
           mostRecentRoutineName={mostRecentWorkout?.name}
           onStartWorkout={() => router.push('/(tabs)/workouts')}
           onLogWorkout={() => router.push('/(tabs)/add')}
+          onResumeWorkout={() => router.push('/(tabs)/workouts')}
+          router={router}
         />
       </View>
 

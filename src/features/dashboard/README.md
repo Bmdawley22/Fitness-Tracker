@@ -156,3 +156,10 @@ Added contextual foundation primitives for downstream hero/dashboard systems:
 - Context validation tests in `services/ContextEngine.test.ts`
 
 This layer computes period bucket, rest-day flag, streak status, last-workout fallback, and routine-signal summary with safe defaults for missing data.
+
+## Phase 2 Step 4 (Quick actions & navigable telemetry)
+
+- `services/QuickActionRouter.ts` resolves deterministic primary/secondary hero actions from `HeroDashboardContext`.
+- `hooks/useHeroQuickActions.ts` wires those actions to telemetry (`hero_cta_click`) and navigation/callback handlers.
+- `HeroDashboard.tsx` now consumes hook-driven labels/handlers so CTA routing and analytics are centralized.
+- Added `QuickActionRouter.test.ts` coverage for rest-day/routine/no-routine action selection.
