@@ -27,6 +27,9 @@ export function ArrowAffordance({ label, onPress, style }: ArrowAffordanceProps)
       <Animated.View pointerEvents="none" style={[styles.glow, glowStyle]} />
       <Pressable
         onPress={onPress}
+        accessibilityRole="button"
+        accessibilityLabel={`${label} action`}
+        accessibilityHint="Opens the related workout action"
         onPressIn={() => {
           scale.value = withSpring(0.97, { damping: 14, stiffness: 260 });
           translateX.value = withTiming(2, { duration: 140 });

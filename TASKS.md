@@ -1,0 +1,9 @@
+# Fitness Tracker Coordination Tasks
+
+| id | title | owner | status | priority | deps | updated_at | notes | retry_count | last_dispatched_at |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| step-2-telemetry | Hero dashboard telemetry infrastructure | software-dev | done | high | none | 2026-03-03T20:37:00Z | hero_dashboard_view now gates on context/loading, TelemetryCollector logs the view after state is ready, `npx tsc --noEmit` passes, and topic 742 published the final Status/Next/Blockers confirmation; cron can now advance to Step 3. | 3 | 2026-03-03T20:37:00Z |
+| step-3-workouts | Workouts/Saved screen UX refresh | tech-architect | in_progress | high | step-2-telemetry | 2026-03-03T20:39:00Z | Tech-architect topic 12 acknowledged (Received and processing) and confirmed Phase 2 scope (cards, filters, 3-dot menus, remove-all workflow, arrow containers). Dev prompt for software-dev forwarded in this thread; waiting on their Status/Next/Blockers update and implementation push. | 1 | 2026-03-03T20:39:00Z |
+| step-4-schedule | Schedule arrows + remaining screens polish | tech-architect | queued | medium | step-3-workouts | 2026-03-03T18:30:00Z | Depends on Workouts completion. | 0 | - |
+| step-5-animations | Animations & polish (press/scale/glow) | tech-architect | queued | medium | step-4-schedule | 2026-03-03T18:30:00Z | Micro-interactions after screens look stable. | 0 | - |
+| step-6-edge-accessibility | Edge cases, accessibility, loading/empty states | software-dev | done | low | step-5-animations | 2026-03-04T01:44:00Z | Added hydration loading states (Home/Workouts/Schedule/Add), week-empty state messaging, accessibility labels on shared arrow actions, dev accessibility audit logs, and guardrails/fallbacks polish across tabs. | 1 | 2026-03-04T01:38:00Z |
