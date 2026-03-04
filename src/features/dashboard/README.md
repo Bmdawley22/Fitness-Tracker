@@ -146,3 +146,13 @@ Step 3 will add:
 - Additional widget types (RecoveryWidget, etc.)
 - Background refresh
 - Context caching
+
+## Phase 2 Step 1 (Context Engine Foundation)
+
+Added contextual foundation primitives for downstream hero/dashboard systems:
+- `buildHeroContext(options)` in `services/ContextEngine.ts`
+- `HeroDashboardContext` and related types in `types/DashboardContext.ts`
+- `useContextEngine()` hook in `hooks/useContextEngine.ts`
+- Context validation tests in `services/ContextEngine.test.ts`
+
+This layer computes period bucket, rest-day flag, streak status, last-workout fallback, and routine-signal summary with safe defaults for missing data.
