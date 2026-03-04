@@ -1,18 +1,56 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { Pressable, StyleSheet, Text, ViewStyle } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import Animated, { useAnimatedStyle, useSharedValue, withSpring, withTiming } from 'react-native-reanimated';
+import Animated, {
+  cancelAnimation,
+  Easing,
+  useAnimatedStyle,
+  useSharedValue,
+  withRepeat,
+  withSequence,
+  withSpring,
+  withTiming,
+} from 'react-native-reanimated';
 
 type ArrowAffordanceProps = {
   label: string;
   onPress: () => void;
   style?: ViewStyle;
+  highlight?: boolean;
 };
 
-export function ArrowAffordance({ label, onPress, style }: ArrowAffordanceProps) {
+export function ArrowAffordance({ label, onPress, style, highlight = false }: ArrowAffordanceProps) {
   const scale = useSharedValue(1);
   const translateX = useSharedValue(0);
   const glow = useSharedValue(0.2);
+
+  useEffect(() => {
+    if (!highlight) {
+      cancelAnimation(scale);
+      cancelAnimation(glow);
+      scale.value = withTiming(1, { duration: 180 });
+      glow.value = withTiming(0.2, { duration: 180 });
+      return;
+    }
+
+    scale.value = withRepeat(
+      withSequence(
+        withTiming(1.02, { duration: 850, easing: Easing.inOut(Easing.quad) }),
+        withTiming(1, { duration: 850, easing: Easing.inOut(Easing.quad) })
+      ),
+      -1,
+      false
+    );
+
+    glow.value = withRepeat(
+      withSequence(
+        withTiming(0.4, { duration: 850, easing: Easing.inOut(Easing.quad) }),
+        withTiming(0.2, { duration: 850, easing: Easing.inOut(Easing.quad) })
+      ),
+      -1,
+      false
+    );
+  }, [highlight, glow, scale]);
 
   const animatedStyle = useAnimatedStyle(() => ({
     transform: [{ scale: scale.value }, { translateX: translateX.value }],

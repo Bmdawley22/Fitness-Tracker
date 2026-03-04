@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useRef } from 'react';
 import { View, StyleSheet, ActivityIndicator, Pressable, Text } from 'react-native';
-import Animated, { FadeInDown } from 'react-native-reanimated';
-import { AdaptiveLayoutEngine } from '../services/AdaptiveLayoutEngine';
+import Animated, { useAnimatedStyle, useSharedValue, withDelay, withTiming } from 'react-native-reanimated';
+import { AdaptiveLayoutEngine, type AdaptiveLayout } from '../services/AdaptiveLayoutEngine';
 import { useContextEngine } from '../hooks/useContextEngine';
 import { useTelemetry } from '../hooks/useTelemetry';
 import { useHeroQuickActions } from '../hooks/useHeroQuickActions';
@@ -21,6 +21,36 @@ type HeroDashboardProps = {
   onResumeWorkout?: () => void;
   router: RouterLike;
 };
+
+type WidgetSlotProps = {
+  index: number;
+  contextKey: string;
+  children: React.ReactNode;
+};
+
+function WidgetSlot({ index, contextKey, children }: WidgetSlotProps) {
+  const opacity = useSharedValue(1);
+  const translateY = useSharedValue(0);
+
+  useEffect(() => {
+    opacity.value = 0;
+    translateY.value = 12;
+    opacity.value = withDelay(index * 70, withTiming(1, { duration: 280 }));
+    translateY.value = withDelay(index * 70, withTiming(0, { duration: 280 }));
+  }, [contextKey, index, opacity, translateY]);
+
+  const animatedStyle = useAnimatedStyle(() => ({
+    opacity: opacity.value,
+    transform: [{ translateY: translateY.value }],
+  }));
+
+  return <Animated.View style={animatedStyle}>{children}</Animated.View>;
+}
+
+export function shouldHighlightPrimaryAction(layout: AdaptiveLayout | null): boolean {
+  if (!layout) return false;
+  return layout.primaryAction.actionId === 'start_suggested' || layout.primaryAction.highlight === true;
+}
 
 export function HeroDashboard({ mostRecentRoutineName, onStartWorkout, onLogWorkout, onResumeWorkout, router }: HeroDashboardProps) {
   const { context, isContextLoading, refreshContext } = useContextEngine();
@@ -79,35 +109,33 @@ export function HeroDashboard({ mostRecentRoutineName, onStartWorkout, onLogWork
     );
   }
 
-  const renderWidget = (widgetType: WidgetType, index: number) => {
-    const delay = 120 * index;
+  const renderWidget = (widgetType: WidgetType) => {
     if (widgetType === 'streak') {
-      return (
-        <Animated.View key={`streak-${index}`} entering={FadeInDown.delay(delay).duration(280)}>
-          <StreakBadgeWidget streakDays={context.streakStatus === 'broken' ? 0 : 3} streakStatus={context.streakStatus} />
-        </Animated.View>
-      );
+      return <StreakBadgeWidget streakDays={context.streakStatus === 'broken' ? 0 : 3} streakStatus={context.streakStatus} />;
     }
     if (widgetType === 'suggested') {
-      return (
-        <Animated.View key={`suggested-${index}`} entering={FadeInDown.delay(delay).duration(280)}>
-          <SuggestedWorkoutWidget routineName={mostRecentRoutineName} routineSignal={context.routineSignal} onStart={onStartWorkout} />
-        </Animated.View>
-      );
+      return <SuggestedWorkoutWidget routineName={mostRecentRoutineName} routineSignal={context.routineSignal} onStart={onStartWorkout} />;
     }
-    return (
-      <Animated.View key={`quickLog-${index}`} entering={FadeInDown.delay(delay).duration(280)}>
-        <QuickLogWidget onTap={onLogWorkout} label={layout.primaryAction.actionId === 'log_workout' ? 'Log workout now' : '+ Log Workout'} />
-      </Animated.View>
-    );
+    return <QuickLogWidget onTap={onLogWorkout} label={layout.primaryAction.actionId === 'log_workout' ? 'Log workout now' : '+ Log Workout'} />;
   };
 
   return (
     <View style={styles.container}>
       <Text style={styles.subtitle}>{layout.subtitle}</Text>
-      <View style={styles.primaryWidgetRow}>{layout.widgets.map((widgetType, index) => renderWidget(widgetType, index))}</View>
+      <View style={styles.primaryWidgetRow}>
+        {layout.widgets.map((widgetType, index) => (
+          <WidgetSlot key={`${widgetType}-${index}`} index={index} contextKey={contextId}>
+            {renderWidget(widgetType)}
+          </WidgetSlot>
+        ))}
+      </View>
       <View style={styles.quickActionsRow}>
-        <ArrowAffordance label={primaryLabel} onPress={handlePrimaryAction} style={styles.primaryAction} />
+        <ArrowAffordance
+          label={primaryLabel}
+          onPress={handlePrimaryAction}
+          style={styles.primaryAction}
+          highlight={shouldHighlightPrimaryAction(layout)}
+        />
         <Pressable
           accessibilityRole="button"
           accessibilityLabel={secondaryLabel}

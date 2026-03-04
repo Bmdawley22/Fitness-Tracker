@@ -163,3 +163,10 @@ This layer computes period bucket, rest-day flag, streak status, last-workout fa
 - `hooks/useHeroQuickActions.ts` wires those actions to telemetry (`hero_cta_click`) and navigation/callback handlers.
 - `HeroDashboard.tsx` now consumes hook-driven labels/handlers so CTA routing and analytics are centralized.
 - Added `QuickActionRouter.test.ts` coverage for rest-day/routine/no-routine action selection.
+
+## Phase 2 Step 5 (Animation & interaction polish)
+
+- `HeroDashboard.tsx` now animates widget re-order/reflow with shared `withTiming` choreography (staggered opacity + translateY) keyed by `contextId`.
+- `ArrowAffordance.tsx` now supports `highlight` for gentle idle pulse (scale + glow opacity), while preserving press interactions.
+- Home scheduled card in `app/(tabs)/index.tsx` now animates slide/fade on appear/disappear and uses highlighted CTA affordance when a workout is scheduled.
+- Added `HeroDashboard.highlight.test.ts` coverage to verify highlight routing logic (`start_suggested` and explicit highlight flag).

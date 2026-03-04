@@ -1,5 +1,6 @@
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Modal, Alert, TextInput, Pressable, Linking, ActivityIndicator } from 'react-native';
 import React, { useRef, useState, useEffect, useMemo } from 'react';
+import Animated, { useAnimatedStyle, useSharedValue, withTiming } from 'react-native-reanimated';
 import { useRouter } from 'expo-router';
 import { useSavedWorkoutsStore } from '@/store/savedWorkouts';
 import { useExerciseCatalogStore } from '@/store/exerciseCatalog';
@@ -327,6 +328,20 @@ export default function HomeScreen() {
     return savedWorkouts.find(workout => workout.id === todayWorkoutId) ?? null;
   }, [schedule, savedWorkouts, todayDateKey]);
 
+  const scheduleCardOpacity = useSharedValue(0);
+  const scheduleCardTranslateY = useSharedValue(16);
+
+  useEffect(() => {
+    const visible = Boolean(scheduledWorkoutForToday);
+    scheduleCardOpacity.value = withTiming(visible ? 1 : 0, { duration: 260 });
+    scheduleCardTranslateY.value = withTiming(visible ? 0 : 16, { duration: 260 });
+  }, [scheduledWorkoutForToday, scheduleCardOpacity, scheduleCardTranslateY]);
+
+  const scheduledCardAnimatedStyle = useAnimatedStyle(() => ({
+    opacity: scheduleCardOpacity.value,
+    transform: [{ translateY: scheduleCardTranslateY.value }],
+  }));
+
   return (
     <View style={styles.container}>
       <View style={styles.headerRow}>
@@ -346,15 +361,17 @@ export default function HomeScreen() {
         />
       </View>
 
-      {scheduledWorkoutForToday ? (
-        <View style={styles.scheduledTodayCard}>
-          <View style={{ flex: 1 }}>
-            <Text style={styles.scheduledTodayLabel}>Scheduled for today</Text>
-            <Text style={styles.scheduledTodayTitle}>{scheduledWorkoutForToday.name}</Text>
+      <Animated.View style={[styles.scheduledTodayAnimatedWrap, scheduledCardAnimatedStyle]} pointerEvents={scheduledWorkoutForToday ? 'auto' : 'none'}>
+        {scheduledWorkoutForToday ? (
+          <View style={styles.scheduledTodayCard} accessibilityLabel={`Scheduled workout card visible: ${scheduledWorkoutForToday.name}`}>
+            <View style={{ flex: 1 }}>
+              <Text style={styles.scheduledTodayLabel}>Scheduled for today</Text>
+              <Text style={styles.scheduledTodayTitle}>{scheduledWorkoutForToday.name}</Text>
+            </View>
+            <ArrowAffordance label="Start" onPress={() => router.push('/(tabs)/add')} style={styles.scheduledArrowContainer} highlight={true} />
           </View>
-          <ArrowAffordance label="Start" onPress={() => router.push('/(tabs)/add')} style={styles.scheduledArrowContainer} />
-        </View>
-      ) : null}
+        ) : null}
+      </Animated.View>
 
       {/* Filter Buttons */}
       <View style={styles.filterContainer}>
@@ -799,9 +816,11 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     marginBottom: 16,
   },
+  scheduledTodayAnimatedWrap: {
+    marginBottom: 14,
+  },
   scheduledTodayCard: {
     marginHorizontal: 16,
-    marginBottom: 14,
     backgroundColor: '#111',
     borderRadius: 14,
     borderWidth: 1,

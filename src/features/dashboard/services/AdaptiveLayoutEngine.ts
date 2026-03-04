@@ -6,6 +6,7 @@ export type QuickActionDescriptor = {
   actionId: QuickActionId;
   label: string;
   target: string;
+  highlight?: boolean;
 };
 
 export type AdaptiveLayout = {
@@ -49,6 +50,7 @@ export class AdaptiveLayoutEngine {
           actionId: context.isRestDay ? 'resume_last_routine' : 'start_suggested',
           label: context.isRestDay ? 'Resume routine' : 'Start suggested',
           target: '/(tabs)/workouts',
+          highlight: !context.isRestDay,
         }
       : {
           actionId: 'log_workout',
