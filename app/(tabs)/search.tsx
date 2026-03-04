@@ -1,4 +1,4 @@
-import { Alert, View, Text, StyleSheet, ScrollView, TouchableOpacity, Modal } from 'react-native';
+import { Alert, View, Text, StyleSheet, ScrollView, TouchableOpacity, Modal, Pressable } from 'react-native';
 import React, { useEffect, useMemo, useState } from 'react';
 import { useSavedWorkoutsStore } from '@/store/savedWorkouts';
 import { useExerciseCatalogStore } from '@/store/exerciseCatalog';
@@ -117,6 +117,11 @@ export default function SearchScreen() {
   }, [availableSeededExercises, savedExercises, customExercises]);
 
   const detailWorkout = detailWorkoutId ? workoutById.get(detailWorkoutId) : null;
+  const selectedDateKey = toLocalDateKey(selectedDate);
+  const selectedDateAssignedWorkoutId = schedule[selectedDateKey] ?? null;
+  const selectedDateAssignedWorkout = selectedDateAssignedWorkoutId
+    ? workoutById.get(selectedDateAssignedWorkoutId)
+    : null;
   const weekRange = useMemo(() => getWeekRange(selectedDate), [selectedDate]);
   const weekDates = useMemo(
     () =>
@@ -291,16 +296,15 @@ export default function SearchScreen() {
                       <Text style={[styles.assignButtonLabel, styles.assignButtonLabelLeft]} numberOfLines={2}>
                         {assignedWorkout.name}
                       </Text>
+                      <Text style={styles.dayMetaText}>{assignedWorkout.exercises.length} exercises</Text>
                     </TouchableOpacity>
 
-                    <TouchableOpacity
-                      style={styles.editButtonInline}
-                      onPress={() => {
-                        setAssignmentDateKey(dateKey);
-                        setAssignmentDateLabel(dayLabel);
-                      }}>
-                      <Text style={styles.editButtonInlineText}>Edit</Text>
-                    </TouchableOpacity>
+                    <Pressable
+                      style={({ pressed }) => [styles.dayArrowContainer, pressed && styles.dayArrowContainerPressed]}
+                      onPress={() => setDetailWorkoutId(assignedWorkoutId)}>
+                      <Text style={styles.dayArrowLabel}>Start</Text>
+                      <Ionicons name="chevron-forward" size={16} color="#fff" />
+                    </Pressable>
                   </View>
 
                   <View style={styles.headerDivider} />
@@ -341,16 +345,52 @@ export default function SearchScreen() {
                       </View>
                     </View>
                   </TouchableOpacity>
+
+                  <View style={styles.dayFooterRow}>
+                    <TouchableOpacity
+                      style={styles.editButtonInline}
+                      onPress={() => {
+                        setAssignmentDateKey(dateKey);
+                        setAssignmentDateLabel(dayLabel);
+                      }}>
+                      <Text style={styles.editButtonInlineText}>Plan</Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity
+                      style={styles.clearInlineButton}
+                      onPress={() =>
+                        Alert.alert('Clear assignment?', `Remove workout from ${dayLabel}?`, [
+                          { text: 'Cancel', style: 'cancel' },
+                          {
+                            text: 'Clear',
+                            style: 'destructive',
+                            onPress: () => clearDateAssignment(dateKey),
+                          },
+                        ])
+                      }>
+                      <Text style={styles.clearInlineButtonText}>Clear</Text>
+                    </TouchableOpacity>
+                  </View>
                 </View>
               ) : (
-                <TouchableOpacity
-                  style={[styles.assignButton, styles.assignButtonNoHorizontalInset]}
-                  onPress={() => {
-                    setAssignmentDateKey(dateKey);
-                    setAssignmentDateLabel(dayLabel);
-                  }}>
-                  <Text style={styles.assignButtonLabel}>Tap to assign workout</Text>
-                </TouchableOpacity>
+                <View style={[styles.assignButton, styles.assignButtonNoHorizontalInset]}>
+                  <TouchableOpacity
+                    style={styles.assignButtonBody}
+                    onPress={() => {
+                      setAssignmentDateKey(dateKey);
+                      setAssignmentDateLabel(dayLabel);
+                    }}>
+                    <Text style={styles.assignButtonLabel}>No workout assigned</Text>
+                  </TouchableOpacity>
+                  <Pressable
+                    style={({ pressed }) => [styles.dayArrowContainer, pressed && styles.dayArrowContainerPressed]}
+                    onPress={() => {
+                      setAssignmentDateKey(dateKey);
+                      setAssignmentDateLabel(dayLabel);
+                    }}>
+                    <Text style={styles.dayArrowLabel}>Plan</Text>
+                    <Ionicons name="chevron-forward" size={16} color="#fff" />
+                  </Pressable>
+                </View>
               )}
             </View>
           );
@@ -414,6 +454,8 @@ export default function SearchScreen() {
                   cellDate.getFullYear() === selectedDate.getFullYear() &&
                   cellDate.getMonth() === selectedDate.getMonth() &&
                   cellDate.getDate() === selectedDate.getDate();
+                const cellDateKey = toLocalDateKey(cellDate);
+                const hasAssigned = Boolean(schedule[cellDateKey]);
 
                 return (
                   <TouchableOpacity
@@ -421,16 +463,34 @@ export default function SearchScreen() {
                     style={[styles.calendarDayCell, isSelected && styles.calendarDayCellSelected]}
                     onPress={() => {
                       setSelectedDate(cellDate);
-                      setIsCalendarOpen(false);
                     }}>
                     <Text
                       style={[styles.calendarDayText, isSelected && styles.calendarDayTextSelected]}>
                       {dayNumber}
                     </Text>
+                    {hasAssigned ? <View style={styles.calendarAssignedDot} /> : null}
                   </TouchableOpacity>
                 );
               })}
             </View>
+
+            {selectedDateAssignedWorkout ? (
+              <Pressable
+                style={({ pressed }) => [styles.calendarAssignedCta, pressed && styles.dayArrowContainerPressed]}
+                onPress={() => {
+                  setDetailWorkoutId(selectedDateAssignedWorkoutId);
+                  setIsCalendarOpen(false);
+                }}>
+                <View style={{ flex: 1 }}>
+                  <Text style={styles.calendarAssignedTitle}>{selectedDateAssignedWorkout.name}</Text>
+                  <Text style={styles.calendarAssignedSubtitle}>Assigned workout</Text>
+                </View>
+                <View style={styles.calendarAssignedArrow}>
+                  <Text style={styles.dayArrowLabel}>Start</Text>
+                  <Ionicons name="chevron-forward" size={16} color="#fff" />
+                </View>
+              </Pressable>
+            ) : null}
 
             <TouchableOpacity style={styles.closeButton} onPress={() => setIsCalendarOpen(false)}>
               <Text style={styles.closeButtonText}>Cancel</Text>
@@ -652,11 +712,18 @@ const styles = StyleSheet.create({
     minHeight: 88,
     borderWidth: 1,
     borderColor: '#444',
-    borderRadius: 8,
+    borderRadius: 12,
     justifyContent: 'center',
     alignItems: 'center',
-    paddingHorizontal: 12,
+    paddingHorizontal: 10,
     backgroundColor: '#111',
+    flexDirection: 'row',
+    gap: 10,
+  },
+  assignButtonBody: {
+    flex: 1,
+    minHeight: 64,
+    justifyContent: 'center',
   },
   assignButtonNoHorizontalInset: {
     marginHorizontal: -12,
@@ -666,11 +733,12 @@ const styles = StyleSheet.create({
     justifyContent: 'flex-start',
   },
   assignedHeaderRow: {
-    height: 28,
+    minHeight: 38,
     flexDirection: 'row',
     alignItems: 'center',
-    width: '80%',
+    width: '100%',
     alignSelf: 'center',
+    gap: 8,
   },
   assignedTitleContainer: {
     flex: 1,
@@ -690,6 +758,32 @@ const styles = StyleSheet.create({
     fontSize: 15,
     lineHeight: 18,
     fontWeight: '600',
+  },
+  dayMetaText: {
+    color: '#8fcf9f',
+    fontSize: 12,
+    marginTop: 2,
+    fontWeight: '600',
+  },
+  dayArrowContainer: {
+    minWidth: 74,
+    borderRadius: 14,
+    backgroundColor: '#1f8f4a',
+    borderWidth: 1,
+    borderColor: '#2CD66F',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 8,
+    paddingHorizontal: 8,
+  },
+  dayArrowContainerPressed: {
+    transform: [{ scale: 0.97 }],
+  },
+  dayArrowLabel: {
+    color: '#fff',
+    fontSize: 12,
+    fontWeight: '700',
+    marginBottom: 2,
   },
   headerDivider: {
     width: '80%',
@@ -716,6 +810,25 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontWeight: '700',
     lineHeight: 14,
+  },
+  dayFooterRow: {
+    marginTop: 8,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  clearInlineButton: {
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#c95050',
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    backgroundColor: '#2a1111',
+  },
+  clearInlineButtonText: {
+    color: '#ff9a9a',
+    fontSize: 12,
+    fontWeight: '700',
   },
   exerciseListBox: {
     flex: 1,
@@ -839,6 +952,44 @@ const styles = StyleSheet.create({
   calendarDayTextSelected: {
     color: '#000',
     fontWeight: '700',
+  },
+  calendarAssignedDot: {
+    position: 'absolute',
+    bottom: 6,
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+    backgroundColor: '#2CD66F',
+  },
+  calendarAssignedCta: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    backgroundColor: '#111',
+    borderWidth: 1,
+    borderColor: '#2CD66F44',
+    borderRadius: 12,
+    padding: 10,
+    marginBottom: 10,
+  },
+  calendarAssignedTitle: {
+    color: '#fff',
+    fontSize: 14,
+    fontWeight: '700',
+  },
+  calendarAssignedSubtitle: {
+    color: '#9aa0a6',
+    fontSize: 12,
+  },
+  calendarAssignedArrow: {
+    minWidth: 68,
+    borderRadius: 12,
+    backgroundColor: '#1f8f4a',
+    borderWidth: 1,
+    borderColor: '#2CD66F',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 6,
   },
   workoutModalHeader: {
     flexDirection: 'row',

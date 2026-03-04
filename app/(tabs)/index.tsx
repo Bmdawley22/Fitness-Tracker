@@ -6,6 +6,8 @@ import { useExerciseCatalogStore } from '@/store/exerciseCatalog';
 import { useAuthStore } from '@/store/auth';
 import { CreateFlowHandle, CreateFlowModals } from './add';
 import { HeroDashboard } from '@/src/features/dashboard/components/HeroDashboard';
+import { toLocalDateKey, useScheduleStore } from '@/store/schedule';
+import { Ionicons } from '@expo/vector-icons';
 
 type FilterType = 'all' | 'workouts' | 'exercises';
 
@@ -54,6 +56,7 @@ export default function HomeScreen() {
   const createFlowRef = useRef<CreateFlowHandle>(null);
   const signOut = useAuthStore(state => state.signOut);
   const router = useRouter();
+  const { schedule } = useScheduleStore();
 
   useEffect(() => {
     if (catalogHydrated) {
@@ -301,6 +304,13 @@ export default function HomeScreen() {
     [savedWorkouts]
   );
 
+  const todayDateKey = toLocalDateKey(new Date());
+  const scheduledWorkoutForToday = useMemo(() => {
+    const todayWorkoutId = schedule[todayDateKey];
+    if (!todayWorkoutId) return null;
+    return savedWorkouts.find(workout => workout.id === todayWorkoutId) ?? null;
+  }, [schedule, savedWorkouts, todayDateKey]);
+
   return (
     <View style={styles.container}>
       <View style={styles.headerRow}>
@@ -319,6 +329,21 @@ export default function HomeScreen() {
           onLogWorkout={() => router.push('/(tabs)/add')}
         />
       </View>
+
+      {scheduledWorkoutForToday ? (
+        <View style={styles.scheduledTodayCard}>
+          <View style={{ flex: 1 }}>
+            <Text style={styles.scheduledTodayLabel}>Scheduled for today</Text>
+            <Text style={styles.scheduledTodayTitle}>{scheduledWorkoutForToday.name}</Text>
+          </View>
+          <Pressable
+            style={({ pressed }) => [styles.scheduledArrowContainer, pressed && styles.scheduledArrowContainerPressed]}
+            onPress={() => router.push('/(tabs)/add')}>
+            <Text style={styles.scheduledArrowText}>Start</Text>
+            <Ionicons name="chevron-forward" size={16} color="#fff" />
+          </Pressable>
+        </View>
+      ) : null}
 
       {/* Filter Buttons */}
       <View style={styles.filterContainer}>
@@ -750,6 +775,48 @@ const styles = StyleSheet.create({
   dashboardContainer: {
     paddingHorizontal: 16,
     marginBottom: 16,
+  },
+  scheduledTodayCard: {
+    marginHorizontal: 16,
+    marginBottom: 14,
+    backgroundColor: '#111',
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: '#2CD66F44',
+    padding: 12,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+  },
+  scheduledTodayLabel: {
+    color: '#9aa0a6',
+    fontSize: 12,
+    fontWeight: '600',
+  },
+  scheduledTodayTitle: {
+    color: '#fff',
+    fontSize: 16,
+    fontWeight: '700',
+    marginTop: 2,
+  },
+  scheduledArrowContainer: {
+    minWidth: 72,
+    borderRadius: 14,
+    backgroundColor: '#1f8f4a',
+    borderWidth: 1,
+    borderColor: '#2CD66F',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 8,
+  },
+  scheduledArrowContainerPressed: {
+    transform: [{ scale: 0.97 }],
+  },
+  scheduledArrowText: {
+    color: '#fff',
+    fontSize: 12,
+    fontWeight: '700',
+    marginBottom: 2,
   },
   filterContainer: {
     flexDirection: 'row',
