@@ -4,7 +4,9 @@ export type DashboardTelemetryEvent = {
   eventType: 
     | 'hero_dashboard_view'
     | 'widget_rendered'
+    | 'hero_widget_rendered'
     | 'quick_action_tap'
+    | 'hero_cta_click'
     | 'suggestion_accepted'
     | 'suggestion_dismissed'
     | 'widget_interaction';

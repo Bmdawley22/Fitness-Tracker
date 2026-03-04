@@ -1,42 +1,41 @@
 import React from 'react';
 import { View, Text, StyleSheet } from 'react-native';
+import type { StreakStatus } from '../../types/DashboardContext';
 
 type StreakBadgeWidgetProps = {
   streakDays: number;
-  variant: 'active' | 'warning';
+  streakStatus?: StreakStatus;
+  variant?: 'active' | 'warning';
 };
 
-export function StreakBadgeWidget({ streakDays, variant }: StreakBadgeWidgetProps) {
-  const accentColor = variant === 'active' ? '#2CD66F' : '#FF9500';
+export function StreakBadgeWidget({ streakDays, streakStatus, variant = 'active' }: StreakBadgeWidgetProps) {
+  const useWarning = streakStatus === 'atRisk' || variant === 'warning';
+  const accentColor = useWarning ? '#FFB020' : '#2CD66F';
 
   return (
-    <View style={[styles.container, { borderColor: accentColor }]}>
+    <View style={[styles.container, { borderColor: accentColor }]} accessibilityLabel="Streak widget" accessibilityRole="text">
       <Text style={styles.emoji}>🔥</Text>
-      <Text style={[styles.text, { color: accentColor }]}>
-        {streakDays} Day{streakDays === 1 ? '' : 's'} Streak!
-      </Text>
+      <View>
+        <Text style={[styles.text, { color: accentColor }]}>{streakDays} day streak</Text>
+        <Text style={styles.subtext}>{useWarning ? 'Keep it alive today' : 'Momentum is strong'}</Text>
+      </View>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
-    height: 80,
+    minHeight: 88,
     backgroundColor: '#111',
-    borderRadius: 12,
+    borderRadius: 14,
     borderWidth: 2,
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'center',
-    gap: 8,
+    gap: 10,
     paddingHorizontal: 16,
+    paddingVertical: 12,
   },
-  emoji: {
-    fontSize: 32,
-  },
-  text: {
-    fontSize: 20,
-    color: '#fff',
-    fontWeight: '700',
-  },
+  emoji: { fontSize: 28 },
+  text: { fontSize: 18, fontWeight: '700' },
+  subtext: { color: '#b5bcc4', fontSize: 12, fontWeight: '600' },
 });

@@ -1,39 +1,73 @@
-// AdaptiveLayoutEngine.ts - Select widgets based on dashboard context
+import type { DashboardContext, HeroDashboardContext, WidgetLayout, WidgetType } from '../types/DashboardContext';
 
-import type { DashboardContext, WidgetLayout, WidgetType } from '../types/DashboardContext';
+export type QuickActionId = 'resume_last_routine' | 'start_suggested' | 'log_workout' | 'view_routine_summary';
 
-/**
- * Adaptive Layout Engine - Selects widgets based on user context.
- * 
- * Rules:
- * 1. If streakDays >= 3 AND daysSinceLastWorkout === 0:
- *    → Show StreakBadgeWidget (variant: 'active')
- * 2. If timeSlot === 'morning' AND user has workout history:
- *    → Show SuggestedWorkoutWidget
- * 3. Always include QuickLogWidget
- * 
- * Widget priority order: StreakBadge (top) → SuggestedWorkout → QuickLog (bottom)
- */
+export type QuickActionDescriptor = {
+  actionId: QuickActionId;
+  label: string;
+  target: string;
+};
+
+export type AdaptiveLayout = {
+  widgets: WidgetType[];
+  subtitle: string;
+  primaryAction: QuickActionDescriptor;
+  secondaryAction: QuickActionDescriptor;
+};
+
 export class AdaptiveLayoutEngine {
+  // Legacy API support for Step 1 scaffolding.
   static computeLayout(context: DashboardContext, hasWorkoutHistory: boolean): WidgetLayout {
     const widgets: WidgetType[] = [];
-
-    const { timeSlot, patterns } = context;
-    const { streakDays, daysSinceLastWorkout } = patterns;
-
-    // Rule 1: Show streak badge if active streak (≥3 days and worked out today)
-    if (streakDays >= 3 && daysSinceLastWorkout === 0) {
-      widgets.push('streak');
-    }
-
-    // Rule 2: Show suggested workout in morning if user has workout history
-    if (timeSlot === 'morning' && hasWorkoutHistory) {
-      widgets.push('suggested');
-    }
-
-    // Rule 3: Always show quick log widget
+    if (context.patterns.streakDays >= 3 && context.patterns.daysSinceLastWorkout === 0) widgets.push('streak');
+    if (context.timeSlot === 'morning' && hasWorkoutHistory) widgets.push('suggested');
     widgets.push('quickLog');
-
     return { widgets };
+  }
+
+  static buildLayout(context: HeroDashboardContext): AdaptiveLayout {
+    const widgets: WidgetType[] = ['quickLog'];
+
+    if (context.streakStatus === 'atRisk') {
+      widgets.unshift('streak');
+      widgets.splice(1, 0, 'suggested');
+    } else {
+      widgets.unshift('suggested');
+      widgets.splice(1, 0, 'streak');
+    }
+
+    const subtitle = context.isRestDay
+      ? 'Rest day — recover and plan the next session.'
+      : context.streakStatus === 'atRisk'
+      ? 'Streak at risk — lock in today to keep momentum.'
+      : context.period === 'morning'
+      ? 'Morning momentum — prime your day with movement.'
+      : 'Stay consistent — pick up where you left off.';
+
+    const primaryAction: QuickActionDescriptor = context.routineSignal
+      ? {
+          actionId: context.isRestDay ? 'resume_last_routine' : 'start_suggested',
+          label: context.isRestDay ? 'Resume routine' : 'Start suggested',
+          target: '/(tabs)/workouts',
+        }
+      : {
+          actionId: 'log_workout',
+          label: 'Log workout',
+          target: '/(tabs)/add',
+        };
+
+    const secondaryAction: QuickActionDescriptor = context.routineSignal
+      ? {
+          actionId: 'view_routine_summary',
+          label: 'View routine summary',
+          target: '/(tabs)/workouts',
+        }
+      : {
+          actionId: 'resume_last_routine',
+          label: 'Browse saved routines',
+          target: '/(tabs)/workouts',
+        };
+
+    return { widgets, subtitle, primaryAction, secondaryAction };
   }
 }
