@@ -1,4 +1,4 @@
-import rawExercises from '@/vendor/free-exercise-db/exercises.json';
+import rawExercises from '../vendor/free-exercise-db/exercises.json';
 
 export type SeededExercise = {
   id: string;

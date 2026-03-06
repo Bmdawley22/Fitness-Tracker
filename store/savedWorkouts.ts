@@ -1,7 +1,7 @@
 import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { useScheduleStore } from '@/store/schedule';
+import { useScheduleStore } from './schedule';
 
 const MAX_EXERCISES = 12;
 

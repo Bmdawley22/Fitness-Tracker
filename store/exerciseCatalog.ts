@@ -1,7 +1,7 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
-import { FEDB_SEED_SOURCE, FEDB_SEED_VERSION, getFedbSeededExercises, SeededExercise } from '@/data/seededCatalog';
+import { FEDB_SEED_SOURCE, FEDB_SEED_VERSION, getFedbSeededExercises, SeededExercise } from '../data/seededCatalog';
 
 export type ExerciseCatalogState = {
   seededExercises: SeededExercise[];
