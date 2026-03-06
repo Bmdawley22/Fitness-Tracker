@@ -23,7 +23,7 @@ type RawFedbExercise = {
   secondaryMuscles?: string[];
 };
 
-export const FEDB_SEED_VERSION = 'fedb-v1-201';
+export const FEDB_SEED_VERSION = 'fedb-v1-200';
 export const FEDB_SEED_SOURCE = 'free-exercise-db';
 
 const SEED_ID_PREFIX = 'seed-fedb-';

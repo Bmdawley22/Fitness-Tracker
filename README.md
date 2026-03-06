@@ -1,50 +1,59 @@
-# Welcome to your Expo app 👋
+# Fitness Tracker
 
-This is an [Expo](https://expo.dev) project created with [`create-expo-app`](https://www.npmjs.com/package/create-expo-app).
+A local-first fitness app built with Expo Router + React Native.
 
-## Get started
+## What It Does
+- Local account signup/login.
+- Browse seeded exercises plus custom exercises.
+- Create and save workouts (up to 12 exercises per workout).
+- Schedule workouts by day in a weekly planner.
+- Track today's assigned workout.
+- Log sets (reps + weight) per exercise for each date.
+- Mark scheduled days complete.
 
+## Tech Stack
+- Expo / React Native / TypeScript
+- Expo Router (file-based navigation)
+- Zustand + AsyncStorage (persisted local state)
+
+## App Navigation
+- `Home` (`app/(tabs)/index.tsx`): browse exercises/workouts and quick-create flows.
+- `Saved` (`app/(tabs)/workouts.tsx`): manage saved workouts/exercises.
+- `Schedule` (`app/(tabs)/search.tsx`): assign workouts to dates.
+- `Today` (`app/(tabs)/add.tsx`): run today's workout and log sets.
+
+## Data Model (High-Level)
+- Seeded catalog: `store/exerciseCatalog.ts` + `data/seededCatalog.ts`
+- User library: `store/savedWorkouts.ts`
+- Schedule + completion + logs: `store/schedule.ts`
+- Auth/session: `store/auth.ts`
+
+## Development
 1. Install dependencies
-
-   ```bash
-   npm install
-   ```
-
-2. Start the app
-
-   ```bash
-   npx expo start
-   ```
-
-In the output, you'll find options to open the app in a
-
-- [development build](https://docs.expo.dev/develop/development-builds/introduction/)
-- [Android emulator](https://docs.expo.dev/workflow/android-studio-emulator/)
-- [iOS simulator](https://docs.expo.dev/workflow/ios-simulator/)
-- [Expo Go](https://expo.dev/go), a limited sandbox for trying out app development with Expo
-
-You can start developing by editing the files inside the **app** directory. This project uses [file-based routing](https://docs.expo.dev/router/introduction).
-
-## Get a fresh project
-
-When you're ready, run:
-
 ```bash
-npm run reset-project
+npm install
 ```
 
-This command will move the starter code to the **app-example** directory and create a blank **app** directory where you can start developing.
+2. Start Expo
+```bash
+npm start
+```
 
-## Learn more
+3. Platform targets
+```bash
+npm run ios
+npm run android
+npm run web
+```
 
-To learn more about developing your project with Expo, look at the following resources:
+4. Lint
+```bash
+npm run lint
+```
 
-- [Expo documentation](https://docs.expo.dev/): Learn fundamentals, or go into advanced topics with our [guides](https://docs.expo.dev/guides).
-- [Learn Expo tutorial](https://docs.expo.dev/tutorial/introduction/): Follow a step-by-step tutorial where you'll create a project that runs on Android, iOS, and the web.
-
-## Join the community
-
-Join our community of developers creating universal apps.
-
-- [Expo on GitHub](https://github.com/expo/expo): View our open source platform and contribute.
-- [Discord community](https://chat.expo.dev): Chat with Expo users and ask questions.
+## Documentation
+See the `Documentation/` folder:
+- `Documentation/00-Project-State-Analysis.md`
+- `Documentation/01-Component-Architecture.md`
+- `Documentation/02-Known-Issues-And-Next-Steps.md`
+- `Documentation/README.md`
