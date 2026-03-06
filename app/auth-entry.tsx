@@ -82,7 +82,7 @@ export default function AuthEntryScreen() {
     if (!trimmedUsername) {
       errors.username = 'Username is required.';
     } else if (trimmedUsername.length < 3 || trimmedUsername.length > 24) {
-      errors.username = 'Username must be 3–24 characters.';
+      errors.username = 'Username must be 3â€“24 characters.';
     } else if (!USERNAME_REGEX.test(trimmedUsername)) {
       errors.username = 'Username can only use letters, numbers, underscore, or period.';
     }
@@ -90,7 +90,7 @@ export default function AuthEntryScreen() {
     if (!signupPassword) {
       errors.password = 'Password is required.';
     } else if (signupPassword.length < 8 || signupPassword.length > 64) {
-      errors.password = 'Password must be 8–64 characters.';
+      errors.password = 'Password must be 8â€“64 characters.';
     } else if (!PASSWORD_UPPER_REGEX.test(signupPassword)) {
       errors.password = 'Password must include at least 1 uppercase letter.';
     } else if (!PASSWORD_LOWER_REGEX.test(signupPassword)) {
@@ -176,7 +176,7 @@ export default function AuthEntryScreen() {
         <View style={styles.centerBlock}>
           <Text style={styles.pageTitle}>Fitness-Tracker</Text>
           <Text style={styles.entryQuote}>
-            "We are what we repeatedly do. Excellence, then, is not an act, but a habit"
+            {'"We are what we repeatedly do. Excellence, then, is not an act, but a habit"'}
           </Text>
           <View style={styles.entryButtons}>
             <TouchableOpacity style={styles.entryButton} onPress={() => setMode('login')}>
@@ -312,7 +312,7 @@ export default function AuthEntryScreen() {
                     style={styles.input}
                   />
                   <Text style={styles.helperText}>
-                    Password must be 8–64 characters and include at least 1 uppercase letter, 1 lowercase letter, and 1 number.
+                    Password must be 8â€“64 characters and include at least 1 uppercase letter, 1 lowercase letter, and 1 number.
                   </Text>
                   {signupErrors.password ? <Text style={styles.errorText}>{signupErrors.password}</Text> : null}
                 </View>
@@ -476,3 +476,4 @@ const styles = StyleSheet.create({
     textDecorationLine: 'underline',
   },
 });
+
